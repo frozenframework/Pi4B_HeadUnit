@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Navigation</title>
+<link rel="stylesheet" href="../lib/maplibre-gl.css">
+<link rel="stylesheet" href="../common/hu.css">
+<link rel="stylesheet" href="nav.css">
+</head>
+<body data-app="nav">
+<div id="map"></div>
+<div id="nightveil" class="hidden"></div>
+
+<!-- turn-by-turn panel (left) -->
+<section id="guide" class="panel hidden">
+  <div class="man">
+    <div id="manIcon"></div>
+    <div>
+      <div id="manDist" class="glow"></div>
+      <div id="manText"></div>
+    </div>
+  </div>
+  <div id="thenRow" class="muted"></div>
+  <div class="eta">
+    <div><div id="etaTime" class="accent"></div><div class="lbl">arrival</div></div>
+    <div><div id="etaLeft"></div><div class="lbl">remaining</div></div>
+    <div><div id="etaDist"></div><div class="lbl">distance</div></div>
+  </div>
+  <button id="endBtn" data-log="nav_end">End route</button>
+</section>
+
+<!-- speed + street (bottom left when not navigating) -->
+<div id="speedo" class="panel"><span id="speed">--</span><small id="speedUnit">mph</small></div>
+<div id="street" class="panel hidden"></div>
+
+<!-- right-side buttons -->
+<nav id="fabs">
+  <button id="searchBtn" data-log="open_search" aria-label="Search"></button>
+  <button id="favBtn" data-log="open_favorites" aria-label="Favorites"></button>
+  <button id="centerBtn" data-log="recenter" aria-label="Recenter"></button>
+  <button id="themeBtn" data-log="open_theme" aria-label="Map skin"></button>
+</nav>
+
+<!-- destination sheet (after long-press) -->
+<section id="destSheet" class="panel hidden">
+  <div><div id="destName"></div><div id="destSub" class="muted"></div></div>
+  <div class="row">
+    <button id="destFav" class="ghost" data-log="dest_fav" aria-label="Save favorite"></button>
+    <button id="destCancel" class="ghost" data-log="dest_cancel">Cancel</button>
+    <button id="destGo" class="primary" data-log="dest_go">Go</button>
+  </div>
+</section>
+
+<!-- search -->
+<section id="searchPanel" class="sheet panel hidden">
+  <div class="sheetHead row">
+    <button class="ghost closeBtn" data-log="close_search" aria-label="Close"></button>
+    <div id="searchBox"><span id="searchText"></span><span class="caret"></span></div>
+  </div>
+  <div class="split">
+    <div id="results" class="list"></div>
+    <div id="kbd"></div>
+  </div>
+</section>
+
+<!-- favorites -->
+<section id="favPanel" class="sheet panel hidden">
+  <div class="sheetHead row"><button class="ghost closeBtn" data-log="close_fav" aria-label="Close"></button><h2>Favorites</h2></div>
+  <div id="favList" class="list"></div>
+</section>
+
+<!-- skin picker -->
+<section id="themePanel" class="sheet panel hidden">
+  <div class="sheetHead row"><button class="ghost closeBtn" data-log="close_theme" aria-label="Close"></button><h2>Map skin</h2>
+    <a id="moreSettings" href="../theme/index.html" data-log="more_settings">More settings</a></div>
+  <div id="themeCards"></div>
+</section>
+
+<div id="nomaps" class="panel hidden">
+  <h2>Offline maps aren't installed yet</h2>
+  <p>Connect to Wi-Fi and run <b>Update maps</b> in Settings, or plug in a USB stick with a <b>HEADUNIT_MAPS</b> folder.</p>
+</div>
+<script type="module" src="nav.js"></script>
+</body>
+</html>

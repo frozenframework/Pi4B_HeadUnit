@@ -1,0 +1,11 @@
+[Unit]
+Description=Head unit ignition / power manager
+After=local-fs.target
+
+[Service]
+ExecStart=/usr/bin/python3 /opt/headunit/bin/hu-power.py
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>Head Unit Settings</title><link rel="stylesheet" href="../common/hu.css"><link rel="stylesheet" href="theme.css"></head>
+<body data-app="theme">
+<nav id="side" class="panel">
+  <button data-page="skins" data-log="pg_skins">Map skin</button>
+  <button data-page="drive" data-log="pg_drive">Driving</button>
+  <button data-page="maps" data-log="pg_maps">Maps</button>
+  <button data-page="about" data-log="pg_about">Test data</button>
+</nav>
+<main class="panel">
+  <section id="skins" class="page"><div id="cards"></div></section>
+  <section id="drive" class="page hidden">
+    <div class="opt"><div><b>Voice directions</b><div class="sub">Spoken turn prompts</div></div><button id="voice" class="sw"></button></div>
+    <div class="opt"><div><b>Units</b><div class="sub">Distances and speed</div></div><button id="units" class="sw"></button></div>
+    <div class="opt"><div><b>Dim light skins at night</b><div class="sub">Uses the dash-light wire</div></div><button id="nightAuto" class="sw"></button></div>
+    <div class="opt"><div><b>Match Hudiy colors to the skin</b><div class="sub">Hudiy restarts for a few seconds</div></div><button id="syncHudiyColors" class="sw"></button></div>
+  </section>
+  <section id="maps" class="page hidden">
+    <div id="mapInfo" class="info"></div>
+    <div class="row"><button id="update" class="primary" data-log="maps_update">Update maps now (Wi-Fi)</button><span id="upd" class="muted"></span></div>
+    <p class="muted small">Map display data downloads straight to the head unit. Routing and search come from a USB stick with a <b>HEADUNIT_MAPS</b> folder (made on your computer with <b>maps/build-routing.py</b>). It imports by itself when you plug the stick in.</p>
+  </section>
+  <section id="about" class="page hidden">
+    <div id="logInfo" class="info"></div>
+    <p class="muted small">Every tap, route, skin change, map frame rate and error is logged on the head unit. To collect it, plug in a USB stick named <b>HUEXPORT</b>: the logs copy onto it automatically. Send them to me after test drives and I'll tune the layout and performance.</p>
+  </section>
+</main>
+<script type="module" src="theme.js"></script>
+</body></html>

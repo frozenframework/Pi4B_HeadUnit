@@ -1,0 +1,21 @@
+{
+  "name": "headunit-tools",
+  "private": true,
+  "type": "module",
+  "description": "Build-time tools: map styles, glyphs, web libraries. Not needed on the Pi.",
+  "scripts": {
+    "build": "node gen-fonts.mjs && node gen-styles.mjs && python3 gen-sprites.py && node copy-libs.mjs"
+  },
+  "dependencies": {
+    "@fontsource/barlow-condensed": "^5.2.0",
+    "@fontsource/exo-2": "^5.2.0",
+    "@fontsource/orbitron": "^5.2.0",
+    "@fontsource/rajdhani": "^5.2.0",
+    "@fontsource/saira-condensed": "^5.2.0",
+    "@protomaps/basemaps": "5.7.2",
+    "esbuild": "0.25.0",
+    "maplibre-font-maker-node": "0.5.0",
+    "maplibre-gl": "6.16.0",
+    "pmtiles": "4.5.0"
+  }
+}

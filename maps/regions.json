@@ -1,0 +1,21 @@
+{
+  "_comment": "bbox = [west, south, east, north]. geofabrik = state/country extracts used for routing + search.",
+  "texas-plus": {
+    "name": "Texas + Louisiana, Oklahoma, New Mexico, Arkansas",
+    "bbox": [-109.06, 25.80, -88.80, 37.01],
+    "geofabrik": ["north-america/us/texas", "north-america/us/louisiana", "north-america/us/oklahoma", "north-america/us/new-mexico", "north-america/us/arkansas"],
+    "maxzoom": 15
+  },
+  "texas": {
+    "name": "Texas only",
+    "bbox": [-106.65, 25.83, -93.50, 36.51],
+    "geofabrik": ["north-america/us/texas"],
+    "maxzoom": 15
+  },
+  "us": {
+    "name": "United States (all 50 states)",
+    "bbox": [-179.9, 18.8, -66.9, 71.5],
+    "geofabrik": ["north-america/us"],
+    "maxzoom": 14
+  }
+}

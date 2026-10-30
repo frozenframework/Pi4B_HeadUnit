@@ -1,0 +1,39 @@
+/* Shared look for all head-unit apps. Colors come from the active theme (set by hu.js). */
+@font-face { font-family: "Rajdhani"; font-weight: 500; src: url(../lib/fonts/rajdhani-500.woff2) format("woff2"); }
+@font-face { font-family: "Rajdhani"; font-weight: 700; src: url(../lib/fonts/rajdhani-700.woff2) format("woff2"); }
+@font-face { font-family: "Barlow Condensed"; font-weight: 500; src: url(../lib/fonts/barlow-condensed-500.woff2) format("woff2"); }
+@font-face { font-family: "Barlow Condensed"; font-weight: 700; src: url(../lib/fonts/barlow-condensed-700.woff2) format("woff2"); }
+@font-face { font-family: "Saira Condensed"; font-weight: 500; src: url(../lib/fonts/saira-condensed-500.woff2) format("woff2"); }
+@font-face { font-family: "Saira Condensed"; font-weight: 700; src: url(../lib/fonts/saira-condensed-700.woff2) format("woff2"); }
+@font-face { font-family: "Exo 2"; font-weight: 500; src: url(../lib/fonts/exo-2-500.woff2) format("woff2"); }
+@font-face { font-family: "Exo 2"; font-weight: 700; src: url(../lib/fonts/exo-2-700.woff2) format("woff2"); }
+@font-face { font-family: "Orbitron"; font-weight: 600; src: url(../lib/fonts/orbitron-600.woff2) format("woff2"); }
+
+:root {
+  --bg: #07060d; --panel: #120f22; --text: #f5f7ff; --muted: #8b86b8;
+  --accent: #00f0ff; --accent2: #ff2fb3; --warn: #f5f749; --font: "Rajdhani";
+  --radius: 14px; --tap: 64px;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; user-select: none; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--text);
+  font-family: var(--font), system-ui, sans-serif; font-weight: 500; font-size: 22px; }
+button { font: inherit; color: inherit; background: var(--panel); border: 2px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-radius: var(--radius); min-height: var(--tap); min-width: var(--tap); padding: 0 18px; cursor: pointer; touch-action: manipulation; }
+button:active { transform: scale(0.96); border-color: var(--accent); }
+button.primary { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 700; }
+button.ghost { background: transparent; }
+.muted { color: var(--muted); }
+.accent { color: var(--accent); }
+.glow { text-shadow: 0 0 10px color-mix(in srgb, var(--accent) 70%, transparent); }
+.panel { background: color-mix(in srgb, var(--panel) 92%, transparent); border-radius: var(--radius);
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent); backdrop-filter: blur(6px); }
+.hidden { display: none !important; }
+.row { display: flex; align-items: center; gap: 12px; }
+.icon { width: 34px; height: 34px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.toast { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); padding: 12px 22px; z-index: 50; }
+.list { overflow-y: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.list::-webkit-scrollbar { display: none; }
+.item { min-height: 68px; display: flex; align-items: center; gap: 14px; padding: 8px 16px;
+  border-bottom: 1px solid color-mix(in srgb, var(--muted) 20%, transparent); }
+.item:active { background: color-mix(in srgb, var(--accent) 15%, transparent); }
+.item .sub { font-size: 17px; color: var(--muted); }

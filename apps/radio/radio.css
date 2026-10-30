@@ -1,0 +1,18 @@
+body { display: grid; grid-template-columns: 1fr 420px; gap: 10px; padding: 10px; }
+#tuner { padding: 14px 20px; display: flex; flex-direction: column; gap: 10px; }
+.bands button { width: 96px; font-weight: 700; }
+.bands button.on { background: var(--accent); color: var(--bg); }
+#state { margin-left: auto; font-size: 18px; }
+#freq { font-family: "Orbitron", var(--font); font-size: 92px; font-weight: 600; line-height: 1; color: var(--accent); text-align: center; }
+#freq small { font-size: 26px; margin-left: 10px; color: var(--muted); font-family: var(--font); }
+#dial { position: relative; height: 26px; border-radius: 6px; background:
+  repeating-linear-gradient(90deg, color-mix(in srgb, var(--muted) 60%, transparent) 0 2px, transparent 2px 24px); }
+#needle { position: absolute; top: -4px; bottom: -4px; width: 4px; background: var(--accent2); box-shadow: 0 0 12px var(--accent2); left: 50%; }
+.tune { justify-content: center; margin-top: auto; }
+.tune button { width: 96px; height: 76px; font-size: 36px; font-weight: 700; }
+#power { width: 160px; font-size: 26px; }
+#presets { padding: 12px; display: flex; flex-direction: column; }
+.hint { font-size: 16px; margin-bottom: 8px; }
+#pgrid { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+#pgrid button { font-size: 26px; font-weight: 700; }
+#pgrid button.empty { color: var(--muted); font-weight: 500; font-size: 20px; }

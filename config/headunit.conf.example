@@ -1,0 +1,26 @@
+# ---------------------------------------------------------------------------------------------
+# Head unit first-boot settings. This file lives on the SD card's boot partition
+# (the "bootfs" drive your Mac shows after flashing), in the folder "headunit".
+# Edit it on your computer BEFORE the first boot.
+# ---------------------------------------------------------------------------------------------
+
+# Which vehicle this card is for: f250 or miata
+VEHICLE=f250
+
+# Parts tier you built (1, 2 or 3). Tier 3 adds AM/FM radio and the CarPiHAT power board.
+TIER=2
+
+# Offline map region: texas-plus (TX, LA, OK, NM, AR), texas, or us
+MAP_REGION=texas-plus
+
+# Download the map display data on first boot (needs Wi-Fi; texas-plus is a few GB)
+MAPS_AUTO=1
+
+# Wi-Fi for first-boot setup. Leave empty if you already set Wi-Fi in Raspberry Pi Imager.
+WIFI_SSID=""
+WIFI_PSK=""
+WIFI_COUNTRY=US
+
+# Put the Hudiy installer you downloaded after buying the license into the "hudiy" folder
+# next to this file. First boot installs Hudiy first (on a clean OS, as Hudiy requires),
+# then the head-unit add-ons.

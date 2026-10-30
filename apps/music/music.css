@@ -1,0 +1,20 @@
+body { display: grid; grid-template-columns: 430px 1fr; gap: 10px; padding: 10px; }
+#now { padding: 16px 20px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+#src { font-size: 17px; }
+#title { font-size: 34px; font-weight: 700; line-height: 1.1; max-height: 76px; overflow: hidden; color: var(--accent); }
+#artist { font-size: 22px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#bar { height: 8px; background: color-mix(in srgb, var(--muted) 30%, transparent); border-radius: 4px; overflow: hidden; margin-top: auto; }
+#fill { height: 100%; width: 0; background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+#times { justify-content: space-between; font-size: 16px; }
+.ctl { justify-content: space-between; }
+.ctl button { width: 84px; height: 72px; padding: 0; display: grid; place-items: center; }
+#shuffle.on { border-color: var(--accent2); color: var(--accent2); }
+#browse { display: flex; flex-direction: column; min-height: 0; padding: 8px; }
+.tabs button { min-height: 56px; }
+.tabs button.on { border-color: var(--accent); color: var(--accent); }
+#back { width: 56px; padding: 0; display: grid; place-items: center; }
+#crumb { margin-left: 8px; font-size: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#list { flex: 1; margin-top: 6px; min-height: 0; }
+.item .n { width: 40px; color: var(--muted); text-align: right; }
+.item .t { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.playall { color: var(--accent); font-weight: 700; }

@@ -1,0 +1,10 @@
+[Unit]
+Description=Download/refresh offline map display data
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/headunit/bin/hu-update-maps.sh
+Nice=10
+IOSchedulingClass=idle

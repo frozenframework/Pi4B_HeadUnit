@@ -1,0 +1,11 @@
+# maplibre-font-maker-node manifest - regenerated automatically, do not edit
+tool: maplibre-font-maker-node
+toolVersion: 0.5.0
+fontstack: Saira Condensed Bold
+ranges: latin
+axes: {}
+fontSha256: eb1cf59a1f785a890ac30d69bb59fffef3989fef4e7a2ae2367c85e861077fda
+files:
+  0-255.pbf: 88074a0b464e72eb5b81c6972819c6d28e937cf0aaf4be08813a171172662e8a
+  256-511.pbf: 0b63e0822f80cd2fabd02c9f8118aae8493c4d9e74a7026c7a7d42a2af7dc0e8
+  512-767.pbf: 72bb7cdb61c0aadfb3fdd7b089dbbd7a2266194ec0d12fb531e1226792c234f8

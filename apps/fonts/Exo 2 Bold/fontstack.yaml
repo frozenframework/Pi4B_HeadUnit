@@ -1,0 +1,11 @@
+# maplibre-font-maker-node manifest - regenerated automatically, do not edit
+tool: maplibre-font-maker-node
+toolVersion: 0.5.0
+fontstack: Exo 2 Bold
+ranges: latin
+axes: {}
+fontSha256: 96c87b1597aed754e0ad45970883774e851a390788e7fba7b3f49f8d1f6e5a6b
+files:
+  0-255.pbf: 2df6976f634605cf6e812106b9df49d1372619e8ff614677e29e491d78c03cc5
+  256-511.pbf: ae167dce2af50186a767d9697b2ce24b20157ec685d10da7ae3012250b56c324
+  512-767.pbf: 57f87f3f698947959fc940db2931b4c8f9ce1e2279883e17b99c65f5b0f39f01

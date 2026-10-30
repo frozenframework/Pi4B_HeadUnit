@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>AM/FM Radio</title><link rel="stylesheet" href="../common/hu.css"><link rel="stylesheet" href="radio.css"></head>
+<body data-app="radio">
+<section id="tuner" class="panel">
+  <div class="row bands"><button data-band="FM" data-log="band_fm">FM</button><button data-band="AM" data-log="band_am">AM</button>
+    <span id="state" class="muted"></span></div>
+  <div id="freq" class="glow"><span id="fnum">101.1</span><small id="funit">MHz</small></div>
+  <div id="dial"><div id="needle"></div></div>
+  <div class="row tune">
+    <button id="dn2" data-log="tune_dn2">«</button><button id="dn" data-log="tune_dn">‹</button>
+    <button id="power" class="primary" data-log="radio_toggle">Play</button>
+    <button id="up" data-log="tune_up">›</button><button id="up2" data-log="tune_up2">»</button>
+  </div>
+</section>
+<section id="presets" class="panel">
+  <div class="muted hint">Tap to tune · hold 1 second to save</div>
+  <div id="pgrid"></div>
+</section>
+<script type="module" src="radio.js"></script>
+</body></html>

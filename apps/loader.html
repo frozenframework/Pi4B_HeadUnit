@@ -1,0 +1,13 @@
+<!doctype html>
+<!-- Hudiy opens this local file first; it waits for the head-unit service, then jumps to the app. -->
+<html><head><meta charset="utf-8"><style>
+html,body{margin:0;height:100%;background:#07060d;color:#8b86b8;font:24px system-ui;display:grid;place-items:center}
+</style></head><body><div id="m">Starting…</div><script>
+const to = new URLSearchParams(location.search).get('to') || 'nav';
+let n = 0;
+(function wait() {
+  fetch('http://127.0.0.1:8765/api/status', { mode: 'no-cors', cache: 'no-store' })  // file:// page -> opaque response is enough to know it's up
+    .then(() => location.replace(`http://127.0.0.1:8765/apps/${to}/index.html`))
+    .catch(() => { document.getElementById('m').textContent = n++ > 20 ? 'Head-unit service not responding. Try restarting.' : 'Starting…'; setTimeout(wait, 1000); });
+})();
+</script></body></html>

@@ -1,0 +1,8 @@
+# Head unit: mount USB drives and iPods ourselves (read-only), and keep the desktop file manager
+# from popping up windows over Hudiy.
+SUBSYSTEM!="block", GOTO="hu_end"
+ENV{ID_BUS}!="usb", GOTO="hu_end"
+ENV{ID_FS_USAGE}=="filesystem", ENV{UDISKS_IGNORE}="1"
+ACTION=="add", ENV{ID_FS_USAGE}=="filesystem", RUN+="/opt/headunit/bin/hu-automount.sh add %k"
+ACTION=="remove", RUN+="/opt/headunit/bin/hu-automount.sh remove %k"
+LABEL="hu_end"

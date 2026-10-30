@@ -1,0 +1,25 @@
+# Built images and caches
+out/
+*.img
+*.img.xz
+*.part
+
+# Map data (large; rebuilt from OpenStreetMap)
+HEADUNIT_MAPS/
+hu-maps-work/
+hu-maps/
+*.osm.pbf
+*.pmtiles
+valhalla_tiles.tar
+search.sqlite
+
+# Hudiy is commercial: never commit the installer or license files
+hudiy/
+*hudiy*install*
+
+# Tooling
+tools/node_modules/
+__pycache__/
+*.pyc
+.DS_Store
+.vscode/

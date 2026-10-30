@@ -1,0 +1,76 @@
+#!/usr/bin/env python3
+"""
+Ignition-aware power manager (runs as root).
+
+Key ON  -> optocoupler pulls ACC_GPIO low -> amp turns on after AMP_ON_DELAY (no turn-on pop).
+Key OFF -> amp off at once, then a SHUTDOWN_DELAY countdown. Key back on cancels it.
+          When the countdown ends: clean shutdown. The gpio-poweroff overlay drops the hold
+          relay only after the Pi has fully halted, which cuts power to everything.
+Safety:  it only "arms" after it has seen the key ON once since boot, so a Pi on the bench
+          (no ignition wire) never shuts itself down.
+"""
+import json, os, subprocess, sys, time
+from pathlib import Path
+
+def load_conf(path="/etc/headunit/headunit.conf"):
+    c = {}
+    for line in Path(path).read_text().splitlines() if Path(path).exists() else []:
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            k, v = line.split("=", 1); c[k.strip()] = v.strip().strip('"')
+    return c
+
+class PowerManager:
+    def __init__(self, conf, acc, illum=None, amp=None, shutdown=None, state_file=None, now=None):
+        self.delay = float(conf.get("SHUTDOWN_DELAY", 30)); self.amp_delay = float(conf.get("AMP_ON_DELAY", 6))
+        self.mode = conf.get("POWER_MODE", "diy")
+        self.acc, self.illum, self.amp = acc, illum, amp
+        self.shutdown = shutdown or (lambda: (subprocess.run(["sync"]), subprocess.run(["systemctl", "poweroff"])))
+        self.state_file = state_file
+        self.armed = False; self.off_since = None; self.on_since = None; self.done = False
+        self.boot = now if now is not None else time.monotonic()
+
+    def tick(self, now):
+        key = self.acc.is_active
+        if key:
+            self.armed = True; self.off_since = None
+            self.on_since = self.on_since if self.on_since is not None else now
+            if self.amp and not self.amp.value and now - self.on_since >= self.amp_delay and now - self.boot >= self.amp_delay:
+                self.amp.on(); print("amp on", flush=True)
+        else:
+            self.on_since = None
+            if self.amp and self.amp.value:
+                self.amp.off(); print("key off: amp off", flush=True)
+            if self.armed and not self.done:
+                self.off_since = self.off_since if self.off_since is not None else now
+                if now - self.off_since >= self.delay:
+                    self.done = True; print("key off long enough: shutting down", flush=True)
+                    self.write(key); self.shutdown()
+        self.write(key, now)
+
+    def write(self, key, now=None):
+        if not self.state_file: return
+        left = None if self.off_since is None or now is None else max(0, round(self.delay - (now - self.off_since)))
+        data = {"mode": self.mode, "acc": key, "illum": bool(self.illum and self.illum.is_active), "armed": self.armed, "shutdown_in": 0 if self.done else left}
+        tmp = self.state_file.with_suffix(".tmp"); tmp.write_text(json.dumps(data)); tmp.replace(self.state_file)
+        os.chmod(self.state_file, 0o644)
+
+def main():
+    C = load_conf()
+    state = Path("/run/headunit/state.json"); state.parent.mkdir(parents=True, exist_ok=True)
+    if C.get("POWER_MODE", "diy") == "none":
+        state.write_text(json.dumps({"mode": "none", "acc": True, "illum": False, "armed": False})); os.chmod(state, 0o644)
+        print("power management disabled (bench mode)"); return
+    from gpiozero import DigitalInputDevice, OutputDevice
+    acc = DigitalInputDevice(int(C.get("ACC_GPIO", 3)), pull_up=True, bounce_time=0.05)            # low = key on
+    illum = DigitalInputDevice(int(C["ILLUM_GPIO"]), pull_up=True, bounce_time=0.2) if C.get("ILLUM_GPIO") else None
+    amp = OutputDevice(int(C["AMP_GPIO"]), active_high=True, initial_value=False) if C.get("AMP_GPIO") else None
+    pm = PowerManager(C, acc, illum, amp, state_file=state)
+    print(f"power manager: mode={pm.mode} delay={pm.delay}s", flush=True)
+    while True:
+        pm.tick(time.monotonic())
+        if pm.done: time.sleep(60)
+        time.sleep(0.5)
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,11 @@
+# maplibre-font-maker-node manifest - regenerated automatically, do not edit
+tool: maplibre-font-maker-node
+toolVersion: 0.5.0
+fontstack: Rajdhani Bold
+ranges: latin
+axes: {}
+fontSha256: 5b7e4a6f97163c2636724d4de90304fc895653dcfe64c67a7a22f26331ca5c5f
+files:
+  0-255.pbf: 44ac66d76751e85312442a063d4e0af182a013747a51887098a147c3fdea6cc1
+  256-511.pbf: 0e6cc968ceb03418ca1591716b0de02cfb5bb21471ab4aac3f17e1126116bf93
+  512-767.pbf: 6952e1f4ade3d6a611b6e7178639e776d4eade74dba46cf18042591cbba585d1

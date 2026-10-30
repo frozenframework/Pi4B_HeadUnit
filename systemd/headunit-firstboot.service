@@ -1,0 +1,14 @@
+[Unit]
+Description=Head unit first-boot setup (Hudiy + add-ons)
+Wants=network-online.target
+After=network-online.target cloud-init.target
+ConditionPathExists=/boot/firmware/headunit/headunit.conf
+
+[Service]
+Type=oneshot
+ExecStart=/opt/headunit/bin/hu-firstboot.sh
+TimeoutStartSec=0
+StandardOutput=journal+console
+
+[Install]
+WantedBy=multi-user.target

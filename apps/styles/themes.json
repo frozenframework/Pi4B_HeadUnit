@@ -1,0 +1,106 @@
+[
+ {
+  "id": "neon-overdrive",
+  "name": "Neon Overdrive",
+  "dark": true,
+  "ui": {
+   "bg": "#07060d",
+   "panel": "#120f22",
+   "text": "#f5f7ff",
+   "muted": "#8b86b8",
+   "accent": "#00f0ff",
+   "accent2": "#ff2fb3",
+   "warn": "#f5f749"
+  },
+  "route": {
+   "color": "#f5f749",
+   "glow": "#f5f749",
+   "casing": "#3d3a00"
+  },
+  "vehicle": {
+   "fill": "#00f0ff",
+   "stroke": "#ff2fb3"
+  },
+  "font": "Rajdhani",
+  "inspiredBy": "cyberpunk neon night city",
+  "hudiyColor": "#00E5FF"
+ },
+ {
+  "id": "sunset-junction",
+  "name": "Sunset Junction",
+  "dark": false,
+  "ui": {
+   "bg": "#fff3dc",
+   "panel": "#ffffff",
+   "text": "#2b1d10",
+   "muted": "#8a6a48",
+   "accent": "#ff6a1a",
+   "accent2": "#1aa6b7",
+   "warn": "#e6007e"
+  },
+  "route": {
+   "color": "#e6007e",
+   "glow": "#ff7ac4",
+   "casing": "#5c0033"
+  },
+  "vehicle": {
+   "fill": "#e6007e",
+   "stroke": "#ffffff"
+  },
+  "font": "Barlow Condensed",
+  "inspiredBy": "sun-soaked open-world crash racer map",
+  "hudiyColor": "#FF6A1A"
+ },
+ {
+  "id": "street-heat",
+  "name": "Street Heat",
+  "dark": true,
+  "ui": {
+   "bg": "#0d0f12",
+   "panel": "#171a1f",
+   "text": "#eef1f4",
+   "muted": "#7d8794",
+   "accent": "#ff6b00",
+   "accent2": "#00b3ff",
+   "warn": "#ff2a2a"
+  },
+  "route": {
+   "color": "#00b3ff",
+   "glow": "#00b3ff",
+   "casing": "#002a3d"
+  },
+  "vehicle": {
+   "fill": "#00b3ff",
+   "stroke": "#ffffff"
+  },
+  "font": "Saira Condensed",
+  "inspiredBy": "high-contrast underground street-racing map",
+  "hudiyColor": "#FF6B00"
+ },
+ {
+  "id": "after-midnight",
+  "name": "After Midnight",
+  "dark": true,
+  "ui": {
+   "bg": "#050b1f",
+   "panel": "#0b1636",
+   "text": "#e6f0ff",
+   "muted": "#7f93c4",
+   "accent": "#39ff88",
+   "accent2": "#9fb8ff",
+   "warn": "#ffd166"
+  },
+  "route": {
+   "color": "#39ff88",
+   "glow": "#39ff88",
+   "casing": "#003d1c"
+  },
+  "vehicle": {
+   "fill": "#39ff88",
+   "stroke": "#e6f0ff"
+  },
+  "font": "Exo 2",
+  "inspiredBy": "deep-blue night-time city racer map",
+  "hudiyColor": "#39FF88"
+ }
+]

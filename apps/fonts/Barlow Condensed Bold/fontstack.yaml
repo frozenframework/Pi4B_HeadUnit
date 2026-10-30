@@ -1,0 +1,11 @@
+# maplibre-font-maker-node manifest - regenerated automatically, do not edit
+tool: maplibre-font-maker-node
+toolVersion: 0.5.0
+fontstack: Barlow Condensed Bold
+ranges: latin
+axes: {}
+fontSha256: 3787a5a419171630e6890cfa47c4da067474d005cd0ff8dc11ec090fdc3ee2b8
+files:
+  0-255.pbf: 9a255f75bb3a3c0f94e3732d822ce3132d6275c035c7ce5c536f722a66db373b
+  256-511.pbf: 40970ac7ce62a860fa2e4cd65b1ebd5fc69be0bb1880e0e65f3ff1b89add5ac5
+  512-767.pbf: f6c6ba6a7b13b119a2c7adc49cbb1f4eb2bb496470ba2274865be2448f2c1741

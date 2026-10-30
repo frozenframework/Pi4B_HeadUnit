@@ -1,0 +1,81 @@
+{
+  "_comment": "Original map skins. Each one is inspired by the mood of a driving game's map (colors, glow, contrast) without copying any game artwork, logos or fonts. Edit colors here, then run: node tools/gen-styles.mjs",
+  "themes": [
+    {
+      "id": "neon-overdrive",
+      "name": "Neon Overdrive",
+      "inspiredBy": "cyberpunk neon night city",
+      "dark": true,
+      "font": "Rajdhani",
+      "ui": {"bg": "#07060d", "panel": "#120f22", "text": "#f5f7ff", "muted": "#8b86b8", "accent": "#00f0ff", "accent2": "#ff2fb3", "warn": "#f5f749"},
+      "map": {
+        "background": "#07060d", "earth": "#0b0a14", "water": "#03182b", "park": "#0d1a1c", "wood": "#0c1719", "urban": "#0e0c19",
+        "industrial": "#120e1e", "buildings": "#1a1530", "pedestrian": "#14112a", "runway": "#1d1838", "sand": "#14121d",
+        "minor": "#3a2f70", "minor_casing": "#07060d", "link": "#b02a8c", "major": "#ff2fb3", "major_casing": "#3b0a2c",
+        "highway": "#00f0ff", "highway_casing": "#03343a", "rail": "#3a3360", "boundaries": "#5b4b9a",
+        "label": "#f5f749", "label_halo": "#07060d", "label_minor": "#b9b2ff", "city_label": "#ffffff", "water_label": "#2f9fd8"
+      },
+      "glow": {"highway": {"color": "#00f0ff", "width": 3.2, "blur": 7, "opacity": 0.55}, "major": {"color": "#ff2fb3", "width": 2.6, "blur": 6, "opacity": 0.45}},
+      "route": {"color": "#f5f749", "glow": "#f5f749", "casing": "#3d3a00"},
+      "vehicle": {"fill": "#00f0ff", "stroke": "#ff2fb3"},
+      "hudiyColor": "#00E5FF"
+    },
+    {
+      "id": "sunset-junction",
+      "name": "Sunset Junction",
+      "inspiredBy": "sun-soaked open-world crash racer map",
+      "dark": false,
+      "font": "Barlow Condensed",
+      "ui": {"bg": "#fff3dc", "panel": "#ffffff", "text": "#2b1d10", "muted": "#8a6a48", "accent": "#ff6a1a", "accent2": "#1aa6b7", "warn": "#e6007e"},
+      "map": {
+        "background": "#f6e7c8", "earth": "#f4e3c1", "water": "#47b8c8", "park": "#b6d987", "wood": "#9fcb72", "urban": "#f0dcb4",
+        "industrial": "#ead3ad", "buildings": "#e2c597", "pedestrian": "#f7ead2", "runway": "#d9c4a0", "sand": "#f3dca4",
+        "minor": "#ffffff", "minor_casing": "#d8bf93", "link": "#ffcf73", "major": "#ffb238", "major_casing": "#a7691c",
+        "highway": "#ff6a1a", "highway_casing": "#6b3410", "rail": "#b49b7a", "boundaries": "#b07fb8",
+        "label": "#3b2a1a", "label_halo": "#fff6e6", "label_minor": "#6b5238", "city_label": "#2b1d10", "water_label": "#0d6f80"
+      },
+      "glow": {"highway": {"color": "#ffd23f", "width": 2.2, "blur": 3, "opacity": 0.45}},
+      "route": {"color": "#e6007e", "glow": "#ff7ac4", "casing": "#5c0033"},
+      "vehicle": {"fill": "#e6007e", "stroke": "#ffffff"},
+      "hudiyColor": "#FF6A1A"
+    },
+    {
+      "id": "street-heat",
+      "name": "Street Heat",
+      "inspiredBy": "high-contrast underground street-racing map",
+      "dark": true,
+      "font": "Saira Condensed",
+      "ui": {"bg": "#0d0f12", "panel": "#171a1f", "text": "#eef1f4", "muted": "#7d8794", "accent": "#ff6b00", "accent2": "#00b3ff", "warn": "#ff2a2a"},
+      "map": {
+        "background": "#0d0f12", "earth": "#121519", "water": "#0a2333", "park": "#141c18", "wood": "#121a16", "urban": "#15181d",
+        "industrial": "#191b20", "buildings": "#1d2128", "pedestrian": "#181b21", "runway": "#22262e", "sand": "#1a1a17",
+        "minor": "#363c46", "minor_casing": "#0d0f12", "link": "#c24f00", "major": "#ff6b00", "major_casing": "#3d1900",
+        "highway": "#ff2a2a", "highway_casing": "#3d0606", "rail": "#3a3f48", "boundaries": "#5a6270",
+        "label": "#eef1f4", "label_halo": "#0d0f12", "label_minor": "#a9b2be", "city_label": "#ffffff", "water_label": "#3d8fb8"
+      },
+      "glow": {"highway": {"color": "#ff2a2a", "width": 2.4, "blur": 5, "opacity": 0.4}, "major": {"color": "#ff6b00", "width": 1.8, "blur": 4, "opacity": 0.3}},
+      "route": {"color": "#00b3ff", "glow": "#00b3ff", "casing": "#002a3d"},
+      "vehicle": {"fill": "#00b3ff", "stroke": "#ffffff"},
+      "hudiyColor": "#FF6B00"
+    },
+    {
+      "id": "after-midnight",
+      "name": "After Midnight",
+      "inspiredBy": "deep-blue night-time city racer map",
+      "dark": true,
+      "font": "Exo 2",
+      "ui": {"bg": "#050b1f", "panel": "#0b1636", "text": "#e6f0ff", "muted": "#7f93c4", "accent": "#39ff88", "accent2": "#9fb8ff", "warn": "#ffd166"},
+      "map": {
+        "background": "#050b1f", "earth": "#081233", "water": "#020617", "park": "#0a1a33", "wood": "#091830", "urban": "#0a153a",
+        "industrial": "#0c173d", "buildings": "#10215a", "pedestrian": "#0b1842", "runway": "#14245a", "sand": "#0d1638",
+        "minor": "#24366e", "minor_casing": "#050b1f", "link": "#6f88d6", "major": "#9fb8ff", "major_casing": "#13235a",
+        "highway": "#e6f0ff", "highway_casing": "#2a4aa8", "rail": "#1c2b5c", "boundaries": "#3e56a3",
+        "label": "#cfe0ff", "label_halo": "#050b1f", "label_minor": "#8ea6e0", "city_label": "#ffffff", "water_label": "#5a7bd8"
+      },
+      "glow": {"highway": {"color": "#5d8bff", "width": 3.0, "blur": 6, "opacity": 0.5}},
+      "route": {"color": "#39ff88", "glow": "#39ff88", "casing": "#003d1c"},
+      "vehicle": {"fill": "#39ff88", "stroke": "#e6f0ff"},
+      "hudiyColor": "#39FF88"
+    }
+  ]
+}
