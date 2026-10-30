@@ -29,7 +29,17 @@ Street Heat (underground street racing), After Midnight (deep-blue night city).
 ## 1. Install: pick one way
 
 ### A. Ready-to-flash image (recommended)
-On your Mac (with Docker Desktop installed):
+**No Docker needed:** download *Raspberry Pi OS (64-bit) with desktop* (`.img.xz`) into `out/cache/`, then:
+```bash
+python3 -m pip install pyfatfs
+python3 image/make-image.py --base out/cache/<raspios file>.img.xz --vehicle both [--hudiy <installer>]
+```
+This only edits the FAT boot partition: it copies this project to `bootfs/headunit/package` and adds a
+one-time `firstrun.sh` hook to `cmdline.txt`. On the first power-up that hook installs the package to
+`/opt/headunit`, enables the first-boot service, removes itself, and reboots. The Pi then reboots
+once more when setup finishes.
+
+**Or with Docker Desktop** (edits the Linux partition directly):
 ```bash
 ./image/build-image.sh --vehicle both --hudiy ~/Downloads/<the Hudiy installer from your email>
 ```
