@@ -12,7 +12,7 @@ Parts lists (with links and wiring pinouts):
 |---|---|---|---|
 | 1997 Ford F-250 7.3L (crew cab) | `f250` | Waveshare 7.9" 1280×400 over the single-DIN opening | 60 s key-off delay for the diesel |
 | 1997 Mazda Miata | `miata` | Waveshare 7.9" 1280×400 over the single-DIN opening | 2 speakers, power antenna |
-| 2017 Nissan Frontier | `frontier` | 7" 1024×600 (900-nit Orient Display) or Raspberry Pi Touch Display 2, double-DIN | **factory backup camera** |
+| 2017 Nissan Frontier SV | `frontier` | 7" 1024×600 900-nit Orient Display, double-DIN | **factory backup camera**, steering-wheel controls |
 
 All run on a Raspberry Pi 4B (4 GB).
 
@@ -82,6 +82,7 @@ sudo ./setup.sh --vehicle f250 --tier 2          # or: --vehicle miata, --tier 1
 | `70-radio` | RTL-SDR (tier 3 only) |
 | `80-nav` | data folders, bridge service, map updater, a two-line sudoers rule |
 | `75-camera` | backup camera (Frontier): v4l/GStreamer, `/dev/hu-rearcam` for the USB capture stick, set to NTSC |
+| `77-swc` | steering-wheel controls (Frontier): SPI on, `python3-spidev`, `headunit-swc` service |
 | `90-hudiy` | adds a **Drive** menu to Hudiy (Navigation, iPod & USB, AM/FM Radio, Head Unit Settings); Android Auto GPS → gpsd |
 
 Every stage can be run again safely: system files are only edited inside `# >>> headunit:` blocks.
@@ -147,6 +148,24 @@ Factory Nissan camera → Axxess AXBUCS-NI326V (powers the camera with 6 V) → 
 (UTV007/STK1160) → Hudiy's reverse-camera view. When reverse is selected, `hu-power` tells Hudiy to show
 the camera right away (`SetReverseCameraStatus` over Hudiy's local API, port 44405). It hides the camera
 2 s after you leave reverse, so a three-point turn doesn't flicker. The camera only shows while the key is on.
+
+### Steering-wheel controls (Frontier)
+The wheel buttons are a resistor ladder: each button connects a key wire to ground through a
+different resistor. Each key wire gets a 1 kΩ pull-up to 3.3 V, so every button produces its own
+voltage, which an MCP3008 ADC on the SPI bus reads.
+
+Think of it like a dimmer switch with fixed clicks: the Pi doesn't see "which button", only "how much
+voltage", so it learns the click positions for your wheel once instead of trusting a generic table.
+That's also why it works on other cars with resistive wheel controls.
+
+```bash
+sudo /opt/headunit/bin/hu-swc.py --raw      # wiring check: live values; each button should move one channel
+sudo /opt/headunit/bin/hu-swc.py --learn    # key ON; press and hold each button when asked
+sudo systemctl restart headunit-swc
+```
+Default actions: volume up/down (repeat while held), next/previous track, mode → home screen,
+mute, answer, hang up. Change any of them in `/etc/headunit/headunit.conf`, for example
+`SWC_ACTION_MODE=applications_menu`.
 
 ## 4. 3D-printed mount (`cad/`)
 

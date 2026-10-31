@@ -1,0 +1,11 @@
+[Unit]
+Description=Head unit steering-wheel controls (MCP3008 -> Hudiy actions)
+ConditionPathExists=/etc/headunit/swc.json
+
+[Service]
+ExecStart=/usr/bin/python3 /opt/headunit/bin/hu-swc.py
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
