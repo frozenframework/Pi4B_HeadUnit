@@ -29,6 +29,7 @@ while [ $# -gt 0 ]; do
   esac
 done
 [ "$VEHICLES" = both ] && VEHICLES="f250 miata"
+[ "$VEHICLES" = all ] && VEHICLES="f250 miata frontier"
 
 # Not root on Linux (or on a Mac)? Run the same script inside a privileged Debian container.
 if [ "$INSIDE" -eq 0 ] && { [ "$(uname -s)" != Linux ] || [ "$(id -u)" -ne 0 ]; }; then

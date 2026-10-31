@@ -40,6 +40,20 @@ for a in APPS:
                           "action": a["action"], "label": a["label"]})
 save("applications_menu.json", menu)
 
+def conf(path="/etc/headunit/headunit.conf"):
+    c = {}
+    try:
+        for line in Path(path).read_text().splitlines():
+            if "=" in line and not line.lstrip().startswith("#"):
+                k, v = line.split("=", 1); c[k.strip()] = v.strip().strip('"')
+    except OSError:
+        pass
+    return c
+HC = conf()
+SCREEN = {"waveshare-7.9": (1280, 400), "hdmi-1024x600": (1024, 600), "pi-touch-display-2": (1280, 720)}.get(HC.get("DISPLAY_TYPE", "waveshare-7.9"), (1280, 400))
+# Factory backup camera: a USB composite capture stick (NTSC 720x480), drawn full screen by Hudiy.
+CAMERA_PIPELINE = "v4l2src device=/dev/hu-rearcam ! video/x-raw,width=720,height=480 ! videoconvert ! glupload ! qml6glsink name=video-sink"
+
 # Android Auto gets the Pi's GPS (better than the phone's inside a metal cab); imperial units for CarPlay maneuvers.
 main = load("main_configuration.json", None)
 if main is not None:
@@ -50,5 +64,18 @@ if main is not None:
                 elif k == "navigationUnits": o[k] = "imperial"
                 else: walk(v, k)
     walk(main)
+    if HC.get("CAMERA") == "1":
+        cam = {"width": SCREEN[0], "height": SCREEN[1], "x": 0, "y": 0, "pipeline": CAMERA_PIPELINE}
+        def find(o):
+            if isinstance(o, dict):
+                for k, v in o.items():
+                    if k == "reverseCamera" and isinstance(v, dict): return v
+                    r = find(v)
+                    if r is not None: return r
+            return None
+        rc = find(main)
+        if rc is None: main["reverseCamera"] = cam
+        else: rc.update(cam)
+        print("reverse camera:", SCREEN, CAMERA_PIPELINE)
     save("main_configuration.json", main)
 print("Hudiy config updated:", ", ".join(a["label"] for a in APPS))

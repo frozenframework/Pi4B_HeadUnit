@@ -4,7 +4,7 @@
 # Edit it on your computer BEFORE the first boot.
 # ---------------------------------------------------------------------------------------------
 
-# Which vehicle this card is for: f250 or miata
+# Which vehicle this card is for: f250, miata or frontier
 VEHICLE=f250
 
 # Parts tier you built (1, 2 or 3). Tier 3 adds AM/FM radio and the CarPiHAT power board.

@@ -177,7 +177,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--base", help="official Raspberry Pi OS 64-bit Desktop .img.xz (downloads the latest if omitted)")
     ap.add_argument("--sha256", help="expected SHA-256 of --base (from raspberrypi.com)")
-    ap.add_argument("--vehicle", default="both", help="f250, miata or both")
+    ap.add_argument("--vehicle", default="both", help="f250, miata, frontier, both (f250+miata) or all")
     ap.add_argument("--tier", default="2"); ap.add_argument("--region", default="texas-plus")
     ap.add_argument("--hudiy", help="Hudiy installer file to include")
     ap.add_argument("--out", default=str(HERE / "out"))
@@ -187,7 +187,7 @@ def main():
     base = Path(a.base).expanduser() if a.base else download_latest(out / "cache")
     if a.sha256:
         check_sha(base, a.sha256)
-    for v in (["f250", "miata"] if a.vehicle == "both" else [a.vehicle]):
+    for v in {"both": ["f250", "miata"], "all": ["f250", "miata", "frontier"]}.get(a.vehicle, [a.vehicle]):
         build(base, v, a.tier, a.region, a.hudiy, out, do_compress=not a.no_compress)
 
 if __name__ == "__main__":

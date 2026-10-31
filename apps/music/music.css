@@ -18,3 +18,5 @@ body { display: grid; grid-template-columns: 430px 1fr; gap: 10px; padding: 10px
 .item .n { width: 40px; color: var(--muted); text-align: right; }
 .item .t { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .playall { color: var(--accent); font-weight: 700; }
+@media (max-width: 1100px) { body { grid-template-columns: 360px minmax(0, 1fr); } }
+@media (min-height: 560px) { #title { font-size: 40px; max-height: 140px; } .ctl button { height: 88px; } }

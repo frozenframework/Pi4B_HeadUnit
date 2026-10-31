@@ -12,13 +12,26 @@ Units: mm. Built for ASA on a Bambu Lab P1S (enclosed), no supports needed.
 !! screen with calipers when it arrives and edit SCREEN_* (or edit the STEP in Inventor).
 Run:  pip install cadquery  &&  python headunit_mount.py
 """
+import sys
 import cadquery as cq
 
-# ---------------- screen (VERIFY) ----------------
-SCREEN_W, SCREEN_H = 205.8, 67.8      # cover-glass outline
-SCREEN_T = 7.8                        # glass + LCD (Waveshare: 7.8 mm; 16.5 mm incl. HDMI port)
-VIEW_W, VIEW_H = 190.1, 59.4          # active (lit) area
-PCB_DEPTH = 9.5                       # room behind the LCD for the driver board
+# ---------------- profiles (pick one on the command line) ----------------
+#   python headunit_mount.py              -> 1din-waveshare79   (F-250, Miata)
+#   python headunit_mount.py 2din-7in     -> 2din-7in           (2017 Frontier)
+PROFILES = {
+    "1din-waveshare79": dict(   # Waveshare 7.9" 1280x400 bar, single-DIN opening
+        SCREEN_W=205.8, SCREEN_H=67.8, SCREEN_T=7.8, VIEW_W=190.1, VIEW_H=59.4, PCB_DEPTH=9.5, DIN_W=178.0, DIN_H=50.0),
+    "2din-7in": dict(           # 7" 1024x600 (Orient Display AFY1024600A2-7.0INTH-C-HDMI), double-DIN opening
+        SCREEN_W=164.8, SCREEN_H=116.2, SCREEN_T=12.0, VIEW_W=154.2, VIEW_H=85.9, PCB_DEPTH=8.0, DIN_W=178.0, DIN_H=100.0),
+}
+PROFILE = next((a for a in sys.argv[1:] if a in PROFILES), "1din-waveshare79")
+P = PROFILES[PROFILE]
+
+# ---------------- screen (VERIFY with calipers when it arrives) ----------------
+SCREEN_W, SCREEN_H = P["SCREEN_W"], P["SCREEN_H"]   # cover-glass / module outline
+SCREEN_T = P["SCREEN_T"]                            # glass + LCD
+VIEW_W, VIEW_H = P["VIEW_W"], P["VIEW_H"]           # active (lit) area
+PCB_DEPTH = P["PCB_DEPTH"]                          # room behind the LCD for the driver board
 
 # ---------------- fit / print ----------------
 CLR = 0.5          # clearance per side around the glass
@@ -31,7 +44,7 @@ M3_CLR, M3_HEAD, M3_HEAD_H = 3.4, 6.2, 3.2
 WALL = 2.4         # 6 perimeters of a 0.4 nozzle
 
 # ---------------- single DIN (ISO 7736) ----------------
-DIN_W, DIN_H = 178.0, 50.0             # tube outer: the opening is 182 x 53
+DIN_W, DIN_H = P["DIN_W"], P["DIN_H"]  # tube outer: single-DIN opening 182 x 53, double-DIN 182 x 103
 SLED_L = 110.0                         # tube depth behind the screen
 PLATE_T = 3.0
 
@@ -77,12 +90,13 @@ back = back.cut(cq.Workplane("XY").rect(DIN_W - 2 * WALL, DIN_H - 2 * WALL).extr
 tz = z0 + ring_d + PLATE_T
 # gussets in the corner between the plate and the tube (stiffen the screen against bumps)
 for sy in (-1, 1):
-    for x in (-55, 0, 55):
+    for x in ((-55, 0, 55) if OUT_H / 2 - DIN_H / 2 >= 10 else ()):
         g = cq.Workplane("YZ").polyline([(sy * DIN_H / 2, tz), (sy * (DIN_H / 2 + 10), tz), (sy * DIN_H / 2, tz + 12)]).close().extrude(WALL / 2, both=True)
         back = back.union(g.translate((x, 0, 0)))
-for sx in (-1, 1):
-    g = cq.Workplane("XZ").polyline([(sx * DIN_W / 2, tz), (sx * (DIN_W / 2 + 10), tz), (sx * DIN_W / 2, tz + 12)]).close().extrude(WALL / 2, both=True)
-    back = back.union(g)
+if OUT_W / 2 - DIN_W / 2 >= 10:          # side gussets only where the plate is wider than the tube
+    for sx in (-1, 1):
+        g = cq.Workplane("XZ").polyline([(sx * DIN_W / 2, tz), (sx * (DIN_W / 2 + 10), tz), (sx * DIN_W / 2, tz + 12)]).close().extrude(WALL / 2, both=True)
+        back = back.union(g)
 # screw clearance + counterbores (screws go in from the back into the bezel's inserts)
 for x, y in SCREWS:
     back = back.cut(cq.Workplane("XY").center(x, y).circle(M3_CLR / 2).extrude(PLATE_T).translate((0, 0, z0 + ring_d)))
@@ -128,16 +142,16 @@ for x, zc in TRAY_HOLES:
 
 if __name__ == "__main__":
     import os
-    os.makedirs("out", exist_ok=True)
+    od = os.path.join("print", PROFILE); os.makedirs(od, exist_ok=True)
     parts = {"1_bezel": bezel, "2_spacer_ring": ring, "3_back_and_sled": back, "4_pi_tray": tray}
     for name, p in parts.items():
-        cq.exporters.export(p, f"out/{name}.step")
-        cq.exporters.export(p, f"out/{name}.stl", tolerance=0.02, angularTolerance=0.1)
+        cq.exporters.export(p, f"{od}/{name}.step")
+        cq.exporters.export(p, f"{od}/{name}.stl", tolerance=0.02, angularTolerance=0.1)
         bb = p.val().BoundingBox()
-        print(f"{name}: {bb.xlen:.1f} x {bb.ylen:.1f} x {bb.zlen:.1f} mm  volume {p.val().Volume()/1000:.0f} cm3")
+        print(f"[{PROFILE}] {name}: {bb.xlen:.1f} x {bb.ylen:.1f} x {bb.zlen:.1f} mm  volume {p.val().Volume()/1000:.0f} cm3")
     asm = cq.Assembly()
     asm.add(bezel, name="bezel", color=cq.Color(0.1, 0.1, 0.1))
     asm.add(ring, name="spacer_ring", color=cq.Color(0.15, 0.15, 0.15))
     asm.add(back, name="back_and_sled", color=cq.Color(0.2, 0.2, 0.25))
     asm.add(tray, name="pi_tray", loc=cq.Location((0, -DIN_H / 2 + WALL + 0.2, tz + SLED_L / 2 + 2), (1, 0, 0), -90), color=cq.Color(0.0, 0.6, 0.7))
-    asm.save("out/headunit_mount_assembly.step")
+    asm.save(f"{od}/headunit_mount_assembly.step")

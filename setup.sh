@@ -2,7 +2,7 @@
 # =============================================================================================
 #  Raspberry Pi 4B head unit setup  (Hudiy + themed offline nav + iPod + AM/FM + safe power)
 #
-#  Usage:  sudo ./setup.sh --vehicle f250|miata [--tier 1|2|3] [--region texas-plus|texas|us]
+#  Usage:  sudo ./setup.sh --vehicle f250|miata|frontier [--tier 1|2|3] [--region texas-plus|texas|us]
 #                          [--user NAME] [--only 20-display,60-media] [--yes]
 #
 #  Safe to run more than once: every stage checks what's already done and only changes its own
@@ -55,7 +55,7 @@ if [ -n "$VEHICLE" ]; then
     echo "DATA_DIR=/var/lib/headunit"
   } > "$HU_CONF"
 elif [ ! -f "$HU_CONF" ]; then
-  die "first run needs --vehicle f250 or --vehicle miata"
+  die "first run needs --vehicle f250, miata or frontier"
 fi
 say "vehicle: $(conf_get VEHICLE_NAME)  tier: $(conf_get TIER)  user: $(hu_user)  maps: $(conf_get MAP_REGION)"
 

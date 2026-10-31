@@ -1,4 +1,4 @@
-body { display: grid; grid-template-columns: 1fr 420px; gap: 10px; padding: 10px; }
+body { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 10px; padding: 10px; }
 #tuner { padding: 14px 20px; display: flex; flex-direction: column; gap: 10px; }
 .bands button { width: 96px; font-weight: 700; }
 .bands button.on { background: var(--accent); color: var(--bg); }
@@ -16,3 +16,6 @@ body { display: grid; grid-template-columns: 1fr 420px; gap: 10px; padding: 10px
 #pgrid { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 #pgrid button { font-size: 26px; font-weight: 700; }
 #pgrid button.empty { color: var(--muted); font-weight: 500; font-size: 20px; }
+/* 2-DIN 1024x600 / 1280x720 screens: taller, narrower */
+@media (max-width: 1100px) { body { grid-template-columns: minmax(0, 1fr) 330px; } #freq { font-size: 80px; } .tune button { width: 80px; } #power { width: 130px; } }
+@media (min-height: 560px) { #freq { font-size: 110px; } .tune button { height: 92px; } }

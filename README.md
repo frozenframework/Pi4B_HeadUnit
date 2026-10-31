@@ -4,11 +4,17 @@ CarPlay / Android Auto + themed offline navigation on a Raspberry Pi 4B.
 
 ![Map skins](docs/Map_Skins_Preview.png)
 
-Parts lists for three budget tiers per vehicle, with links and wiring pinouts, are in
-[`docs/Pi_HeadUnit_Parts_List.xlsx`](docs/Pi_HeadUnit_Parts_List.xlsx).
+Parts lists (with links and wiring pinouts):
+- F-250 and Miata, three budget tiers: [`docs/Pi_HeadUnit_Parts_List.xlsx`](docs/Pi_HeadUnit_Parts_List.xlsx)
+- 2017 Nissan Frontier, double-DIN + factory backup camera: [`docs/Frontier_2DIN_Parts_List.xlsx`](docs/Frontier_2DIN_Parts_List.xlsx)
 
-For the **1997 Ford F-250 7.3L (crew cab)** and the **1997 Mazda Miata**. Raspberry Pi 4B (4 GB),
-Waveshare 7.9" 1280×400 touchscreen mounted over the single-DIN opening.
+| Vehicle | Profile | Screen | Extras |
+|---|---|---|---|
+| 1997 Ford F-250 7.3L (crew cab) | `f250` | Waveshare 7.9" 1280×400 over the single-DIN opening | 60 s key-off delay for the diesel |
+| 1997 Mazda Miata | `miata` | Waveshare 7.9" 1280×400 over the single-DIN opening | 2 speakers, power antenna |
+| 2017 Nissan Frontier | `frontier` | 7" 1024×600 (900-nit Orient Display) or Raspberry Pi Touch Display 2, double-DIN | **factory backup camera** |
+
+All run on a Raspberry Pi 4B (4 GB).
 
 | Piece | What does it |
 |---|---|
@@ -41,7 +47,7 @@ once more when setup finishes.
 
 **Or with Docker Desktop** (edits the Linux partition directly):
 ```bash
-./image/build-image.sh --vehicle both --hudiy ~/Downloads/<the Hudiy installer from your email>
+./image/build-image.sh --vehicle all --hudiy ~/Downloads/<the Hudiy installer from your email>
 ```
 This creates `out/headunit-f250-YYYYMMDD.img.xz` and `out/headunit-miata-YYYYMMDD.img.xz`.
 The script downloads the newest official Raspberry Pi OS (64-bit, Desktop), checks its SHA-256,
@@ -75,6 +81,7 @@ sudo ./setup.sh --vehicle f250 --tier 2          # or: --vehicle miata, --tier 1
 | `60-media` | iPod/USB auto-mount (read-only) + MPD as a user service |
 | `70-radio` | RTL-SDR (tier 3 only) |
 | `80-nav` | data folders, bridge service, map updater, a two-line sudoers rule |
+| `75-camera` | backup camera (Frontier): v4l/GStreamer, `/dev/hu-rearcam` for the USB capture stick, set to NTSC |
 | `90-hudiy` | adds a **Drive** menu to Hudiy (Navigation, iPod & USB, AM/FM Radio, Head Unit Settings); Android Auto GPS → gpsd |
 
 Every stage can be run again safely: system files are only edited inside `# >>> headunit:` blocks.
@@ -117,6 +124,7 @@ Full harness pinouts and the parts for each tier are in the parts-list spreadshe
 | GPIO26 (pin 37) | Power hold → relay module CH1 (`gpio-poweroff`; drops only after a clean halt) |
 | GPIO27 (pin 13) | Amp remote turn-on → relay CH2 |
 | GPIO22 (pin 15) | Power antenna → relay CH3 (raised only while the radio plays) |
+| GPIO5 (pin 29) | Reverse sense (Frontier) → shows the backup camera through Hudiy's API |
 
 How the power sequence works:
 - Key on: the relay latches and the Pi boots. The amp switches on 6 seconds later, so there's no pop.
@@ -134,7 +142,16 @@ lights on.
 
 ---
 
+### Backup camera (Frontier)
+Factory Nissan camera → Axxess AXBUCS-NI326V (powers the camera with 6 V) → RCA → USB capture stick
+(UTV007/STK1160) → Hudiy's reverse-camera view. When reverse is selected, `hu-power` tells Hudiy to show
+the camera right away (`SetReverseCameraStatus` over Hudiy's local API, port 44405). It hides the camera
+2 s after you leave reverse, so a three-point turn doesn't flicker. The camera only shows while the key is on.
+
 ## 4. 3D-printed mount (`cad/`)
+
+`python cad/headunit_mount.py` builds the single-DIN set (F-250, Miata) into `cad/print/1din-waveshare79/`.
+`python cad/headunit_mount.py 2din-7in` builds the Frontier double-DIN set into `cad/print/2din-7in/`.
 
 All four parts print **without supports** on the P1S in ASA:
 
