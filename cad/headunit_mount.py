@@ -17,10 +17,13 @@ import cadquery as cq
 
 # ---------------- profiles (pick one on the command line) ----------------
 #   python headunit_mount.py              -> 1din-waveshare79   (F-250, Miata)
-#   python headunit_mount.py 2din-7in     -> 2din-7in           (2017 Frontier)
+#   python headunit_mount.py 2din-7in     -> 2din-7in           (2017 Frontier, tier 3: 900-nit Orient Display)
+#   python headunit_mount.py 2din-pitouch2 -> 2din-pitouch2     (2017 Frontier, tiers 1-2: Pi Touch Display 2)
 PROFILES = {
     "1din-waveshare79": dict(   # Waveshare 7.9" 1280x400 bar, single-DIN opening
         SCREEN_W=205.8, SCREEN_H=67.8, SCREEN_T=7.8, VIEW_W=190.1, VIEW_H=59.4, PCB_DEPTH=9.5, DIN_W=178.0, DIN_H=50.0),
+    "2din-pitouch2": dict(      # Raspberry Pi Touch Display 2 (7", DSI), double-DIN opening - Frontier tiers 1-2
+        SCREEN_W=189.32, SCREEN_H=120.24, SCREEN_T=10.0, VIEW_W=155.0, VIEW_H=88.0, PCB_DEPTH=8.0, DIN_W=178.0, DIN_H=100.0),
     "2din-7in": dict(           # 7" 1024x600 (Orient Display AFY1024600A2-7.0INTH-C-HDMI), double-DIN opening
         SCREEN_W=164.8, SCREEN_H=116.2, SCREEN_T=12.0, VIEW_W=154.2, VIEW_H=85.9, PCB_DEPTH=8.0, DIN_W=178.0, DIN_H=100.0),
 }

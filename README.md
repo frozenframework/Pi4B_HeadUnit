@@ -6,13 +6,13 @@ CarPlay / Android Auto + themed offline navigation on a Raspberry Pi 4B.
 
 Parts lists (with links and wiring pinouts):
 - F-250 and Miata, three budget tiers: [`docs/Pi_HeadUnit_Parts_List.xlsx`](docs/Pi_HeadUnit_Parts_List.xlsx)
-- 2017 Nissan Frontier, double-DIN + factory backup camera: [`docs/Frontier_2DIN_Parts_List.xlsx`](docs/Frontier_2DIN_Parts_List.xlsx)
+- 2017 Nissan Frontier SV, double-DIN + factory backup camera, three budget tiers: [`docs/Frontier_2DIN_Parts_List.xlsx`](docs/Frontier_2DIN_Parts_List.xlsx)
 
 | Vehicle | Profile | Screen | Extras |
 |---|---|---|---|
 | 1997 Ford F-250 7.3L (crew cab) | `f250` | Waveshare 7.9" 1280×400 over the single-DIN opening | 60 s key-off delay for the diesel |
 | 1997 Mazda Miata | `miata` | Waveshare 7.9" 1280×400 over the single-DIN opening | 2 speakers, power antenna |
-| 2017 Nissan Frontier SV | `frontier` | 7" 1024×600 900-nit Orient Display, double-DIN | **factory backup camera**, steering-wheel controls |
+| 2017 Nissan Frontier SV | `frontier` | Tier 3: 7" 1024×600 900-nit Orient Display. Tiers 1–2: Raspberry Pi Touch Display 2. Double-DIN | **factory backup camera** (tiers 2–3), steering-wheel controls (tier 3) |
 
 All run on a Raspberry Pi 4B (4 GB).
 
@@ -170,7 +170,8 @@ mute, answer, hang up. Change any of them in `/etc/headunit/headunit.conf`, for 
 ## 4. 3D-printed mount (`cad/`)
 
 `python cad/headunit_mount.py` builds the single-DIN set (F-250, Miata) into `cad/print/1din-waveshare79/`.
-`python cad/headunit_mount.py 2din-7in` builds the Frontier double-DIN set into `cad/print/2din-7in/`.
+`python cad/headunit_mount.py 2din-7in` builds the Frontier double-DIN set for the Orient Display into `cad/print/2din-7in/`.
+`python cad/headunit_mount.py 2din-pitouch2` builds the Frontier set for the Pi Touch Display 2 (tiers 1–2).
 
 All four parts print **without supports** on the P1S in ASA:
 
