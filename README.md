@@ -51,7 +51,10 @@ one-time `firstrun.sh` hook in `cmdline.txt`.
    - network name `<vehicle>-headunit` (for example `miata-headunit.local`)
 2. Before you eject, open the **bootfs** drive → `headunit/headunit.conf` to change any of those, and add
    Wi-Fi (`WIFI_SSID`/`WIFI_PSK`), the phone hotspot, and `DISPLAY_TYPE=monitor` for a bench monitor.
-   The Hudiy installer goes in `headunit/hudiy/`.
+   For Hudiy, put `hudiy_installer.tar.gz` from your order email in `headunit/hudiy/` (or pass `--hudiy` to
+   make-image.py) and your **order number** in `HUDIY_ORDER="#…"`. Hudiy's installer asks for the order
+   number and checks it online (that's its license check); first boot answers that prompt for you, then
+   deletes the installer and the order number from the card.
 3. Boot the Pi on the bench, within range of Wi-Fi. The first power-up sets up the user and region, then
    reboots. The second boot installs Hudiy, then the add-ons, downloads maps, and reboots into Hudiy
    (CarPlay / Android Auto starts by itself). This takes **15–45 minutes**. The log is

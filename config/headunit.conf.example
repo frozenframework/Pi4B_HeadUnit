@@ -51,6 +51,9 @@ WIFI_PSK=""
 HOTSPOT_SSID=""
 HOTSPOT_PSK=""
 
-# Put the Hudiy installer you downloaded after buying the license into the "hudiy" folder
-# next to this file. First boot installs Hudiy first (on a clean OS, as Hudiy requires),
-# then the head-unit add-ons.
+# Hudiy (CarPlay / Android Auto). Put hudiy_installer.tar.gz from your order email in the "hudiy"
+# folder next to this file (don't unpack it), and your order number here, e.g. HUDIY_ORDER="#12345".
+# Hudiy's installer checks the order number online: that is its license check. First boot installs
+# Hudiy before anything else (it wants a clean OS), then removes the installer and the order number
+# from this card. Without an order number, Hudiy is skipped and you can run its installer later.
+HUDIY_ORDER=""

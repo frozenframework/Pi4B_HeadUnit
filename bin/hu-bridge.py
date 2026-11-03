@@ -670,11 +670,27 @@ async def nocache(request, handler):
 async def index(request):
     raise web.HTTPFound("/apps/nav/index.html")
 
+def hudiy_hotspot_guard():
+    """Hudiy turns its own Wi-Fi hotspot on by default, which stops the Pi joining home Wi-Fi / the phone
+    hotspot (needed for updates). With PI_WIFI=client, switch it back off in Hudiy's config; Hudiy reads
+    it the next time it starts. hu-hudiy-config.py does the edit (and keeps the Drive menu)."""
+    if C("PI_WIFI", "client") != "client":
+        return
+    cfg = read_json(Path.home() / ".hudiy" / "share" / "config" / "main_configuration.json", None)
+    def on(o):
+        if isinstance(o, dict):
+            return any((k == "hotspot" and isinstance(v, dict) and v.get("enabled")) or on(v) for k, v in o.items())
+        return False
+    if cfg and on(cfg):
+        r = subprocess.run([sys.executable, str(Path(__file__).resolve().parent / "hu-hudiy-config.py")], capture_output=True, text=True)
+        usage("hudiy_hotspot_off", ok=r.returncode == 0)
+
 async def on_start(app):
     app["gps"] = asyncio.create_task(gps.run())
     app["media"] = asyncio.create_task(media_watch(app))
     app["export"] = asyncio.create_task(export_watch(app))
     usage("bridge_start", vehicle=C("VEHICLE_ID", ""))
+    asyncio.get_running_loop().run_in_executor(None, hudiy_hotspot_guard)
 
 async def on_stop(app):
     await radio.stop()
