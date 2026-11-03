@@ -9,11 +9,10 @@
 #   hu-system.sh ssh on|off
 set -euo pipefail
 export LC_ALL=C
-locale_for() {
+locale_for() {   # language code -> glibc locale (as listed in /usr/share/i18n/SUPPORTED)
   case "$1" in
-    en) echo en_US.UTF-8;; es) echo es_US.UTF-8;; zh) echo zh_CN.UTF-8;; tl) echo tl_PH.UTF-8;;
-    vi) echo vi_VN.UTF-8;; ar) echo ar_EG.UTF-8;; fr) echo fr_FR.UTF-8;; ko) echo ko_KR.UTF-8;;
-    pt) echo pt_BR.UTF-8;; hi) echo hi_IN.UTF-8;; *) return 1;;
+    en) echo en_US;; es) echo es_US;; zh) echo zh_CN;; tl) echo tl_PH;; vi) echo vi_VN;;
+    ar) echo ar_EG;; fr) echo fr_FR;; ko) echo ko_KR;; pt) echo pt_BR;; hi) echo hi_IN;; *) return 1;;
   esac
 }
 bad() { echo "{\"ok\": false, \"error\": \"$1\"}"; exit 2; }
@@ -45,10 +44,12 @@ r = c.crypt(b"headunit", sys.argv[1].encode()); sys.exit(0 if r and r.decode() =
     echo "$2" > /etc/timezone
     echo '{"ok": true}';;
   language)
-    loc=$(locale_for "${2:-}") || bad "unknown language"
-    short=$(echo "$loc" | sed 's/UTF-8/utf8/')
-    if ! locale -a 2>/dev/null | grep -qx "$short"; then
-      grep -qE "^$loc UTF-8" /etc/locale.gen 2>/dev/null || echo "$loc UTF-8" >> /etc/locale.gen
+    base=$(locale_for "${2:-}") || bad "unknown language"
+    # The UTF-8 entry for it, e.g. "es_US.UTF-8 UTF-8" or "vi_VN UTF-8" (Vietnamese/Hindi have no suffix).
+    line=$(grep -m1 -E "^$base(\.UTF-8)? UTF-8$" /usr/share/i18n/SUPPORTED) || bad "the $base locale isn't available"
+    loc=${line%% *}
+    if ! locale -a 2>/dev/null | grep -qix "$(echo "$loc" | sed 's/UTF-8/utf8/')"; then
+      grep -qxF "$line" /etc/locale.gen 2>/dev/null || echo "$line" >> /etc/locale.gen
       locale-gen >/dev/null 2>&1 || bad "couldn't build the $loc locale"
     fi
     update-locale "LANG=$loc"

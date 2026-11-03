@@ -30,5 +30,5 @@ for code in apps_langs:
         assert not any(k.startswith("m.") for k in d), f"{code} has m.* phrases but the router writes its turns"
 assert not any(k.startswith("m.") for k in en), "en must not have m.* (the router writes English turns)"
 system = (ROOT / "bin/hu-system.sh").read_text()
-assert all(re.search(rf"\b{c}\) echo \w+\.UTF-8", system) for c in apps_langs), "hu-system.sh locale table"
+assert all(re.search(rf"\b{c}\) echo [a-z]{{2,3}}_[A-Z]{{2}};", system) for c in apps_langs), "hu-system.sh locale table"
 print(f"i18n: {len(apps_langs)} languages x {len(en)} phrases complete; turn phrases for", [c for c in apps_langs if table[c] == 'None'])
