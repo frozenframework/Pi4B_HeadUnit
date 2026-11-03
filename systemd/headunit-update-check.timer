@@ -1,0 +1,10 @@
+[Unit]
+Description=Head unit: check for software updates every 30 minutes while on
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=30min
+RandomizedDelaySec=2min
+
+[Install]
+WantedBy=timers.target

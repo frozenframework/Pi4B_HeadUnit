@@ -3,7 +3,7 @@
 #   Touch Display 2 -> real backlight (/sys/class/backlight)
 #   HDMI screens that answer DDC/CI -> their own brightness control over the HDMI cable
 #   everything else (Waveshare 7.9") -> a click-through black overlay above all apps
-source /opt/headunit/lib/common.sh
+source "$(dirname "$(readlink -f "$0")")/../lib/common.sh"
 U=$(hu_user)
 export DEBIAN_FRONTEND=noninteractive
 apt-get install -y -qq --no-install-recommends ddcutil python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-gtklayershell-0.1

@@ -40,6 +40,7 @@ def C(key, default=""):
 
 PORT = int(C("BRIDGE_PORT", "8765"))
 APP_DIR = Path(C("APP_DIR", "/opt/headunit/apps"))
+VERSION = (Path(__file__).resolve().parent.parent / "VERSION").read_text().strip() if (Path(__file__).resolve().parent.parent / "VERSION").exists() else "dev"
 DATA_DIR = Path(C("DATA_DIR", "/var/lib/headunit"))
 USER_DIR = Path(C("USER_DIR", str(Path.home() / ".config" / "headunit")))
 LOG_DIR = Path(C("USAGE_LOG_DIR", str(Path.home() / "headunit-data" / "usage")))
@@ -463,7 +464,7 @@ async def status(request):
     return web.json_response({
         "maps": {"basemap": (MAPS_DIR / "basemap.pmtiles").exists(), "routing": ROUTING_TAR.exists(), "search": SEARCH_DB.exists(), **man},
         "gps": gps.fix, "power": st, "radio": radio.status(), "sources": sources(), "theme": settings().get("theme"),
-        "vehicle": C("VEHICLE_NAME", ""), "night": st.get("illum", False)})
+        "vehicle": C("VEHICLE_NAME", ""), "night": st.get("illum", False), "version": VERSION})
 
 
 # ---------------------------------------------------------------- maps update + log summary
@@ -476,6 +477,23 @@ async def maps_update(request):
 
 async def maps_update_status(request):
     return web.json_response(read_json(MAPS_DIR / "update-status.json", {"message": ""}))
+
+# ---------------------------------------------------------------- software updates (bin/hu-update.py)
+UPDATE_DIR = Path("/var/lib/headunit/update")
+
+async def update_status(request):
+    st = read_json(UPDATE_DIR / "status.json", {})
+    st["version"] = VERSION
+    st["pending"] = read_json(UPDATE_DIR / "state.json", {}).get("pending")
+    st["enabled"] = C("UPDATES", "1") != "0"
+    return web.json_response(st)
+
+async def update_check(request):
+    r = subprocess.run(["sudo", "-n", "systemctl", "start", "--no-block", "headunit-update-now.service"], capture_output=True, text=True)
+    usage("update_check_request", ok=r.returncode == 0)
+    if r.returncode != 0:
+        return web.json_response({"ok": False, "message": "Couldn't start the update check: " + (r.stderr.strip()[-160:] or "unknown error")})
+    return web.json_response({"ok": True, "message": "Checking for updates…"})
 
 async def display_status(request):
     st = read_json(USER_DIR / "display-status.json", {})
@@ -548,6 +566,8 @@ def make_app():
     app.router.add_get("/api/maps/update-status", maps_update_status)
     app.router.add_get("/api/logs/summary", logs_summary)
     app.router.add_get("/api/display/status", display_status)
+    app.router.add_get("/api/update/status", update_status)
+    app.router.add_post("/api/update/check", update_check)
     app.router.add_static("/apps", APP_DIR, follow_symlinks=False)
     MAPS_DIR.mkdir(parents=True, exist_ok=True)
     app.router.add_static("/maps", MAPS_DIR, follow_symlinks=True)

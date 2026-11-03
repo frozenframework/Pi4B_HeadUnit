@@ -31,14 +31,24 @@ done
 id "$USER_NAME" >/dev/null 2>&1 || die "user '$USER_NAME' not found (use --user)"
 mkdir -p /etc/headunit; touch "$HU_LOG"
 
-# 1) Install the package itself to /opt/headunit (if running from somewhere else).
-if [ "$SRC_DIR" != "$HU_ROOT" ]; then
-  say "installing files to $HU_ROOT"
-  mkdir -p "$HU_ROOT"
-  rsync -a --delete --exclude 'tools/node_modules' --exclude '.git' "$SRC_DIR/" "$HU_ROOT/"
+# 1) Install the package as a version folder, /opt/headunit-releases/<VERSION>, and point the
+#    /opt/headunit symlink at it. (Software updates add new folders and swap the symlink.)
+VER=$(cat "$SRC_DIR/VERSION" 2>/dev/null || echo 0.0.0)
+REL_ROOT=/opt/headunit-releases
+SRC_REAL=$(readlink -f "$SRC_DIR")
+if [[ "$SRC_REAL" != "$REL_ROOT"/* ]]; then
+  say "installing version $VER to $REL_ROOT/$VER"
+  mkdir -p "$REL_ROOT/$VER"
+  rsync -a --delete --exclude 'tools/node_modules' --exclude '.git' --exclude 'venv' --exclude 'out' "$SRC_DIR/" "$REL_ROOT/$VER/"
+  SRC_REAL=$REL_ROOT/$VER
 fi
-chmod +x "$HU_ROOT"/setup.sh "$HU_ROOT"/bin/* "$HU_ROOT"/setup.d/*.sh "$HU_ROOT"/image/*.sh 2>/dev/null || true
-
+if [ -d "$HU_ROOT" ] && [ ! -L "$HU_ROOT" ]; then      # older installs: /opt/headunit was a plain folder
+  say "moving the old $HU_ROOT folder aside ($HU_ROOT.old)"
+  rm -rf "$HU_ROOT.old"; mv "$HU_ROOT" "$HU_ROOT.old"
+fi
+if [ "$(readlink -f "$HU_ROOT" 2>/dev/null)" != "$SRC_REAL" ]; then
+  ln -sfn "$SRC_REAL" "$HU_ROOT.new" && mv -T "$HU_ROOT.new" "$HU_ROOT"
+fi
 # 2) Write /etc/headunit/headunit.conf from the vehicle profile + tier.
 if [ -n "$VEHICLE" ]; then
   [ -f "$HU_ROOT/config/$VEHICLE.conf" ] || die "no profile config/$VEHICLE.conf"

@@ -77,5 +77,18 @@ if main is not None:
         if rc is None: main["reverseCamera"] = cam
         else: rc.update(cam)
         print("reverse camera:", SCREEN, CAMERA_PIPELINE)
+    # The Pi's own Wi-Fi joins your home network / phone hotspot for software updates. Hudiy's
+    # built-in hotspot (wireless Android Auto through the Pi) would take over that same radio, so
+    # it's turned off unless PI_WIFI=hudiy-hotspot. CarPlay uses the Carlinkit dongle's own Wi-Fi,
+    # and Android phones still work over a USB cable.
+    if HC.get("PI_WIFI", "client") == "client":
+        def hotspots(o):
+            if isinstance(o, dict):
+                for k, v in o.items():
+                    if k == "hotspot" and isinstance(v, dict) and "enabled" in v: yield v
+                    else: yield from hotspots(v)
+        for h in hotspots(main):
+            if h["enabled"]: print("Hudiy hotspot turned off (PI_WIFI=client): the Pi's Wi-Fi is used for updates")
+            h["enabled"] = False
     save("main_configuration.json", main)
 print("Hudiy config updated:", ", ".join(a["label"] for a in APPS))

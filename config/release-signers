@@ -1,0 +1,5 @@
+# Keys allowed to sign head-unit releases (git tags vX.Y.Z), in OpenSSH "allowed signers" format:
+#   headunit-release namespaces="git" ssh-ed25519 AAAA... headunit-release
+# The Pi trusts the copy of this file from the last version that started correctly, so a new key
+# must be added in a release signed by the old one.
+headunit-release namespaces="git" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGH5jkCp3RAJ1VBVdqQe96i+/aZYShjB75zxoamZRro+ headunit-release

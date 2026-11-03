@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Stage 30: ignition-aware power. The Pi stays on until it has shut down cleanly, then cuts its own power.
-source /opt/headunit/lib/common.sh
+source "$(dirname "$(readlink -f "$0")")/../lib/common.sh"
 MODE=$(conf_get POWER_MODE diy)
 HOLD=$(conf_get HOLD_GPIO 26)
 case "$MODE" in

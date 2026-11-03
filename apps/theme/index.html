@@ -7,6 +7,7 @@
   <button data-page="display" data-log="pg_display">Display</button>
   <button data-page="drive" data-log="pg_drive">Driving</button>
   <button data-page="maps" data-log="pg_maps">Maps</button>
+  <button data-page="updates" data-log="pg_updates">Updates</button>
   <button data-page="about" data-log="pg_about">Test data</button>
 </nav>
 <main class="panel">
@@ -31,6 +32,11 @@
     <div id="mapInfo" class="info"></div>
     <div class="row"><button id="update" class="primary" data-log="maps_update">Update maps now (Wi-Fi)</button><span id="upd" class="muted"></span></div>
     <p class="muted small">Map display data downloads straight to the head unit. Routing and search come from a USB stick with a <b>HEADUNIT_MAPS</b> folder (made on your computer with <b>maps/build-routing.py</b>). It imports by itself when you plug the stick in.</p>
+  </section>
+  <section id="updates" class="page hidden">
+    <div id="updInfo" class="info"></div>
+    <div class="row"><button id="updCheck" class="primary" data-log="update_check">Check for updates now</button><span id="updMsg" class="muted"></span></div>
+    <p class="muted small">Updates download in the background whenever the head unit is on Wi-Fi (your home network or your phone's hotspot). Only updates signed with your release key are accepted. A downloaded update installs at the next key-on, before the screen starts; if it doesn't start properly, the head unit goes back to the previous version by itself.</p>
   </section>
   <section id="about" class="page hidden">
     <div id="logInfo" class="info"></div>

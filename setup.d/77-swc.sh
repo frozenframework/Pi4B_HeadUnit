@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Stage 77: steering-wheel controls through an MCP3008 ADC on SPI (SWC=1).
-source /opt/headunit/lib/common.sh
+source "$(dirname "$(readlink -f "$0")")/../lib/common.sh"
 if [ "$(conf_get SWC 0)" != 1 ]; then say "steering wheel: skipped (SWC=0)"; exit 0; fi
 export DEBIAN_FRONTEND=noninteractive
 apt-get install -y -qq --no-install-recommends python3-spidev

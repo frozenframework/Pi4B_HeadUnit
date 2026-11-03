@@ -4,7 +4,7 @@ After=pipewire.service wireplumber.service
 
 [Service]
 Environment=HU_CONF=/etc/headunit/headunit.conf
-ExecStart=/opt/headunit/venv/bin/python /opt/headunit/bin/hu-bridge.py
+ExecStart=/opt/headunit-venv/bin/python /opt/headunit/bin/hu-bridge.py
 Restart=always
 RestartSec=3
 

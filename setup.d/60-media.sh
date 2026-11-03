@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Stage 60: iPod / USB drives mount automatically (read-only) under /media/hu and MPD indexes them by tags.
-source /opt/headunit/lib/common.sh
+source "$(dirname "$(readlink -f "$0")")/../lib/common.sh"
 U=$(hu_user); H=$(hu_home)
 modprobe hfsplus 2>/dev/null || warn "hfsplus kernel module missing: Mac-formatted iPods won't mount (Windows-formatted ones will)"
 install -d /media/hu

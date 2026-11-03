@@ -1,0 +1,10 @@
+[Unit]
+Description=Head unit: check for a software update now (Settings > Updates button)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/local/lib/headunit/hu-update.py check --force
+Nice=10
+TimeoutStartSec=45min

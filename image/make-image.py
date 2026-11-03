@@ -25,8 +25,11 @@ SKIP_EXT = {".stl", ".step", ".img", ".xz"}
 FIRSTRUN = r"""#!/bin/bash
 # One-shot: runs once from the kernel command line, before the normal first boot.
 B=/boot/firmware/headunit
-mkdir -p /opt/headunit
-cp -r "$B/package/." /opt/headunit/
+# Each version lives in its own folder; /opt/headunit is a symlink to the one in use (see bin/hu-update.py).
+V=$(cat "$B/package/VERSION" 2>/dev/null || echo 0.0.0)
+mkdir -p "/opt/headunit-releases/$V"
+cp -r "$B/package/." "/opt/headunit-releases/$V/"
+rm -rf /opt/headunit; ln -sfn "/opt/headunit-releases/$V" /opt/headunit
 chmod +x /opt/headunit/setup.sh /opt/headunit/bin/* /opt/headunit/setup.d/*.sh /opt/headunit/image/*.sh 2>/dev/null
 install -m 644 /opt/headunit/systemd/headunit-firstboot.service /etc/systemd/system/
 mkdir -p /etc/systemd/system/multi-user.target.wants

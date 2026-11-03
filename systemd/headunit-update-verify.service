@@ -1,0 +1,12 @@
+[Unit]
+Description=Head unit: confirm a just-installed update starts, otherwise roll it back
+After=graphical.target
+ConditionPathExists=/var/lib/headunit/update/state.json
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/local/lib/headunit/hu-update.py verify
+TimeoutStartSec=10min
+
+[Install]
+WantedBy=graphical.target

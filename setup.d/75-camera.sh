@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Stage 75: factory backup camera -> USB composite capture stick -> Hudiy's reverse-camera view.
 # The reverse wire (through the optocoupler on REVERSE_GPIO) makes hu-power show/hide the camera.
-source /opt/headunit/lib/common.sh
+source "$(dirname "$(readlink -f "$0")")/../lib/common.sh"
 if [ "$(conf_get CAMERA 0)" != 1 ]; then say "camera: skipped (CAMERA=0)"; exit 0; fi
 export DEBIAN_FRONTEND=noninteractive
 apt-get install -y -qq --no-install-recommends v4l-utils gstreamer1.0-tools gstreamer1.0-plugins-good gstreamer1.0-plugins-base

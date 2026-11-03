@@ -21,6 +21,13 @@ WIFI_SSID=""
 WIFI_PSK=""
 WIFI_COUNTRY=US
 
+# Your phone's hotspot, used for software updates when you're away from home Wi-Fi (optional).
+# Copy the name exactly as the phone shows it (iPhone: Settings > General > About > Name;
+# iPhones use a curly apostrophe, so renaming the phone to plain letters avoids typos).
+# Both passwords are erased from this card after first boot.
+HOTSPOT_SSID=""
+HOTSPOT_PSK=""
+
 # Put the Hudiy installer you downloaded after buying the license into the "hudiy" folder
 # next to this file. First boot installs Hudiy first (on a clean OS, as Hudiy requires),
 # then the head-unit add-ons.

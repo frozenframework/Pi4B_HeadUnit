@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Stage 50: gpsd picks up any USB GPS automatically.
-source /opt/headunit/lib/common.sh
+source "$(dirname "$(readlink -f "$0")")/../lib/common.sh"
 cat > /etc/default/gpsd <<'G'
 # Managed by headunit setup
 START_DAEMON="true"

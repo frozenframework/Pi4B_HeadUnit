@@ -1,0 +1,33 @@
+# Every Debian package any setup stage may install, plus pinned Python packages (pip:).
+# The updater downloads missing ones while it has internet, so a new version can be installed
+# at the next key-on even without Wi-Fi. tools/tests/test_update.py checks this list is complete.
+mpd
+mpc
+python3-mpd
+gpsd
+gpsd-clients
+python3-gps
+python3-aiohttp
+python3-gpiozero
+python3-venv
+espeak-ng
+hfsplus
+exfatprogs
+jq
+curl
+rsync
+wlr-randr
+git
+openssh-client
+rtl-sdr
+ddcutil
+python3-gi
+python3-gi-cairo
+gir1.2-gtk-3.0
+gir1.2-gtklayershell-0.1
+v4l-utils
+gstreamer1.0-tools
+gstreamer1.0-plugins-good
+gstreamer1.0-plugins-base
+python3-spidev
+pip:pyvalhalla==3.9.1

@@ -12,6 +12,13 @@ if [ -n "${WIFI_SSID:-}" ]; then
   nmcli radio wifi on || true
   for i in 1 2 3; do nmcli dev wifi connect "$WIFI_SSID" password "$WIFI_PSK" && break; sleep 10; done
 fi
+# Phone hotspot as a backup network for software updates. Lower priority, so home Wi-Fi wins.
+if [ -n "${HOTSPOT_SSID:-}" ]; then
+  nmcli con delete hu-phone-hotspot >/dev/null 2>&1 || true
+  nmcli con add type wifi con-name hu-phone-hotspot ssid "$HOTSPOT_SSID" \
+    wifi-sec.key-mgmt wpa-psk wifi-sec.psk "$HOTSPOT_PSK" \
+    connection.autoconnect yes connection.autoconnect-priority -10 && echo "saved phone hotspot '$HOTSPOT_SSID'"
+fi
 for i in $(seq 1 60); do curl -fsI https://deb.debian.org >/dev/null 2>&1 && break; echo "waiting for internet ($i)"; sleep 5; done
 
 for i in $(seq 1 60); do U=$(getent passwd 1000 | cut -d: -f1); [ -n "$U" ] && break; sleep 5; done
@@ -38,6 +45,7 @@ fi
 /opt/headunit/setup.sh --vehicle "${VEHICLE:-f250}" --tier "${TIER:-2}" --region "${MAP_REGION:-texas-plus}" --user "$U" --yes
 if [ "${MAPS_AUTO:-1}" = 1 ]; then /opt/headunit/bin/hu-update-maps.sh || echo "map download failed; retry from Settings > Maps"; fi
 systemctl disable headunit-firstboot.service
-mv "$B/headunit.conf" "$B/headunit.conf.applied"
+# Don't leave Wi-Fi passwords readable on the card's boot partition (they're saved in NetworkManager now).
+sed -E 's/^(WIFI_PSK|HOTSPOT_PSK)=.*/\1="(saved on the Pi)"/' "$B/headunit.conf" > "$B/headunit.conf.applied" && rm -f "$B/headunit.conf"
 echo "==== first boot finished $(date); rebooting"
 sync; sleep 3; reboot

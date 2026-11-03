@@ -7,7 +7,7 @@ let S = {};
 function page(id) {
   document.querySelectorAll('.page').forEach(p => p.classList.toggle('hidden', p.id !== id));
   document.querySelectorAll('[data-page]').forEach(b => b.classList.toggle('on', b.dataset.page === id));
-  if (id === 'maps') maps(); if (id === 'about') about(); if (id === 'display') display();
+  if (id === 'maps') maps(); if (id === 'about') about(); if (id === 'display') display(); if (id === 'updates') updates();
 }
 async function cards() {
   const themes = await loadThemes(); const box = $('cards'); box.innerHTML = '';
@@ -63,6 +63,17 @@ async function maps() {
   $('mapInfo').innerHTML = `Region: <b>${esc(m.name || m.region || 'not set')}</b><br>Map display: ${yes(m.basemap)} ${m.basemap_date ? '(' + esc(m.basemap_date) + ')' : ''}<br>Routing: ${yes(m.routing)} · Search: ${yes(m.search)} ${m.built ? '(built ' + esc(m.built.slice(0, 10)) + ')' : ''}`;
   const u = await api('/api/maps/update-status'); $('upd').textContent = u.message || '';
 }
+// ---- Updates: status written by bin/hu-update.py
+async function updates() {
+  const u = await api('/api/update/status').catch(() => ({}));
+  const when = (t) => t ? new Date(t * 1000).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'never';
+  const last = (u.history || []).filter(h => h.event === 'installed').pop();
+  $('updInfo').innerHTML = `Installed version: <b class="accent">${esc(u.version || '?')}</b>${last ? ' (since ' + when(last.time) + ')' : ''}<br>` +
+    `Automatic updates: <b>${u.enabled === false ? 'off' : 'on'}</b> · last check: <b>${when(u.last_check)}</b><br>` +
+    (u.pending ? `Ready to install: <b class="accent">${esc(u.pending)}</b> (next key-on)` : '');
+  $('updMsg').textContent = u.message || '';
+  $('updCheck').disabled = ['checking', 'downloading'].includes(u.state);
+}
 async function about() {
   const r = await api('/api/logs/summary'); $('logInfo').innerHTML = `Logged days: <b>${r.days}</b> · events: <b>${r.events.toLocaleString()}</b> · size: <b>${(r.bytes / 1024).toFixed(0)} KB</b>`;
 }
@@ -70,7 +81,9 @@ async function about() {
   S = await getSettings(); await applyUiTheme(S.theme);
   document.querySelectorAll('[data-page]').forEach(b => b.onclick = () => page(b.dataset.page));
   $('update').onclick = async () => { const r = await api('/api/maps/update', { json: {} }); toast(r.message || 'Started'); setTimeout(maps, 3000); };
+  $('updCheck').onclick = async () => { const r = await api('/api/update/check', { json: {} }); toast(r.message || 'Checking'); setTimeout(updates, 2000); };
   cards(); switches(); wireDisplay(); page(new URLSearchParams(location.search).get('page') || 'skins');
   setInterval(() => { if (!$('maps').classList.contains('hidden')) maps(); }, 5000);
   setInterval(() => { if (!$('display').classList.contains('hidden')) display(); }, 2000);
+  setInterval(() => { if (!$('updates').classList.contains('hidden')) updates(); }, 3000);
 })();

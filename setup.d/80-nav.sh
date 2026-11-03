@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Stage 80: navigation data folders, bridge service, map updater, and the limited sudo rights it needs.
-source /opt/headunit/lib/common.sh
+source "$(dirname "$(readlink -f "$0")")/../lib/common.sh"
 U=$(hu_user)
 install -d -o "$U" -g "$U" /var/lib/headunit /var/lib/headunit/maps /var/lib/headunit/routing /var/lib/headunit/search
 install -m 644 /opt/headunit/systemd/headunit-update-maps.service /etc/systemd/system/

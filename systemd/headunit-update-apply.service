@@ -1,0 +1,14 @@
+[Unit]
+Description=Head unit: install a downloaded, verified update before the screen starts
+After=local-fs.target
+Before=display-manager.service headunit-power.service headunit-firstboot.service headunit-swc.service
+ConditionPathExists=/var/lib/headunit/update/state.json
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/local/lib/headunit/hu-update.py apply
+TimeoutStartSec=20min
+StandardOutput=journal+console
+
+[Install]
+WantedBy=multi-user.target

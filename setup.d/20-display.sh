@@ -3,7 +3,7 @@
 #   waveshare-7.9       Waveshare 7.9" HDMI (400x1280 portrait panel, shown as 1280x400) - F-250, Miata
 #   hdmi-1024x600       any 7" 1024x600 HDMI + USB-touch panel - Frontier (2-DIN)
 #   pi-touch-display-2  official Raspberry Pi Touch Display 2 (DSI, 720x1280 portrait, shown as 1280x720)
-source /opt/headunit/lib/common.sh
+source "$(dirname "$(readlink -f "$0")")/../lib/common.sh"
 TYPE=$(conf_get DISPLAY_TYPE waveshare-7.9)
 ROT=$(conf_get DISPLAY_ROTATE 0)
 U=$(hu_user); H=$(hu_home)

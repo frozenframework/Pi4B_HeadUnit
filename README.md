@@ -82,6 +82,7 @@ sudo ./setup.sh --vehicle f250 --tier 2          # or: --vehicle miata, --tier 1
 | `60-media` | iPod/USB auto-mount (read-only) + MPD as a user service |
 | `70-radio` | RTL-SDR (tier 3 only) |
 | `80-nav` | data folders, bridge service, map updater, a two-line sudoers rule |
+| `85-updates` | signed software updates from GitHub: check timer, Wi-Fi hook, install-at-key-on + rollback services |
 | `75-camera` | backup camera (Frontier): v4l/GStreamer, `/dev/hu-rearcam` for the USB capture stick, set to NTSC |
 | `77-swc` | steering-wheel controls (Frontier): SPI on, `python3-spidev`, `headunit-swc` service |
 | `90-hudiy` | adds a **Drive** menu to Hudiy (Navigation, iPod & USB, AM/FM Radio, Head Unit Settings); Android Auto GPS → gpsd |
@@ -216,15 +217,65 @@ then drives the route by itself at about 35 mph.
 
 ---
 
-## 6. Security notes
+## 6. Software updates (push from your Mac, the cars pick it up)
+
+**Publish an update** from your Mac:
+```bash
+cd ~/Documents/Pi4B_HeadUnit
+tools/release.sh 1.2.0 "Bigger turn arrows, faster search"
+```
+This sets `VERSION`, commits, creates the tag `v1.2.0` signed with your release key, checks the
+signature the same way the Pi will, and pushes to GitHub.
+
+**What each head unit does:**
+1. Every 30 minutes, and whenever Wi-Fi connects (home Wi-Fi first, your phone's hotspot as the
+   backup), it asks GitHub for tags newer than the version it runs. A check costs a few KB and a
+   download is about 4 MB.
+2. It accepts a tag only if it is signed by a key in `config/release-signers`. Unsigned tags,
+   other keys, renamed old tags, and releases whose `VERSION` file disagrees with the tag are
+   refused, and refused versions are never fetched again.
+3. It downloads the release into `/opt/headunit-releases/X.Y.Z` (and any new Debian packages, so
+   installing later doesn't need internet). Nothing changes while you drive.
+4. At the next key-on, before the screen starts, it points `/opt/headunit` at the new folder and
+   re-runs `setup.sh`. This adds about a minute to that one startup.
+5. Once the desktop is up, it checks that the head-unit apps answer and report the new version.
+   If they don't come up within 4 minutes, or the Pi loses power three times before they do, it
+   goes back to the previous version and blacklists the new one.
+
+Settings → **Updates** shows the version, the last check and any download waiting to install, and
+has a *Check now* button. The log is `/var/log/headunit-update.log`. `UPDATES=0` in
+`/etc/headunit/headunit.conf` turns the checks off.
+
+**Your release key:** create it once with
+`ssh-keygen -t ed25519 -C "headunit-release" -f ~/.ssh/headunit_release`. Its `.pub` line goes in
+`config/release-signers`. The private key never leaves your Mac. To change keys, add the new key in
+a release signed with the old one. Pis trust the key list of the last version that started correctly.
+
+**Wi-Fi:** set `HOTSPOT_SSID` and `HOTSPOT_PSK` in `headunit/headunit.conf` before the first boot. To
+add or change a network later, use
+`sudo nmcli con add type wifi con-name hu-phone-hotspot ssid "NAME" wifi-sec.key-mgmt wpa-psk wifi-sec.psk "PASSWORD" connection.autoconnect-priority -10`.
+The Pi's Wi-Fi joins networks as a client (`PI_WIFI=client`), so Hudiy's own hotspot for wireless
+Android Auto stays off. CarPlay uses the Carlinkit dongle's Wi-Fi, and Android phones work over a
+USB cable. `PI_WIFI=hudiy-hotspot` turns Hudiy's hotspot back on, but then updates can't use Wi-Fi.
+
+**What isn't updated this way:** Hudiy (it has its own updates), Raspberry Pi OS (`sudo apt full-upgrade`
+when you choose), and maps (Settings → Maps).
+
+---
+
+## 7. Security notes
 - The bridge listens on **127.0.0.1 only**, so nothing on Wi-Fi can reach it.
+- Software updates install only if they are signed by your release key. The updater and the key list
+  run from a known-good copy in `/usr/local/lib/headunit` that is replaced only after a new version
+  has started correctly, so a broken release can't disable rollback.
+- Wi-Fi passwords in `headunit.conf` are erased from the card's boot partition after first boot.
 - The only root rights the head unit user gets (`/etc/sudoers.d/headunit`) are to start the map
-  updater and to import a map pack from `/media/hu/*/HEADUNIT_MAPS`.
+  updater, to start an update check, and to import a map pack from `/media/hu/*/HEADUNIT_MAPS`.
 - USB drives mount **read-only** with `noexec,nosuid,nodev`. The one exception is a stick labeled
   HUEXPORT, which is used to export logs.
 - Hudiy is closed source. Everything in this folder is plain text you can read.
 
-## 7. Rebuilding the web assets (only if you change themes)
+## 8. Rebuilding the web assets (only if you change themes)
 ```bash
 cd tools && npm install && npm run build      # fonts, styles, sprites, maplibre/pmtiles
 ```

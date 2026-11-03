@@ -1,0 +1,11 @@
+[Unit]
+Description=Head unit: look for a signed software update on GitHub (downloads only, never installs)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/local/lib/headunit/hu-update.py check
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=45min
