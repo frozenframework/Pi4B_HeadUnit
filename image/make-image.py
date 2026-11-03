@@ -71,11 +71,20 @@ else
   touch /etc/cloud/cloud-init.disabled        # nothing left for cloud-init to set up (it would add a locked "pi" user)
   sed -i -E 's/^(HU_PASSWORD)=.*/\1="(set on first boot)"/' "$CONF"
   echo "user: $U (desktop autologin)"
+  # While setup runs (next boot), show its progress on the desktop instead of a plain desktop.
+  install -d -o "$U" -g "$U" "/home/$U/.config" "/home/$U/.config/labwc"
+  echo "/opt/headunit/bin/hu-setup-progress.sh &" >> "/home/$U/.config/labwc/autostart"
+  chown "$U:$U" "/home/$U/.config/labwc/autostart"
 fi
 H=$(get HOSTNAME "$(get VEHICLE car)-headunit")
 [[ "$H" =~ ^[a-z0-9][a-z0-9-]{0,62}$ ]] && raspi-config nonint do_hostname "$H" && echo "hostname: $H"
 [ "$(get ENABLE_SSH 0)" = 1 ] && raspi-config nonint do_ssh 0 && echo "ssh: on"
 
+# Diagnostics report on the card (bootfs/headunit/diag.txt) every boot until collect-diagnostics is deleted.
+install -m 644 /opt/headunit/systemd/headunit-diag.service /etc/systemd/system/
+mkdir -p /etc/systemd/system/graphical.target.wants
+ln -sf /etc/systemd/system/headunit-diag.service /etc/systemd/system/graphical.target.wants/headunit-diag.service
+touch "$B/collect-diagnostics"
 install -m 644 /opt/headunit/systemd/headunit-firstboot.service /etc/systemd/system/
 mkdir -p /etc/systemd/system/multi-user.target.wants
 ln -sf /etc/systemd/system/headunit-firstboot.service /etc/systemd/system/multi-user.target.wants/headunit-firstboot.service

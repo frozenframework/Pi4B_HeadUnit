@@ -1,0 +1,16 @@
+[Unit]
+Description=Head unit: first offline-map download, in the background after setup
+Wants=network-online.target
+After=network-online.target headunit-firstboot.service
+ConditionPathExists=/var/lib/headunit/maps/.download-pending
+
+[Service]
+Type=oneshot
+ExecStart=/opt/headunit/bin/hu-update-maps.sh
+ExecStartPost=/bin/rm -f /var/lib/headunit/maps/.download-pending
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=infinity
+
+[Install]
+WantedBy=multi-user.target

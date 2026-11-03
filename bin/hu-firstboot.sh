@@ -10,7 +10,11 @@ set -a; source "$B/headunit.conf"; set +a
 rfkill unblock wifi 2>/dev/null || true
 nmcli radio wifi on 2>/dev/null || true
 if [ -n "${WIFI_SSID:-}" ]; then
-  for i in 1 2 3; do nmcli dev wifi connect "$WIFI_SSID" password "$WIFI_PSK" && break; sleep 10; done
+  if nmcli -t -f NAME con show 2>/dev/null | grep -qxF "$WIFI_SSID"; then
+    nmcli con up "$WIFI_SSID" >/dev/null 2>&1 || true          # saved on an earlier boot
+  else
+    for i in 1 2 3; do nmcli dev wifi connect "$WIFI_SSID" password "$WIFI_PSK" && break; sleep 10; done
+  fi
 fi
 # Phone hotspot as a backup network for software updates. Lower priority, so home Wi-Fi wins.
 if [ -n "${HOTSPOT_SSID:-}" ]; then
@@ -94,7 +98,12 @@ fi
 SETS=()   # optional overrides from this card's headunit.conf (e.g. DISPLAY_TYPE=monitor for bench testing)
 for k in DISPLAY_TYPE DISPLAY_ROTATE POWER_MODE; do [ -n "${!k:-}" ] && SETS+=(--set "$k=${!k}"); done
 /opt/headunit/setup.sh --vehicle "${VEHICLE:-f250}" --tier "${TIER:-2}" --region "${MAP_REGION:-texas-plus}" --user "$U" "${SETS[@]}" --yes
-if [ "${MAPS_AUTO:-1}" = 1 ]; then /opt/headunit/bin/hu-update-maps.sh || echo "map download failed; retry from Settings > Maps"; fi
+# The map download (whole US is ~15 GB) runs in the background after this reboot, so setup doesn't wait
+# for it and Hudiy comes up right away. Progress: Head Unit Settings > Maps. It retries on later boots.
+if [ "${MAPS_AUTO:-1}" = 1 ]; then
+  install -d /var/lib/headunit/maps && touch /var/lib/headunit/maps/.download-pending
+  echo "maps: will download in the background after the reboot (Settings > Maps shows progress)"
+fi
 # Collect a diagnostics report on the next (first normal) boot: bootfs/headunit/diag.txt
 touch "$B/collect-diagnostics"
 systemctl disable headunit-firstboot.service

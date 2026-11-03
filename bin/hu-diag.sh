@@ -1,7 +1,8 @@
 #!/bin/bash
 # Writes a diagnostics report to the SD card's boot partition (bootfs/headunit/diag.txt), so you can
 # read it on your computer when the screen shows nothing. Runs once at boot when the file
-# bootfs/headunit/collect-diagnostics exists (first boot creates it; make an empty file to ask again).
+# bootfs/headunit/collect-diagnostics exists. The image creates it, so every boot writes a fresh report
+# until you delete that file (make an empty file with that name to turn reports back on).
 B=/boot/firmware/headunit; OUT=$B/diag.txt
 sleep "${1:-90}"     # let the desktop and Hudiy start (or fail) first
 U=$(grep -E '^HU_USER=' /etc/headunit/headunit.conf 2>/dev/null | tail -1 | cut -d= -f2); U=${U:-$(getent passwd 1000 | cut -d: -f1)}
@@ -28,4 +29,4 @@ sec() { printf '\n===== %s\n' "$1"; }
   sec "user journal (this boot)"; journalctl -b --no-pager _UID="$UID_" -n 200 2>&1
   sec "system warnings (this boot)"; journalctl -b --no-pager -p warning -n 200 2>&1
 } 2>&1 | sed -E 's/(psk|password|passwd|order)([^=:]*)[=:].*/\1\2=(hidden)/I' > "$OUT.tmp"
-mv "$OUT.tmp" "$OUT"; rm -f "$B/collect-diagnostics"; sync
+mv "$OUT.tmp" "$OUT"; sync

@@ -56,16 +56,17 @@ one-time `firstrun.sh` hook in `cmdline.txt`.
    number and checks it online (that's its license check); first boot answers that prompt for you, then
    deletes the installer and the order number from the card.
 3. Boot the Pi on the bench, within range of Wi-Fi. The first power-up sets up the user and region, then
-   reboots. The second boot installs Hudiy, then the add-ons, downloads maps, and reboots into Hudiy
+   reboots. The second boot installs Hudiy, then the add-ons, and reboots into Hudiy; the maps download in the background afterwards
    (CarPlay / Android Auto starts by itself). This takes **15–45 minutes**. The log is
    `bootfs/headunit/firstboot.log`. Passwords in `headunit.conf` are erased from the card once they're used.
 4. Change the password: *Settings → Developer → Open terminal*, then type `passwd`.
 
 **Blank screen or something not working?** Put the SD card in your computer and open
-`bootfs/headunit/diag.txt`: the first normal boot writes a report there (screens, what's running, failed
-services, recent errors). Passwords and the Hudiy order number are left out. To get a fresh report, create an
-empty file named `collect-diagnostics` in that folder and boot the Pi once; the report appears about 90 s
-after boot. Desk monitors larger than 1920×1080 (Hudiy's limit) are switched to a mode that fits when
+`bootfs/headunit/diag.txt`: about 90 s after every boot the Pi writes a report there (screens, what's
+running, failed services, recent errors). Passwords and the Hudiy order number are left out. Delete
+`bootfs/headunit/collect-diagnostics` to stop the reports; create an empty file with that name to turn them
+back on. While first-boot setup runs, a terminal window on the desktop shows its progress. The offline map
+download starts in the background after setup (Settings → Maps shows progress), so Hudiy doesn't wait for it. Desk monitors larger than 1920×1080 (Hudiy's limit) are switched to a mode that fits when
 `DISPLAY_TYPE=monitor`.
 
 Country, language (10 languages: English, Spanish, Chinese, Tagalog, Vietnamese, Arabic, French,
