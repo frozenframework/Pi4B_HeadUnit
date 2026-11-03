@@ -53,7 +53,34 @@ SEARCH_DB = DATA_DIR / "search" / "search.sqlite"
 for d in (USER_DIR, LOG_DIR):
     d.mkdir(parents=True, exist_ok=True)
 
+# Languages offered in Settings > Region & language (the 10 most spoken in US homes, Census ACS 2024).
+# valhalla = turn-by-turn text from the router (None: the nav app writes it from its own phrase list),
+# voice = espeak-ng voice for spoken prompts (the first one installed is used).
+LANGS = {
+    "en": {"valhalla": "en-US", "voice": ["en-us"]},
+    "es": {"valhalla": "es-ES", "voice": ["es-419", "es"]},
+    "zh": {"valhalla": None, "voice": ["cmn", "zh"]},
+    "tl": {"valhalla": None, "voice": ["tl", "fil", "id"]},
+    "vi": {"valhalla": "vi-VN", "voice": ["vi"]},
+    "ar": {"valhalla": "ar-SA", "voice": ["ar"]},
+    "fr": {"valhalla": "fr-FR", "voice": ["fr-fr", "fr"]},
+    "ko": {"valhalla": "ko-KR", "voice": ["ko"]},
+    "pt": {"valhalla": "pt-BR", "voice": ["pt-br", "pt"]},
+    "hi": {"valhalla": "hi-IN", "voice": ["hi"]},
+}
+def system_language():
+    """Language code from the system locale (/etc/default/locale), e.g. es_US.UTF-8 -> es."""
+    try:
+        for line in Path("/etc/default/locale").read_text().splitlines():
+            if line.startswith("LANG="):
+                code = line.split("=", 1)[1].strip('"')[:2]
+                return code if code in LANGS else "en"
+    except OSError:
+        pass
+    return "en"
+
 DEFAULT_SETTINGS = {"theme": C("DEFAULT_THEME", "neon-overdrive"), "units": "imperial", "voice": True,
+                    "language": system_language(), "lastPos": None,
                     "syncHudiyColors": False, "nightAuto": True,
                     "display": {"level": 100, "auto": True, "day": 100, "night": 45, "method": "auto"}, "radio": {"band": "FM", "FM": 101100, "AM": 740,
                     "presets": {"FM": [], "AM": []}}}
@@ -165,7 +192,8 @@ def do_route(body):
     units = "miles" if settings().get("units") == "imperial" else "kilometers"
     req = {"locations": [{"lon": body["from"][0], "lat": body["from"][1], **({"heading": body["heading"], "heading_tolerance": 45} if body.get("heading") is not None else {})},
                          {"lon": body["to"][0], "lat": body["to"][1]}],
-           "costing": body.get("costing", "auto"), "units": units, "language": "en-US",
+           "costing": body.get("costing", "auto"), "units": units,
+           "language": LANGS.get(settings().get("language"), {}).get("valhalla") or "en-US",
            "directions_options": {"units": units}}
     raw = actor.route(json.dumps(req))
     res = json.loads(raw) if isinstance(raw, str) else raw
@@ -412,12 +440,26 @@ async def radio_api(request):
     return web.json_response({"error": "unknown"}, status=404)
 
 # ---------------------------------------------------------------- voice prompts
+_voices = None
+def voice_for(lang):
+    """First espeak-ng voice for the language that is actually installed (falls back to US English)."""
+    global _voices
+    if _voices is None:
+        try:
+            out = subprocess.run(["espeak-ng", "--voices"], capture_output=True, text=True, timeout=10).stdout
+            _voices = {l.split()[1] for l in out.splitlines()[1:] if len(l.split()) > 1}
+        except Exception:
+            _voices = set()
+    for v in LANGS.get(lang, LANGS["en"])["voice"]:
+        if v in _voices: return v
+    return "en-us"
+
 async def say(request):
     body = await request.json()
     text = str(body.get("text", ""))[:300]
     if not settings().get("voice", True) or not text or not shutil.which("espeak-ng"):
         return web.json_response({"ok": False})
-    cmd = ["sh", "-c", 'espeak-ng -v en-us -s 165 --stdout "$1" | pw-play -', "say", text]
+    cmd = ["sh", "-c", 'espeak-ng -v "$2" -s 165 --stdout "$1" | pw-play -', "say", text, voice_for(settings().get("language", "en"))]
     await asyncio.create_subprocess_exec(*cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return web.json_response({"ok": True})
 
@@ -477,6 +519,95 @@ async def maps_update(request):
 
 async def maps_update_status(request):
     return web.json_response(read_json(MAPS_DIR / "update-status.json", {"message": ""}))
+
+# ---------------------------------------------------------------- region & language, developer tools
+SYSTEM_HELPER = "/opt/headunit/bin/hu-system.sh"
+
+def run_helper(*args, timeout=180):
+    """Run the root helper through sudo (allowed in /etc/sudoers.d/headunit). Returns its JSON."""
+    try:
+        r = subprocess.run(["sudo", "-n", SYSTEM_HELPER, *args], capture_output=True, text=True, timeout=timeout)
+        return json.loads(r.stdout.strip().splitlines()[-1]) if r.stdout.strip() else {"ok": False, "error": (r.stderr.strip() or "no answer")[-160:]}
+    except Exception as e:
+        return {"ok": False, "error": str(e)[:160]}
+
+def countries():
+    out = []
+    try:
+        for line in Path("/usr/share/zoneinfo/iso3166.tab").read_text(encoding="utf-8").splitlines():
+            if line and not line.startswith("#"):
+                code, name = line.split("\t", 1); out.append({"code": code, "name": name})
+    except OSError:
+        out = [{"code": "US", "name": "United States"}]
+    return sorted(out, key=lambda c: (c["code"] != "US", c["name"]))
+
+US_ZONES = ["America/New_York", "America/Chicago", "America/Denver", "America/Phoenix", "America/Los_Angeles",
+            "America/Anchorage", "Pacific/Honolulu", "America/Puerto_Rico"]
+def timezones():
+    zones = set()
+    try:
+        for line in Path("/usr/share/zoneinfo/tzdata.zi").read_text().splitlines():
+            if line.startswith("Z "): zones.add(line.split()[1])
+            elif line.startswith("L "): zones.add(line.split()[2])
+    except OSError:
+        pass
+    zones = sorted(z for z in zones if "/" in z and not z.startswith(("Etc/", "SystemV/", "US/", "posix", "right")))
+    return US_ZONES + [z for z in zones if z not in US_ZONES]
+
+def addresses():
+    try:
+        out = subprocess.run(["hostname", "-I"], capture_output=True, text=True, timeout=5).stdout.split()
+        return [a for a in out if ":" not in a] or out
+    except Exception:
+        return []
+
+async def system_api(request):
+    loop = asyncio.get_running_loop()
+    if request.method == "GET":
+        st = await loop.run_in_executor(None, run_helper, "status")
+        return web.json_response({**st, "language": settings().get("language", "en"), "countries": countries(),
+                                  "timezones": timezones(), "hostname": os.uname().nodename, "addresses": addresses(),
+                                  "version": VERSION})
+    body = await request.json()
+    out = {"ok": True}
+    for key in ("country", "timezone", "language", "ssh"):
+        if key not in body: continue
+        val = str(body[key])
+        if key == "language":
+            if val not in LANGS: return web.json_response({"ok": False, "error": "unknown language"})
+            s = settings(); s["language"] = val; write_json(USER_DIR / "settings.json", s)   # the apps switch right away
+            # The system locale (desktop, Hudiy) changes in the background; it needs locale files built first.
+            loop.run_in_executor(None, run_helper, "language", val)
+            usage("language", lang=val); out["restart"] = True; continue
+        if key == "ssh": val = "on" if body[key] in (True, "on", 1) else "off"
+        r = await loop.run_in_executor(None, run_helper, key, val)
+        usage("system_set", key=key, ok=bool(r.get("ok")))
+        if not r.get("ok"): return web.json_response(r)
+    return web.json_response(out)
+
+def session_env():
+    """Environment for starting a window in the head unit's desktop session (labwc)."""
+    env = dict(os.environ)
+    run = Path(env.get("XDG_RUNTIME_DIR") or f"/run/user/{os.getuid()}")
+    env["XDG_RUNTIME_DIR"] = str(run)
+    if not env.get("WAYLAND_DISPLAY"):
+        socks = sorted(p.name for p in run.glob("wayland-[0-9]") if p.is_socket())
+        env["WAYLAND_DISPLAY"] = socks[0] if socks else "wayland-0"
+    return env
+
+async def dev_api(request):
+    action = request.match_info["action"]
+    if action == "terminal":
+        term = shutil.which("lxterminal") or shutil.which("x-terminal-emulator")
+        if not term: return web.json_response({"ok": False, "error": "no terminal program installed"})
+        subprocess.Popen([term, "--working-directory=" + str(Path.home())] if term.endswith("lxterminal") else [term],
+                         env=session_env(), start_new_session=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        usage("dev_terminal"); return web.json_response({"ok": True})
+    if action == "keyboard":   # Raspberry Pi OS's on-screen keyboard (squeekboard)
+        r = subprocess.run(["busctl", "call", "--user", "sm.puri.OSK0", "/sm/puri/OSK0", "sm.puri.OSK0", "SetVisible", "b", "true"],
+                           env=session_env(), capture_output=True, text=True, timeout=5)
+        return web.json_response({"ok": r.returncode == 0, "error": r.stderr.strip()[-160:]})
+    return web.json_response({"ok": False, "error": "unknown action"}, status=404)
 
 # ---------------------------------------------------------------- software updates (bin/hu-update.py)
 UPDATE_DIR = Path("/var/lib/headunit/update")
@@ -567,6 +698,8 @@ def make_app():
     app.router.add_get("/api/logs/summary", logs_summary)
     app.router.add_get("/api/display/status", display_status)
     app.router.add_get("/api/update/status", update_status)
+    app.router.add_route("*", "/api/system", system_api)
+    app.router.add_post("/api/dev/{action}", dev_api)
     app.router.add_post("/api/update/check", update_check)
     app.router.add_static("/apps", APP_DIR, follow_symlinks=False)
     MAPS_DIR.mkdir(parents=True, exist_ok=True)

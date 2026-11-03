@@ -3,24 +3,24 @@
 <title>iPod & USB Music</title><link rel="stylesheet" href="../common/hu.css"><link rel="stylesheet" href="music.css"></head>
 <body data-app="music">
 <section id="now" class="panel">
-  <div id="src" class="muted">No iPod or USB drive connected</div>
-  <div id="title" class="glow">Nothing playing</div>
+  <div id="src" class="muted" data-i18n="mu.no_source">No iPod or USB drive connected</div>
+  <div id="title" class="glow" data-i18n="mu.nothing">Nothing playing</div>
   <div id="artist" class="muted"></div>
   <div id="bar"><div id="fill"></div></div>
   <div id="times" class="row muted"><span id="el">0:00</span><span id="du">0:00</span></div>
   <div class="row ctl">
-    <button id="shuffle" data-log="m_shuffle" aria-label="Shuffle"></button>
-    <button id="prev" data-log="m_prev" aria-label="Previous"></button>
-    <button id="toggle" class="primary" data-log="m_toggle" aria-label="Play or pause"></button>
-    <button id="next" data-log="m_next" aria-label="Next"></button>
+    <button id="shuffle" data-log="m_shuffle" aria-label="Shuffle" data-i18n-aria="mu.shuffle"></button>
+    <button id="prev" data-log="m_prev" aria-label="Previous" data-i18n-aria="mu.previous"></button>
+    <button id="toggle" class="primary" data-log="m_toggle" aria-label="Play or pause" data-i18n-aria="mu.play_pause"></button>
+    <button id="next" data-log="m_next" aria-label="Next" data-i18n-aria="mu.next"></button>
   </div>
 </section>
 <section id="browse" class="panel">
   <div class="row tabs">
-    <button id="back" class="ghost hidden" data-log="m_back" aria-label="Back"></button>
-    <button data-tab="artists" data-log="tab_artists">Artists</button>
-    <button data-tab="albums" data-log="tab_albums">Albums</button>
-    <button data-tab="tracks" data-log="tab_songs">Songs</button>
+    <button id="back" class="ghost hidden" data-log="m_back" aria-label="Back" data-i18n-aria="common.back"></button>
+    <button data-tab="artists" data-log="tab_artists" data-i18n="mu.artists">Artists</button>
+    <button data-tab="albums" data-log="tab_albums" data-i18n="mu.albums">Albums</button>
+    <button data-tab="tracks" data-log="tab_songs" data-i18n="mu.songs">Songs</button>
     <span id="crumb" class="muted"></span>
   </div>
   <div id="list" class="list"></div>

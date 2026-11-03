@@ -19,6 +19,9 @@ rsync
 wlr-randr
 git
 openssh-client
+fonts-noto-core
+fonts-noto-cjk
+locales
 rtl-sdr
 ddcutil
 python3-gi

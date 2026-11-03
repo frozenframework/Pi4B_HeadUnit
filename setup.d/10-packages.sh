@@ -10,6 +10,8 @@ PKGS=(
   hfsplus                        # Mac-formatted iPods (HFS+) - read only
   exfatprogs jq curl rsync wlr-randr
   git openssh-client             # software updates: signed release tags from GitHub
+  fonts-noto-core fonts-noto-cjk # screen text in Arabic, Hindi, Chinese, Korean (Settings > Region & language)
+  locales                        # system language switching
 )
 [ "$(conf_get RADIO 0)" = 1 ] && PKGS+=(rtl-sdr)
 say "installing: ${PKGS[*]}"

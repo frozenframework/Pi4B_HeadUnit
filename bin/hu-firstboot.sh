@@ -7,9 +7,9 @@ exec > >(tee -a "$LOG") 2>&1
 echo "==== first boot $(date)"
 set -a; source "$B/headunit.conf"; set +a
 
+rfkill unblock wifi 2>/dev/null || true
+nmcli radio wifi on 2>/dev/null || true
 if [ -n "${WIFI_SSID:-}" ]; then
-  raspi-config nonint do_wifi_country "${WIFI_COUNTRY:-US}" || true
-  nmcli radio wifi on || true
   for i in 1 2 3; do nmcli dev wifi connect "$WIFI_SSID" password "$WIFI_PSK" && break; sleep 10; done
 fi
 # Phone hotspot as a backup network for software updates. Lower priority, so home Wi-Fi wins.
@@ -21,8 +21,13 @@ if [ -n "${HOTSPOT_SSID:-}" ]; then
 fi
 for i in $(seq 1 60); do curl -fsI https://deb.debian.org >/dev/null 2>&1 && break; echo "waiting for internet ($i)"; sleep 5; done
 
-for i in $(seq 1 60); do U=$(getent passwd 1000 | cut -d: -f1); [ -n "$U" ] && break; sleep 5; done
-[ -n "${U:-}" ] || { echo "no user account yet; set one in Raspberry Pi Imager (OS customisation)"; exit 1; }
+# The account made by firstrun.sh (HU_USERNAME), or the one Raspberry Pi Imager's customisation made.
+U=""
+for i in $(seq 1 60); do
+  if [ -n "${HU_USERNAME:-}" ] && id "$HU_USERNAME" >/dev/null 2>&1; then U=$HU_USERNAME; else U=$(getent passwd 1000 | cut -d: -f1); fi
+  [ -n "$U" ] && break; sleep 5
+done
+[ -n "${U:-}" ] || { echo "no user account found (HU_USERNAME in headunit.conf)"; exit 1; }
 echo "user: $U"
 
 # Hudiy first: it asks for a clean Raspberry Pi OS install.
@@ -48,6 +53,6 @@ for k in DISPLAY_TYPE DISPLAY_ROTATE POWER_MODE; do [ -n "${!k:-}" ] && SETS+=(-
 if [ "${MAPS_AUTO:-1}" = 1 ]; then /opt/headunit/bin/hu-update-maps.sh || echo "map download failed; retry from Settings > Maps"; fi
 systemctl disable headunit-firstboot.service
 # Don't leave Wi-Fi passwords readable on the card's boot partition (they're saved in NetworkManager now).
-sed -E 's/^(WIFI_PSK|HOTSPOT_PSK)=.*/\1="(saved on the Pi)"/' "$B/headunit.conf" > "$B/headunit.conf.applied" && rm -f "$B/headunit.conf"
+sed -E 's/^(WIFI_PSK|HOTSPOT_PSK|HU_PASSWORD)=.*/\1="(saved on the Pi)"/' "$B/headunit.conf" > "$B/headunit.conf.applied" && rm -f "$B/headunit.conf"
 echo "==== first boot finished $(date); rebooting"
 sync; sleep 3; reboot

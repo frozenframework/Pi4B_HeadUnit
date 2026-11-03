@@ -1,5 +1,6 @@
-// Head-unit settings: map skin (also recolors Hudiy), driving options, map data, test logs.
-import { api, getSettings, saveSettings, loadThemes, applyUiTheme, logEvent, toast } from '../common/hu.js';
+// Head-unit settings: map skin, display, driving, region & language, maps, updates, developer, test logs.
+import { api, getSettings, saveSettings, loadThemes, applyUiTheme, logEvent, toast, icons } from '../common/hu.js';
+import { initI18n, t, LANGS, lang, langTag } from '../common/i18n.js';
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 let S = {};
@@ -7,33 +8,34 @@ let S = {};
 function page(id) {
   document.querySelectorAll('.page').forEach(p => p.classList.toggle('hidden', p.id !== id));
   document.querySelectorAll('[data-page]').forEach(b => b.classList.toggle('on', b.dataset.page === id));
-  if (id === 'maps') maps(); if (id === 'about') about(); if (id === 'display') display(); if (id === 'updates') updates();
+  ({ maps, about, display, updates, region, dev })[id]?.();
 }
 async function cards() {
   const themes = await loadThemes(); const box = $('cards'); box.innerHTML = '';
-  for (const t of themes) {
-    const c = document.createElement('div'); c.className = 'tcard' + (t.id === S.theme ? ' on' : '');
-    c.innerHTML = `<img src="previews/${t.id}.png" alt=""><div class="tname" style="font-family:'${t.font}'">${esc(t.name)}</div><div class="tsub">${esc(t.inspiredBy)}</div>`;
-    c.onclick = async () => { S = await saveSettings({ theme: t.id }); await applyUiTheme(t.id); logEvent('skin_pick', { theme: t.id, from: 'settings' }); cards(); toast(`${t.name} applied`); };
+  for (const th of themes) {
+    const c = document.createElement('div'); c.className = 'tcard' + (th.id === S.theme ? ' on' : '');
+    c.innerHTML = `<img src="previews/${th.id}.png" alt=""><div class="tname" style="font-family:'${th.font}'">${esc(th.name)}</div><div class="tsub">${esc(th.inspiredBy)}</div>`;
+    c.onclick = async () => { S = await saveSettings({ theme: th.id }); await applyUiTheme(th.id); logEvent('skin_pick', { theme: th.id, from: 'settings' }); cards(); toast(t('set.applied', { name: th.name })); };
     box.appendChild(c);
   }
 }
+const onOff = (v) => v ? t('common.on') : t('common.off');
 function switches() {
-  const lab = { voice: ['On', 'Off'], nightAuto: ['On', 'Off'], syncHudiyColors: ['On', 'Off'] };
-  for (const k of Object.keys(lab)) {
-    const b = $(k); b.textContent = S[k] ? lab[k][0] : lab[k][1]; b.classList.toggle('on', !!S[k]);
+  for (const k of ['voice', 'nightAuto', 'syncHudiyColors']) {
+    const b = $(k); b.textContent = onOff(S[k]); b.classList.toggle('on', !!S[k]);
     b.onclick = async () => { S = await saveSettings({ [k]: !S[k] }); logEvent('setting', { k, v: S[k] }); switches(); };
   }
-  const u = $('units'); u.textContent = S.units === 'imperial' ? 'Miles' : 'Kilometers'; u.classList.add('on');
+  const u = $('units'); u.textContent = S.units === 'imperial' ? t('set.miles') : t('set.kilometers'); u.classList.add('on');
   u.onclick = async () => { S = await saveSettings({ units: S.units === 'imperial' ? 'metric' : 'imperial' }); switches(); };
 }
+
 // ---- Display: brightness / auto-dim (hu-dimmer applies it within a quarter second)
 let dimTimer = null;
 function paintSlider(el) { el.style.setProperty('--pct', `${((el.value - el.min) / (el.max - el.min)) * 100}%`); }
 async function display() {
   const st = await api('/api/display/status').catch(() => ({}));
   const d = st.settings || S.display || {};
-  const auto = $('dimAuto'); auto.textContent = d.auto ? 'On' : 'Off'; auto.classList.toggle('on', !!d.auto);
+  const auto = $('dimAuto'); auto.textContent = onOff(d.auto); auto.classList.toggle('on', !!d.auto);
   $('manualRow').classList.toggle('hidden', !!d.auto); $('autoRows').classList.toggle('hidden', !d.auto);
   for (const k of ['level', 'day', 'night']) {
     const el = $(k);
@@ -42,8 +44,8 @@ async function display() {
     $(k + 'Val').textContent = `${el.value}%`; paintSlider(el);
   }
   $('dimStatus').textContent = st.method
-    ? `${st.label} · now ${st.applied}% (${st.night ? 'headlights on' : 'headlights off'})${st.min ? ' · lowest ' + st.min + '%' : ''}`
-    : 'Dimmer service is starting…';
+    ? [t('set.dim_status', { label: st.label, pct: st.applied }), st.night ? t('set.lights_on') : t('set.lights_off'), st.min ? t('set.lowest', { pct: st.min }) : ''].filter(Boolean).join(' · ')
+    : t('set.dim_starting');
 }
 function wireDisplay() {
   $('dimAuto').onclick = async () => { S = await saveSettings({ display: { auto: !(S.display?.auto ?? true) } }); display(); };
@@ -57,32 +59,97 @@ function wireDisplay() {
   }
 }
 
+// ---- Region & language
+let SYS = null;
+let regionNames = null;   // country names in the screen language (falls back to the system's English list)
+const countryName = (c) => { try { return (regionNames ||= new Intl.DisplayNames([langTag()], { type: 'region' })).of(c.code) || c.name; } catch { return c.name; } };
+const tzLabel = (z) => z.split('/').slice(1).join(' / ').replace(/_/g, ' ') || z;
+const tzTime = (z) => { try { return new Date().toLocaleTimeString(langTag(), { timeZone: z, hour: 'numeric', minute: '2-digit' }); } catch { return ''; } };
+async function region() {
+  SYS = await api('/api/system').catch(() => null) || SYS || {};
+  $('langBtn').textContent = LANGS.find(l => l.code === lang())?.name || 'English';
+  const c = (SYS.countries || []).find(x => x.code === SYS.country);
+  $('countryBtn').textContent = c ? countryName(c) : (SYS.country || 'US');
+  $('tzBtn').textContent = SYS.timezone ? tzLabel(SYS.timezone) : '—';
+  $('tzNow').textContent = SYS.timezone ? t('set.local_time', { time: tzTime(SYS.timezone) }) : '';
+}
+function pick(title, items, current, onPick) {
+  $('pickTitle').textContent = title;
+  const list = $('pickList'); list.innerHTML = '';
+  for (const it of items) {
+    const el = document.createElement('div'); el.className = 'item' + (it.value === current ? ' on' : '');
+    el.innerHTML = `<div>${esc(it.label)}</div>${it.sub ? `<div class="sub">${esc(it.sub)}</div>` : ''}`;
+    el.onclick = async () => { $('picker').classList.add('hidden'); await onPick(it.value); };
+    list.appendChild(el);
+  }
+  $('picker').classList.remove('hidden');
+  list.querySelector('.on')?.scrollIntoView({ block: 'center' });
+}
+async function setSystem(body) {
+  const r = await api('/api/system', { json: body }).catch(e => ({ ok: false, error: String(e) }));
+  if (!r.ok) { toast(t('set.save_failed', { err: r.error || '?' }), 4000); return false; }
+  return r;
+}
+function wireRegion() {
+  $('langBtn').onclick = () => pick(t('set.language'), LANGS.map(l => ({ value: l.code, label: l.name })), lang(), async (code) => {
+    const r = await setSystem({ language: code }); if (!r) return;
+    S = await getSettings(); await initI18n(code); regionNames = null; switches(); region(); toast(t('set.saved'));
+    $('regionNote').classList.remove('hidden');
+  });
+  $('countryBtn').onclick = () => pick(t('set.country'), (SYS?.countries || []).map(c => ({ value: c.code, label: countryName(c), sub: c.code })).sort((a, b) => (b.value === 'US') - (a.value === 'US') || a.label.localeCompare(b.label, langTag())), SYS?.country, async (code) => {
+    if (await setSystem({ country: code })) { toast(t('set.saved')); region(); }
+  });
+  $('tzBtn').onclick = () => pick(t('set.timezone'), (SYS?.timezones || []).map(z => ({ value: z, label: tzLabel(z), sub: tzTime(z) })), SYS?.timezone, async (z) => {
+    if (await setSystem({ timezone: z })) { toast(t('set.saved')); region(); }
+  });
+  $('pickClose').innerHTML = icons.close; $('pickClose').onclick = () => $('picker').classList.add('hidden');
+}
+
+// ---- Developer
+async function dev() {
+  SYS = await api('/api/system').catch(() => null) || SYS || {};
+  const b = $('sshBtn'); b.textContent = onOff(SYS.ssh); b.classList.toggle('on', !!SYS.ssh);
+  $('pwWarn').classList.toggle('hidden', !SYS.default_password);
+  $('devInfo').innerHTML = [
+    `${esc(t('set.user'))}: <b>${esc(SYS.user || '?')}</b> · ${esc(t('set.hostname'))}: <b>${esc(SYS.hostname || '?')}</b>`,
+    `${esc(t('set.ip'))}: <b>${esc((SYS.addresses || []).join(', ') || t('set.no_network'))}</b>`,
+    `${esc(t('set.version'))}: <b>${esc(SYS.version || '?')}</b>`,
+  ].join('<br>');
+}
+function wireDev() {
+  $('termBtn').onclick = async () => { const r = await api('/api/dev/terminal', { json: {} }); if (!r.ok) toast(r.error || '?', 4000); };
+  $('oskBtn').onclick = async () => { const r = await api('/api/dev/keyboard', { json: {} }); if (!r.ok) toast(t('set.osk_failed'), 4000); };
+  $('sshBtn').onclick = async () => { if (await setSystem({ ssh: !SYS?.ssh })) dev(); };
+}
+
 async function maps() {
   const st = await api('/api/status'); const m = st.maps;
-  const yes = (v) => v ? '<span class="accent">installed</span>' : '<span style="color:var(--warn)">missing</span>';
-  $('mapInfo').innerHTML = `Region: <b>${esc(m.name || m.region || 'not set')}</b><br>Map display: ${yes(m.basemap)} ${m.basemap_date ? '(' + esc(m.basemap_date) + ')' : ''}<br>Routing: ${yes(m.routing)} · Search: ${yes(m.search)} ${m.built ? '(built ' + esc(m.built.slice(0, 10)) + ')' : ''}`;
+  const yes = (v) => v ? `<span class="accent">${esc(t('set.installed'))}</span>` : `<span style="color:var(--warn)">${esc(t('set.missing'))}</span>`;
+  $('mapInfo').innerHTML = `${esc(t('set.map_region'))}: <b>${esc(m.name || m.region || t('set.not_set'))}</b><br>${esc(t('set.map_display'))}: ${yes(m.basemap)} ${m.basemap_date ? '(' + esc(m.basemap_date) + ')' : ''}<br>${esc(t('set.routing'))}: ${yes(m.routing)} · ${esc(t('set.search'))}: ${yes(m.search)} ${m.built ? '(' + esc(t('set.built', { date: m.built.slice(0, 10) })) + ')' : ''}`;
   const u = await api('/api/maps/update-status'); $('upd').textContent = u.message || '';
+}
+async function about() {
+  const r = await api('/api/logs/summary');
+  $('logInfo').innerHTML = `${esc(t('set.logged_days'))}: <b>${r.days}</b> · ${esc(t('set.events'))}: <b>${r.events.toLocaleString(langTag())}</b> · ${esc(t('set.size'))}: <b>${(r.bytes / 1024).toFixed(0)} KB</b>`;
 }
 // ---- Updates: status written by bin/hu-update.py
 async function updates() {
   const u = await api('/api/update/status').catch(() => ({}));
-  const when = (t) => t ? new Date(t * 1000).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'never';
+  const when = (x) => x ? new Date(x * 1000).toLocaleString(langTag(), { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : t('set.never');
   const last = (u.history || []).filter(h => h.event === 'installed').pop();
-  $('updInfo').innerHTML = `Installed version: <b class="accent">${esc(u.version || '?')}</b>${last ? ' (since ' + when(last.time) + ')' : ''}<br>` +
-    `Automatic updates: <b>${u.enabled === false ? 'off' : 'on'}</b> · last check: <b>${when(u.last_check)}</b><br>` +
-    (u.pending ? `Ready to install: <b class="accent">${esc(u.pending)}</b> (next key-on)` : '');
+  $('updInfo').innerHTML = `${esc(t('set.installed_version'))}: <b class="accent">${esc(u.version || '?')}</b>${last ? ' (' + esc(t('set.since', { date: when(last.time) })) + ')' : ''}<br>` +
+    `${esc(t('set.auto_updates'))}: <b>${esc(onOff(u.enabled !== false))}</b> · ${esc(t('set.last_check'))}: <b>${esc(when(u.last_check))}</b><br>` +
+    (u.pending ? `${esc(t('set.ready_install'))}: <b class="accent">${esc(u.pending)}</b> (${esc(t('set.next_key_on'))})` : '');
   $('updMsg').textContent = u.message || '';
   $('updCheck').disabled = ['checking', 'downloading'].includes(u.state);
 }
-async function about() {
-  const r = await api('/api/logs/summary'); $('logInfo').innerHTML = `Logged days: <b>${r.days}</b> · events: <b>${r.events.toLocaleString()}</b> · size: <b>${(r.bytes / 1024).toFixed(0)} KB</b>`;
-}
+
 (async () => {
-  S = await getSettings(); await applyUiTheme(S.theme);
+  S = await getSettings(); await applyUiTheme(S.theme); await initI18n(S.language);
   document.querySelectorAll('[data-page]').forEach(b => b.onclick = () => page(b.dataset.page));
-  $('update').onclick = async () => { const r = await api('/api/maps/update', { json: {} }); toast(r.message || 'Started'); setTimeout(maps, 3000); };
-  $('updCheck').onclick = async () => { const r = await api('/api/update/check', { json: {} }); toast(r.message || 'Checking'); setTimeout(updates, 2000); };
-  cards(); switches(); wireDisplay(); page(new URLSearchParams(location.search).get('page') || 'skins');
+  $('update').onclick = async () => { const r = await api('/api/maps/update', { json: {} }); toast(r.message || ''); setTimeout(maps, 3000); };
+  $('updCheck').onclick = async () => { const r = await api('/api/update/check', { json: {} }); toast(r.message || ''); setTimeout(updates, 2000); };
+  cards(); switches(); wireDisplay(); wireRegion(); wireDev(); page(new URLSearchParams(location.search).get('page') || 'skins');
   setInterval(() => { if (!$('maps').classList.contains('hidden')) maps(); }, 5000);
   setInterval(() => { if (!$('display').classList.contains('hidden')) display(); }, 2000);
   setInterval(() => { if (!$('updates').classList.contains('hidden')) updates(); }, 3000);

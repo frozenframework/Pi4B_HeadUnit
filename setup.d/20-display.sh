@@ -63,6 +63,13 @@ p, out = sys.argv[1:]; t = ET.parse(p); r = t.getroot()
 for el in r.findall("touch"):
     r.remove(el)
 ET.SubElement(r, "touch", {"mapToOutput": out, "mouseEmulation": "no"})
+# Settings > Developer > Open terminal: show the terminal maximized on top of Hudiy.
+wr = r.find("windowRules")
+if wr is None: wr = ET.SubElement(r, "windowRules")
+for el in wr.findall("windowRule"):
+    if el.get("identifier") == "lxterminal": wr.remove(el)
+rule = ET.SubElement(wr, "windowRule", {"identifier": "lxterminal"})
+for a in ("Maximize", "Raise", "Focus"): ET.SubElement(rule, "action", {"name": a})
 t.write(p, xml_declaration=True, encoding="UTF-8")
 PY
 chown "$U:$U" "$RC"

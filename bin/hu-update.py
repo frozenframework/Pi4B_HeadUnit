@@ -87,11 +87,12 @@ def mark_bad(v, reason):
     b = rj(BAD, {}); b[v] = reason; wj(BAD, b)
 
 def run(cmd, timeout=600, **kw):
+    kw.setdefault("env", {**os.environ, "LC_ALL": "C.UTF-8"})   # untranslated output, whatever language the head unit uses
     return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, **kw)
 
 def git(*args, timeout=600, repo=None):
     cmd = ["git"] + (["-C", str(repo)] if repo else []) + list(args)
-    return run(cmd, timeout=timeout, env={**os.environ, "GIT_TERMINAL_PROMPT": "0"})
+    return run(cmd, timeout=timeout, env={**os.environ, "GIT_TERMINAL_PROMPT": "0", "LC_ALL": "C.UTF-8"})
 
 def switch(to: Path):
     """Point /opt/headunit at a release folder in one atomic rename."""

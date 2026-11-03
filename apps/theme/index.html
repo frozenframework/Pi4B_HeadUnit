@@ -3,45 +3,65 @@
 <title>Head Unit Settings</title><link rel="stylesheet" href="../common/hu.css"><link rel="stylesheet" href="theme.css"></head>
 <body data-app="theme">
 <nav id="side" class="panel">
-  <button data-page="skins" data-log="pg_skins">Map skin</button>
-  <button data-page="display" data-log="pg_display">Display</button>
-  <button data-page="drive" data-log="pg_drive">Driving</button>
-  <button data-page="maps" data-log="pg_maps">Maps</button>
-  <button data-page="updates" data-log="pg_updates">Updates</button>
-  <button data-page="about" data-log="pg_about">Test data</button>
+  <button data-page="skins" data-log="pg_skins" data-i18n="set.skins">Map skin</button>
+  <button data-page="display" data-log="pg_display" data-i18n="set.display">Display</button>
+  <button data-page="drive" data-log="pg_drive" data-i18n="set.driving">Driving</button>
+  <button data-page="region" data-log="pg_region" data-i18n="set.region">Region &amp; language</button>
+  <button data-page="maps" data-log="pg_maps" data-i18n="set.maps">Maps</button>
+  <button data-page="updates" data-log="pg_updates" data-i18n="set.updates">Updates</button>
+  <button data-page="dev" data-log="pg_dev" data-i18n="set.developer">Developer</button>
+  <button data-page="about" data-log="pg_about" data-i18n="set.test_data">Test data</button>
 </nav>
 <main class="panel">
   <section id="skins" class="page"><div id="cards"></div></section>
   <section id="display" class="page hidden">
-    <div class="opt"><div><b>Auto-dim with headlights</b><div class="sub">Uses the dash-light wire: night level when the lights are on</div></div><button id="dimAuto" class="sw" data-log="dim_auto"></button></div>
-    <div id="manualRow" class="srow"><div class="slab"><b>Brightness</b><span id="levelVal" class="accent"></span></div>
+    <div class="opt"><div><b data-i18n="set.dim_auto">Auto-dim with headlights</b><div class="sub" data-i18n="set.dim_auto_sub">Uses the dash-light wire: night level when the lights are on</div></div><button id="dimAuto" class="sw" data-log="dim_auto"></button></div>
+    <div id="manualRow" class="srow"><div class="slab"><b data-i18n="set.brightness">Brightness</b><span id="levelVal" class="accent"></span></div>
       <input id="level" type="range" min="5" max="100" step="1" data-log="dim_level"></div>
     <div id="autoRows">
-      <div class="srow"><div class="slab"><b>Day</b><span id="dayVal" class="accent"></span></div><input id="day" type="range" min="5" max="100" step="1" data-log="dim_day"></div>
-      <div class="srow"><div class="slab"><b>Night</b><span id="nightVal" class="accent"></span></div><input id="night" type="range" min="5" max="100" step="1" data-log="dim_night"></div>
+      <div class="srow"><div class="slab"><b data-i18n="set.day">Day</b><span id="dayVal" class="accent"></span></div><input id="day" type="range" min="5" max="100" step="1" data-log="dim_day"></div>
+      <div class="srow"><div class="slab"><b data-i18n="set.night">Night</b><span id="nightVal" class="accent"></span></div><input id="night" type="range" min="5" max="100" step="1" data-log="dim_night"></div>
     </div>
     <div id="dimStatus" class="muted small"></div>
   </section>
   <section id="drive" class="page hidden">
-    <div class="opt"><div><b>Voice directions</b><div class="sub">Spoken turn prompts</div></div><button id="voice" class="sw"></button></div>
-    <div class="opt"><div><b>Units</b><div class="sub">Distances and speed</div></div><button id="units" class="sw"></button></div>
-    <div class="opt"><div><b>Dim light skins at night</b><div class="sub">Uses the dash-light wire</div></div><button id="nightAuto" class="sw"></button></div>
-    <div class="opt"><div><b>Match Hudiy colors to the skin</b><div class="sub">Hudiy restarts for a few seconds</div></div><button id="syncHudiyColors" class="sw"></button></div>
+    <div class="opt"><div><b data-i18n="set.voice">Voice directions</b><div class="sub" data-i18n="set.voice_sub">Spoken turn prompts</div></div><button id="voice" class="sw"></button></div>
+    <div class="opt"><div><b data-i18n="set.units">Units</b><div class="sub" data-i18n="set.units_sub">Distances and speed</div></div><button id="units" class="sw"></button></div>
+    <div class="opt"><div><b data-i18n="set.night_skins">Dim light skins at night</b><div class="sub" data-i18n="set.dash_wire">Uses the dash-light wire</div></div><button id="nightAuto" class="sw"></button></div>
+    <div class="opt"><div><b data-i18n="set.hudiy_colors">Match Hudiy colors to the skin</b><div class="sub" data-i18n="set.hudiy_colors_sub">Hudiy restarts for a few seconds</div></div><button id="syncHudiyColors" class="sw"></button></div>
+  </section>
+  <section id="region" class="page hidden">
+    <div class="opt"><div><b data-i18n="set.language">Language</b><div class="sub" data-i18n="set.language_sub">Head-unit screens and spoken directions change right away</div></div><button id="langBtn" class="sw" data-log="pick_language"></button></div>
+    <div class="opt"><div><b data-i18n="set.country">Country</b><div class="sub" data-i18n="set.country_sub">Sets which Wi-Fi channels may be used</div></div><button id="countryBtn" class="sw" data-log="pick_country"></button></div>
+    <div class="opt"><div><b data-i18n="set.timezone">Time zone</b><div id="tzNow" class="sub"></div></div><button id="tzBtn" class="sw" data-log="pick_timezone"></button></div>
+    <p id="regionNote" class="muted small hidden" data-i18n="set.restart_note">The desktop and Hudiy switch language the next time the head unit starts.</p>
   </section>
   <section id="maps" class="page hidden">
     <div id="mapInfo" class="info"></div>
-    <div class="row"><button id="update" class="primary" data-log="maps_update">Update maps now (Wi-Fi)</button><span id="upd" class="muted"></span></div>
-    <p class="muted small">Map display data downloads straight to the head unit. Routing and search come from a USB stick with a <b>HEADUNIT_MAPS</b> folder (made on your computer with <b>maps/build-routing.py</b>). It imports by itself when you plug the stick in.</p>
+    <div class="row"><button id="update" class="primary" data-log="maps_update" data-i18n="set.update_maps">Update maps now (Wi-Fi)</button><span id="upd" class="muted"></span></div>
+    <p class="muted small" data-i18n="set.maps_help">Map display data downloads straight to the head unit. Routing and search come from a USB stick with a HEADUNIT_MAPS folder (made on your computer with maps/build-routing.py). It imports by itself when you plug the stick in.</p>
   </section>
   <section id="updates" class="page hidden">
     <div id="updInfo" class="info"></div>
-    <div class="row"><button id="updCheck" class="primary" data-log="update_check">Check for updates now</button><span id="updMsg" class="muted"></span></div>
-    <p class="muted small">Updates download in the background whenever the head unit is on Wi-Fi (your home network or your phone's hotspot). Only updates signed with your release key are accepted. A downloaded update installs at the next key-on, before the screen starts; if it doesn't start properly, the head unit goes back to the previous version by itself.</p>
+    <div class="row"><button id="updCheck" class="primary" data-log="update_check" data-i18n="set.check_updates">Check for updates now</button><span id="updMsg" class="muted"></span></div>
+    <p class="muted small" data-i18n="set.updates_help">Updates download in the background whenever the head unit is on Wi-Fi (your home network or your phone's hotspot). Only updates signed with your release key are accepted. A downloaded update installs at the next key-on, before the screen starts; if it doesn't start properly, the head unit goes back to the previous version by itself.</p>
+  </section>
+  <section id="dev" class="page hidden">
+    <div class="opt"><div><b data-i18n="set.terminal">Terminal</b><div class="sub" data-i18n="set.terminal_sub">A Linux terminal on top of Hudiy. Close it to come back. Ctrl+Alt+T also opens one.</div></div>
+      <div class="row"><button id="oskBtn" class="ghost" data-log="dev_keyboard" data-i18n="set.osk">Keyboard</button><button id="termBtn" class="primary" data-log="dev_terminal" data-i18n="set.open_terminal">Open terminal</button></div></div>
+    <div class="opt"><div><b data-i18n="set.ssh">SSH login over Wi-Fi</b><div class="sub" data-i18n="set.ssh_sub">Log in from a computer on the same network</div></div><button id="sshBtn" class="sw" data-log="dev_ssh"></button></div>
+    <div id="pwWarn" class="warn small hidden" data-i18n="set.default_pw">This head unit still uses the default password. Open the terminal and type: passwd</div>
+    <div id="devInfo" class="info small"></div>
   </section>
   <section id="about" class="page hidden">
     <div id="logInfo" class="info"></div>
-    <p class="muted small">Every tap, route, skin change, map frame rate and error is logged on the head unit. To collect it, plug in a USB stick named <b>HUEXPORT</b>: the logs copy onto it automatically. Send them to me after test drives and I'll tune the layout and performance.</p>
+    <p class="muted small" data-i18n="set.logs_help">Every tap, route, skin change, map frame rate and error is logged on the head unit. To collect it, plug in a USB stick named HUEXPORT: the logs copy onto it automatically.</p>
   </section>
 </main>
+<!-- picker for language / country / time zone -->
+<section id="picker" class="sheet panel hidden">
+  <div class="sheetHead row"><button id="pickClose" class="ghost closeBtn" aria-label="Close" data-i18n-aria="common.close"></button><h2 id="pickTitle"></h2></div>
+  <div id="pickList" class="list"></div>
+</section>
 <script type="module" src="theme.js"></script>
 </body></html>

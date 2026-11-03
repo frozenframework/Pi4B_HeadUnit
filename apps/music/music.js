@@ -1,13 +1,14 @@
 // iPod Nano / USB music browser. The library is read by MPD from song tags,
 // so the iPod's scrambled file names (F00/ABCD.m4a) never show up here.
 import { api, getSettings, applyUiTheme, logEvent, icons, toast } from '../common/hu.js';
+import { initI18n, t } from '../common/i18n.js';
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const mmss = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 let stack = [];
 
 async function show(view) {
-  const list = $('list'); list.innerHTML = '<div class="item muted">Loading…</div>';
+  const list = $('list'); list.innerHTML = `<div class="item muted">${esc(t('common.loading'))}</div>`;
   document.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === view.tab));
   $('back').classList.toggle('hidden', stack.length < 2);
   $('crumb').textContent = [view.artist, view.album].filter(Boolean).join(' › ');
@@ -16,10 +17,10 @@ async function show(view) {
   else if (view.tab === 'albums') res = await api('/api/music/albums' + (view.artist ? `?artist=${encodeURIComponent(view.artist)}` : ''));
   else res = await api('/api/music/tracks?' + new URLSearchParams(Object.fromEntries(Object.entries({ artist: view.artist, album: view.album }).filter(([, v]) => v))));
   list.innerHTML = '';
-  if (res.error) { list.innerHTML = `<div class="item muted">Music service isn't running (${esc(res.error)}).</div>`; return; }
-  if (!res.length) { list.innerHTML = '<div class="item muted">No music found. Plug in the iPod (or a USB drive) and give it a minute to scan.</div>'; return; }
+  if (res.error) { list.innerHTML = `<div class="item muted">${esc(t('mu.service_down', { err: res.error }))}</div>`; return; }
+  if (!res.length) { list.innerHTML = `<div class="item muted">${esc(t('mu.no_music'))}</div>`; return; }
   if (view.tab === 'tracks') {
-    const all = document.createElement('div'); all.className = 'item playall'; all.textContent = `▶  Play all (${res.length})`;
+    const all = document.createElement('div'); all.className = 'item playall'; all.textContent = '▶  ' + t('mu.play_all', { n: res.length });
     all.onclick = () => play(res, 0); list.appendChild(all);
     res.forEach((t, i) => {
       const el = document.createElement('div'); el.className = 'item';
@@ -39,16 +40,17 @@ function reset(tab) { stack = [{ tab }]; show(stack[0]); }
 async function play(tracks, start) {
   logEvent('music_play', { n: tracks.length });
   const r = await api('/api/music/control', { json: { action: 'play_files', files: tracks.map(t => t.file), start } });
-  if (r.error) toast('Could not play: ' + (r.message || r.error)); else poll();
+  if (r.error) toast(t('mu.cant_play', { err: r.message || r.error })); else poll();
 }
 const ctl = (action) => api('/api/music/control', { json: { action } }).then(poll);
 
 async function poll() {
   const s = await api('/api/music/status').catch(() => null);
-  if (!s || s.error) { $('src').textContent = 'Music service offline'; return; }
+  if (!s || s.error) { $('src').textContent = t('mu.offline'); return; }
   const ipod = s.sources?.find(x => x.ipod);
-  $('src').textContent = ipod ? `iPod connected (${ipod.name})${s.updating ? ' · scanning…' : ''}` : s.sources?.length ? `USB drive connected${s.updating ? ' · scanning…' : ''}` : 'No iPod or USB drive connected';
-  $('title').textContent = s.song?.title || 'Nothing playing';
+  const scan = s.updating ? ' · ' + t('mu.scanning') : '';
+  $('src').textContent = ipod ? t('mu.ipod', { name: ipod.name }) + scan : s.sources?.length ? t('mu.usb') + scan : t('mu.no_source');
+  $('title').textContent = s.song?.title || t('mu.nothing');
   $('artist').textContent = [s.song?.artist, s.song?.album].filter(Boolean).join(' — ');
   $('toggle').innerHTML = s.state === 'play' ? icons.pause : icons.play;
   $('shuffle').classList.toggle('on', s.random);
@@ -58,7 +60,7 @@ async function poll() {
 }
 
 (async () => {
-  const st = await getSettings().catch(() => ({})); await applyUiTheme(st.theme);
+  const st = await getSettings().catch(() => ({})); await applyUiTheme(st.theme); await initI18n(st.language);
   $('prev').innerHTML = icons.prev; $('next').innerHTML = icons.next; $('toggle').innerHTML = icons.play; $('shuffle').innerHTML = icons.shuffle; $('back').innerHTML = icons.back;
   $('prev').onclick = () => ctl('prev'); $('next').onclick = () => ctl('next'); $('toggle').onclick = () => ctl('toggle'); $('shuffle').onclick = () => ctl('shuffle');
   $('back').onclick = () => { if (stack.length > 1) { stack.pop(); show(stack.at(-1)); } };

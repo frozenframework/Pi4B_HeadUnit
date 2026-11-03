@@ -1,7 +1,8 @@
 # ---------------------------------------------------------------------------------------------
 # Head unit first-boot settings. This file lives on the SD card's boot partition
 # (the "bootfs" drive your Mac shows after flashing), in the folder "headunit".
-# Edit it on your computer BEFORE the first boot.
+# Edit it on your computer BEFORE the first boot. Flash with Raspberry Pi Imager and answer
+# "No" to OS customisation: everything it would ask is set here, and there's no setup wizard.
 # ---------------------------------------------------------------------------------------------
 
 # Which vehicle this card is for: f250, miata or frontier
@@ -21,10 +22,27 @@ DISPLAY_TYPE=""
 # Download the map display data on first boot (needs Wi-Fi; texas-plus is a few GB)
 MAPS_AUTO=1
 
-# Wi-Fi for first-boot setup. Leave empty if you already set Wi-Fi in Raspberry Pi Imager.
+# Login for the head unit (desktop logs in automatically; used for the terminal / SSH / sudo).
+# Change the password after setup with: passwd   (it's erased from this card on first boot)
+HU_USERNAME=headunit
+HU_PASSWORD=headunit
+
+# Country, language, time zone, keyboard. All can be changed later in
+# Head Unit Settings > Region & language.
+WIFI_COUNTRY=US
+LOCALE=en_US.UTF-8
+TIMEZONE=America/Chicago
+KEYBOARD=us
+
+# Network name of the head unit (blank = <vehicle>-headunit, e.g. miata-headunit.local)
+HOSTNAME=""
+# SSH login over Wi-Fi: 0 = off (safer with the default password), 1 = on.
+# It can also be switched on later in Head Unit Settings > Developer.
+ENABLE_SSH=0
+
+# Wi-Fi for first-boot setup.
 WIFI_SSID=""
 WIFI_PSK=""
-WIFI_COUNTRY=US
 
 # Your phone's hotspot, used for software updates when you're away from home Wi-Fi (optional).
 # Copy the name exactly as the phone shows it (iPhone: Settings > General > About > Name;

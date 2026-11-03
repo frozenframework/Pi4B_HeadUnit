@@ -3,6 +3,7 @@
 import * as maplibregl from '../lib/maplibre-gl.mjs';
 import { Protocol } from '../lib/pmtiles.mjs';
 import { api, getSettings, saveSettings, loadThemes, applyUiTheme, logEvent, fmtDist, fmtTime, toast, icons, onHudiy } from '../common/hu.js';
+import { initI18n, t, has, langTag } from '../common/i18n.js';
 
 const $ = (id) => document.getElementById(id);
 const params = new URLSearchParams(location.search);
@@ -68,6 +69,23 @@ function manIcon(m) {
   const ex = cx + Math.sin(r) * len, ey = cy - Math.cos(r) * len;
   const hx1 = ex + Math.sin(r - 2.5) * 10, hy1 = ey - Math.cos(r - 2.5) * 10, hx2 = ex + Math.sin(r + 2.5) * 10, hy2 = ey - Math.cos(r + 2.5) * 10;
   return `<svg viewBox="0 0 64 64"><path d="M32 60V${cy} L${ex.toFixed(1)} ${ey.toFixed(1)}"/><path d="M${hx1.toFixed(1)} ${hy1.toFixed(1)}L${ex.toFixed(1)} ${ey.toFixed(1)}L${hx2.toFixed(1)} ${hy2.toFixed(1)}"/></svg>`;
+}
+
+// Turn text for languages the router can't write (Chinese, Tagalog): built from the maneuver type.
+const MAN_KEY = { 1: 'depart', 2: 'depart', 3: 'depart', 4: 'arrive', 5: 'arrive', 6: 'arrive', 7: 'continue', 8: 'continue',
+  9: 'slight_right', 10: 'right', 11: 'sharp_right', 12: 'uturn', 13: 'uturn', 14: 'sharp_left', 15: 'left', 16: 'slight_left',
+  17: 'ramp', 18: 'ramp', 19: 'ramp', 20: 'exit_right', 21: 'exit_left', 22: 'keep_straight', 23: 'keep_right', 24: 'keep_left',
+  25: 'merge', 37: 'merge', 38: 'merge', 26: 'roundabout', 27: 'roundabout_exit', 28: 'ferry', 29: 'continue' };
+function phrase(m) {
+  if (!m) return '';
+  if (!has('m.continue')) return m.instruction || '';          // the router already wrote it in this language
+  const k = MAN_KEY[m.type] || 'continue', st = m.streets?.[0];
+  return t('m.' + k) + (st && k !== 'arrive' ? t('m.onto', { street: st }) : '');
+}
+const spoken = (m) => has('m.continue') ? phrase(m) : (m?.verbal || m?.instruction || '');
+function sayDist(m) {
+  return fmtDist(m, state.units).replace(/ mi$/, ' ' + t('unit.miles')).replace(/ ft$/, ' ' + t('unit.feet'))
+    .replace(/ km$/, ' ' + t('unit.kilometers')).replace(/ m$/, ' ' + t('unit.meters'));
 }
 
 // ------------------------------------------------------------------ map + theme
@@ -166,7 +184,7 @@ async function routeTo(dest, reason = 'new') {
   const from = state.pos || state.map.getCenter().toArray();
   const t0 = performance.now();
   const r = await api('/api/route', { json: { from, to: dest.lnglat, heading: state.speed > 3 ? state.heading : null } });
-  if (r.error) { toast(r.message || 'No route found'); logEvent('route_fail', { reason, err: r.error }); return false; }
+  if (r.error) { toast(r.message || t('nav.no_route')); logEvent('route_fail', { reason, err: r.error }); return false; }
   state.route = { ...r, cum: cumulative(r.shape) };
   state.dest = dest; state.progress = 0; state.offCount = 0; state.spoken.clear();
   refreshRoute(); resetMarkers();
@@ -176,7 +194,7 @@ async function routeTo(dest, reason = 'new') {
     const b = r.shape.reduce((bb, c) => bb.extend(c), new maplibregl.LngLatBounds(r.shape[0], r.shape[0]));
     state.map.fitBounds(b, { padding: { left: 360, right: 110, top: 40, bottom: 40 }, duration: 800, pitch: 0, bearing: 0 });
     state.follow = false; setTimeout(() => { state.follow = true; if (state.pos) camera(); }, 3500);
-    say(r.maneuvers[0]?.verbal || 'Route started');
+    say(spoken(r.maneuvers[0]) || t('nav.route_started'));
   }
   guide();
   if (SIM) startSim();
@@ -188,7 +206,7 @@ function endRoute(arrived = false) {
   state.route = null; state.dest = null; state.destMarker?.remove(); state.destMarker = null;
   refreshRoute(); clearInterval(state.simTimer);
   document.body.classList.remove('navigating'); $('guide').classList.add('hidden');
-  if (arrived) { say('You have arrived'); toast('You have arrived'); }
+  if (arrived) { say(t('nav.arrived')); toast(t('nav.arrived')); }
   if (state.pos) camera();
 }
 
@@ -209,7 +227,7 @@ function guide() {
   if (best.d > 45 && state.speed > 2) state.offCount++; else state.offCount = 0;
   if (state.offCount >= 3 && Date.now() - state.lastReroute > 12000) {
     state.lastReroute = Date.now(); state.offCount = 0;
-    toast('Rerouting'); say('Rerouting'); routeTo(state.dest, 'reroute'); return;
+    toast(t('nav.rerouting')); say(t('nav.rerouting')); routeTo(state.dest, 'reroute'); return;
   }
   if (remaining < 25) { endRoute(true); return; }
   const idx = rt.maneuvers.findIndex((m, k) => k > 0 && rt.cum[m.begin] > along + 3);
@@ -218,17 +236,17 @@ function guide() {
   const toNext = Math.max(0, rt.cum[next.begin] - along);
   $('manIcon').innerHTML = manIcon(next);
   $('manDist').textContent = fmtDist(toNext, state.units);
-  $('manText').textContent = next.instruction || '';
-  $('thenRow').textContent = then && toNext < 600 ? `Then: ${then.instruction}` : (next.streets[0] ? `on ${next.streets[0]}` : '');
+  $('manText').textContent = phrase(next);
+  $('thenRow').textContent = then && toNext < 600 ? t('nav.then', { text: phrase(then) }) : (next.streets[0] ? t('nav.on_street', { street: next.streets[0] }) : '');
   const secs = rt.summary.time * (remaining / (total || 1));
-  $('etaTime').textContent = new Date(Date.now() + secs * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  $('etaTime').textContent = new Date(Date.now() + secs * 1000).toLocaleTimeString(langTag(), { hour: 'numeric', minute: '2-digit' });
   $('etaLeft').textContent = fmtTime(secs);
   $('etaDist').textContent = fmtDist(remaining, state.units);
   // voice prompts: about half a mile out (highway) or 1000 ft (city), then right before the turn
   const far = state.speed > 20 ? 800 : 300;
   const key = `${idx}`;
-  if (toNext < far && toNext > 120 && !state.spoken.has(key + 'f')) { state.spoken.add(key + 'f'); say(`In ${fmtDist(toNext, state.units).replace('mi', 'miles').replace('ft', 'feet')}, ${next.verbal || next.instruction}`); }
-  if (toNext <= 60 + state.speed * 3 && !state.spoken.has(key + 'n')) { state.spoken.add(key + 'n'); say(next.verbal || next.instruction); }
+  if (toNext < far && toNext > 120 && !state.spoken.has(key + 'f')) { state.spoken.add(key + 'f'); say(t('nav.in_dist', { dist: sayDist(toNext), text: spoken(next) })); }
+  if (toNext <= 60 + state.speed * 3 && !state.spoken.has(key + 'n')) { state.spoken.add(key + 'n'); say(spoken(next)); }
   if (best.i % 5 === 0) refreshRoute();
 }
 
@@ -258,8 +276,8 @@ function setupLongPress() {
 }
 function pick(lngLat) {
   const feats = state.map.queryRenderedFeatures(state.map.project(lngLat), { layers: ['pois', 'roads_labels_major', 'roads_labels_minor'].filter(l => state.map.getLayer(l)) });
-  const name = feats.find(f => f.properties.name)?.properties.name || 'Dropped pin';
-  const dist = state.pos ? fmtDist(hav(state.pos, lngLat.toArray()), state.units) + ' away' : '';
+  const name = feats.find(f => f.properties.name)?.properties.name || t('nav.dropped_pin');
+  const dist = state.pos ? t('nav.away', { dist: fmtDist(hav(state.pos, lngLat.toArray()), state.units) }) : '';
   showDest({ name, sub: dist, lnglat: lngLat.toArray() });
   logEvent('long_press');
 }
@@ -277,7 +295,7 @@ function buildKeyboard() {
     const row = document.createElement('div'); row.className = 'krow';
     for (const ch of r) row.appendChild(key(ch, () => typeKey(ch)));
     if (ri === 2) row.appendChild(key('⌫', () => typeKey('back'), 'wide'));
-    if (ri === 3) { row.appendChild(key('Space', () => typeKey(' '), 'wide')); row.appendChild(key('Clear', () => typeKey('clear'), 'wide')); }
+    if (ri === 3) { row.appendChild(key(t('nav.space'), () => typeKey(' '), 'wide')); row.appendChild(key(t('nav.clear'), () => typeKey('clear'), 'wide')); }
     kbd.appendChild(row);
   });
   function key(label, fn, cls = '') { const b = document.createElement('button'); b.textContent = label; b.className = cls; b.onpointerdown = (e) => { e.preventDefault(); fn(); }; return b; }
@@ -293,12 +311,12 @@ async function runSearch() {
   if (query.trim().length < 2) return;
   const near = state.pos || state.map.getCenter().toArray();
   const res = await api(`/api/search?q=${encodeURIComponent(query)}&near=${near.join(',')}`);
-  if (!res.length) { list.innerHTML = '<div class="item muted">No matches in the offline index</div>'; return; }
+  if (!res.length) { list.innerHTML = `<div class="item muted">${esc(t('nav.no_matches'))}</div>`; return; }
   for (const r of res) {
     const el = document.createElement('div'); el.className = 'item';
     const dist = fmtDist(hav(near, [r.lon, r.lat]), state.units);
     el.innerHTML = `<div><div>${esc(r.name)}</div><div class="sub">${esc([r.kind, r.detail].filter(Boolean).join(' · '))} · ${dist}</div></div>`;
-    el.onclick = () => { closeSheets(); state.map.flyTo({ center: [r.lon, r.lat], zoom: 15.5, pitch: 0 }); state.follow = false; showDest({ name: r.name, sub: dist + ' away', lnglat: [r.lon, r.lat] }); logEvent('search_pick'); };
+    el.onclick = () => { closeSheets(); state.map.flyTo({ center: [r.lon, r.lat], zoom: 15.5, pitch: 0 }); state.follow = false; showDest({ name: r.name, sub: t('nav.away', { dist }), lnglat: [r.lon, r.lat] }); logEvent('search_pick'); };
     list.appendChild(el);
   }
 }
@@ -308,10 +326,10 @@ const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<':
 async function openFavorites() {
   state.favorites = await api('/api/favorites');
   const list = $('favList'); list.innerHTML = '';
-  if (!state.favorites.length) list.innerHTML = '<div class="item muted">Long-press the map, then tap the star to save a place.</div>';
+  if (!state.favorites.length) list.innerHTML = `<div class="item muted">${esc(t('nav.fav_empty'))}</div>`;
   state.favorites.forEach((f, i) => {
     const el = document.createElement('div'); el.className = 'item';
-    el.innerHTML = `<div style="flex:1"><div>${esc(f.name)}</div><div class="sub">${state.pos ? fmtDist(hav(state.pos, f.lnglat), state.units) : ''}</div></div><button class="ghost" data-i="${i}">Remove</button>`;
+    el.innerHTML = `<div style="flex:1"><div>${esc(f.name)}</div><div class="sub">${state.pos ? fmtDist(hav(state.pos, f.lnglat), state.units) : ''}</div></div><button class="ghost" data-i="${i}">${esc(t('common.remove'))}</button>`;
     el.onclick = (e) => {
       if (e.target.dataset.i) { state.favorites.splice(i, 1); api('/api/favorites', { json: state.favorites }); openFavorites(); return; }
       closeSheets(); routeTo({ name: f.name, lnglat: f.lnglat });
@@ -323,7 +341,7 @@ async function openFavorites() {
 async function saveFavorite(d) {
   const favs = await api('/api/favorites');
   favs.unshift({ name: d.name, lnglat: d.lnglat });
-  await api('/api/favorites', { json: favs }); toast('Saved to favorites');
+  await api('/api/favorites', { json: favs }); toast(t('nav.saved_fav'));
 }
 
 // ------------------------------------------------------------------ skin picker
@@ -343,6 +361,7 @@ function closeSheets() { document.querySelectorAll('.sheet').forEach(s => s.clas
 async function main() {
   state.settings = await getSettings().catch(() => ({ theme: 'neon-overdrive', units: 'imperial', voice: false }));
   state.units = state.settings.units || 'imperial';
+  await initI18n(state.settings.language);
   $('speedUnit').textContent = state.units === 'imperial' ? 'mph' : 'km/h';
   const themes = await loadThemes();
   const startTheme = params.get('theme') || state.settings.theme;
@@ -383,7 +402,7 @@ async function main() {
   $('searchBtn').onclick = () => { buildKeyboard(); $('searchPanel').classList.remove('hidden'); };
   $('favBtn').onclick = openFavorites;
   $('themeBtn').onclick = openThemes;
-  $('centerBtn').onclick = () => { state.follow = true; if (state.pos) camera(); else toast('Waiting for GPS'); };
+  $('centerBtn').onclick = () => { state.follow = true; if (state.pos) camera(); else toast(t('nav.waiting_gps')); };
   $('endBtn').onclick = () => endRoute(false);
   $('destCancel').onclick = () => $('destSheet').classList.add('hidden');
   $('destGo').onclick = () => routeTo(state.pending);

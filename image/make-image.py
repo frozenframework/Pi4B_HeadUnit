@@ -11,6 +11,9 @@ How it works (only the FAT "bootfs" partition is touched; the Linux partition st
   3. adds a one-shot hook to cmdline.txt (systemd.run=...firstrun.sh, the same mechanism Raspberry Pi
      Imager used on Bookworm). On first power-up firstrun.sh installs the package to /opt/headunit,
      enables headunit-firstboot.service, removes itself from cmdline.txt and reboots.
+     It also does what Raspberry Pi's setup wizard would ask (no wizard appears): user "headunit"
+     (password "headunit", change it with passwd), US / American English / America/Chicago / US
+     keyboard, all set in headunit.conf and changeable later in Settings > Region & language.
   4. second boot: the normal first-boot flow (Wi-Fi -> Hudiy -> setup.sh -> maps -> reboot)
 Output: out/headunit-<vehicle>-<date>.img.xz + .sha256
 Run it on a fresh copy of the base image each time (it does that for you); don't re-patch a patched image.
@@ -24,18 +27,60 @@ SKIP_EXT = {".stl", ".step", ".img", ".xz"}
 
 FIRSTRUN = r"""#!/bin/bash
 # One-shot: runs once from the kernel command line, before the normal first boot.
+# It sets up what Raspberry Pi's on-screen setup wizard would otherwise ask for (user, country,
+# language, time zone, keyboard), installs the head-unit files, then removes itself and reboots.
 B=/boot/firmware/headunit
+LOG=$B/firstboot.log
+exec >>"$LOG" 2>&1
+echo "==== firstrun $(date)"
+CONF=$B/headunit.conf
+get() { local v; v=$(grep -E "^$1=" "$CONF" 2>/dev/null | tail -1 | cut -d= -f2- | sed -E 's/[[:space:]]+#.*$//; s/^"//; s/"$//'); echo "${v:-$2}"; }
+
 # Each version lives in its own folder; /opt/headunit is a symlink to the one in use (see bin/hu-update.py).
 V=$(cat "$B/package/VERSION" 2>/dev/null || echo 0.0.0)
 mkdir -p "/opt/headunit-releases/$V"
 cp -r "$B/package/." "/opt/headunit-releases/$V/"
 rm -rf /opt/headunit; ln -sfn "/opt/headunit-releases/$V" /opt/headunit
-chmod +x /opt/headunit/setup.sh /opt/headunit/bin/* /opt/headunit/setup.d/*.sh /opt/headunit/image/*.sh 2>/dev/null
+chmod +x /opt/headunit/setup.sh /opt/headunit/bin/* /opt/headunit/setup.d/*.sh /opt/headunit/image/*.sh /opt/headunit/tools/*.sh 2>/dev/null
+
+# ---- country, language, time zone, keyboard (defaults: United States, American English, Chicago)
+COUNTRY=$(get WIFI_COUNTRY US); TZONE=$(get TIMEZONE America/Chicago)
+LOCALE=$(get LOCALE en_US.UTF-8); KBD=$(get KEYBOARD us)
+raspi-config nonint do_change_locale "$LOCALE" || echo "!! locale $LOCALE failed"
+raspi-config nonint do_change_timezone "$TZONE" || echo "!! time zone $TZONE failed"
+raspi-config nonint do_configure_keyboard "$KBD" >/dev/null || echo "!! keyboard $KBD failed"
+raspi-config nonint do_wifi_country "$COUNTRY" || echo "!! Wi-Fi country $COUNTRY failed"
+echo "region: $COUNTRY, $LOCALE, $TZONE, keyboard $KBD"
+
+# ---- default user (skipped if Raspberry Pi Imager's OS customisation set one up instead)
+if grep -qE '^[[:space:]]*(users|user):' /boot/firmware/user-data 2>/dev/null; then
+  echo "Raspberry Pi Imager customisation found: it creates the user"
+else
+  U=$(get HU_USERNAME headunit); P=$(get HU_PASSWORD headunit)
+  [[ "$U" =~ ^[a-z][a-z0-9-]{0,31}$ ]] || { echo "!! HU_USERNAME '$U' isn't valid; using headunit"; U=headunit; }
+  if ! id "$U" >/dev/null 2>&1; then
+    G=""; for g in adm dialout cdrom audio users sudo video games plugdev input gpio spi i2c netdev render lpadmin; do
+      getent group "$g" >/dev/null && G="$G,$g"; done
+    useradd -m -u 1000 -U -s /bin/bash -c "Head unit" -G "${G#,}" "$U" || useradd -m -U -s /bin/bash -G "${G#,}" "$U"
+  fi
+  echo "$U:$P" | chpasswd
+  echo "$U ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/010_pi-nopasswd; chmod 440 /etc/sudoers.d/010_pi-nopasswd
+  # Raspberry Pi's own "skip the wizard" path: desktop autologin as this user, remove the wizard.
+  mkdir -p /var/lib/userconf-pi; touch /var/lib/userconf-pi/autologin
+  /usr/bin/cancel-rename "$U" || { SUDO_USER="$U" raspi-config nonint do_boot_behaviour B4; rm -f /etc/xdg/autostart/piwiz.desktop; }
+  touch /etc/cloud/cloud-init.disabled        # nothing left for cloud-init to set up (it would add a locked "pi" user)
+  sed -i -E 's/^(HU_PASSWORD)=.*/\1="(set on first boot)"/' "$CONF"
+  echo "user: $U (desktop autologin)"
+fi
+H=$(get HOSTNAME "$(get VEHICLE car)-headunit")
+[[ "$H" =~ ^[a-z0-9][a-z0-9-]{0,62}$ ]] && raspi-config nonint do_hostname "$H" && echo "hostname: $H"
+[ "$(get ENABLE_SSH 0)" = 1 ] && raspi-config nonint do_ssh 0 && echo "ssh: on"
+
 install -m 644 /opt/headunit/systemd/headunit-firstboot.service /etc/systemd/system/
 mkdir -p /etc/systemd/system/multi-user.target.wants
 ln -sf /etc/systemd/system/headunit-firstboot.service /etc/systemd/system/multi-user.target.wants/headunit-firstboot.service
 sed -i 's| systemd.run=[^ ]*firstrun.sh systemd.run_success_action=reboot systemd.unit=kernel-command-line.target||' /boot/firmware/cmdline.txt
-echo "firstrun done $(date)" >> "$B/firstboot.log"
+echo "firstrun done $(date)"
 sync
 exit 0
 """
@@ -114,7 +159,7 @@ def package_files():
                 continue
             yield p, p.relative_to(HERE).as_posix()
 
-def patch_boot(img, vehicle, tier, region, hudiy):
+def patch_boot(img, vehicle, tier, region, hudiy, sets=None):
     """Write the head-unit files + first-run hook into the image's FAT boot partition (in place)."""
     from pyfatfs.PyFatFS import PyFatFS
     off = boot_partition(img)
@@ -130,9 +175,13 @@ def patch_boot(img, vehicle, tier, region, hudiy):
             fat_write(fs, "/" + cmd_name, (cmd + HOOK + "\n").encode())
         fat_write(fs, "/headunit/firstrun.sh", FIRSTRUN.encode())
         conf = (HERE / "config" / "headunit.conf.example").read_text()
-        conf = "\n".join(
-            f"VEHICLE={vehicle}" if l.startswith("VEHICLE=") else f"TIER={tier}" if l.startswith("TIER=")
-            else f"MAP_REGION={region}" if l.startswith("MAP_REGION=") else l for l in conf.splitlines()) + "\n"
+        sets = {"VEHICLE": vehicle, "TIER": tier, "MAP_REGION": region, **(sets or {})}
+        lines = conf.splitlines()
+        for k, v in sets.items():                      # replace KEY=... in place, or add it at the end
+            i = next((n for n, l in enumerate(lines) if l.startswith(k + "=")), None)
+            if i is None: lines.append(f"{k}={v}")
+            else: lines[i] = f"{k}={v}"
+        conf = "\n".join(lines) + "\n"
         fat_write(fs, "/headunit/headunit.conf", conf.encode())
         vname = next((l.split('"')[1] for l in (HERE / "config" / f"{vehicle}.conf").read_text().splitlines() if l.startswith("VEHICLE_NAME")), vehicle)
         fat_write(fs, "/headunit/README-FIRST.txt", (
@@ -167,10 +216,10 @@ def compress(img, preset="6"):
     xz.with_name(xz.name + ".sha256").write_text(f"{h.hexdigest()}  {xz.name}\n")
     log("done:", xz, f"({xz.stat().st_size / 2**30:.2f} GB)")
 
-def build(base_img, vehicle, tier, region, hudiy, out, do_compress=True):
+def build(base_img, vehicle, tier, region, hudiy, out, do_compress=True, sets=None):
     img = out / f"headunit-{vehicle}-{datetime.date.today():%Y%m%d}.img"
     decompress(base_img, img)
-    patch_boot(img, vehicle, tier, region, hudiy)
+    patch_boot(img, vehicle, tier, region, hudiy, sets)
     if do_compress:
         compress(img)
     else:
@@ -185,13 +234,16 @@ def main():
     ap.add_argument("--hudiy", help="Hudiy installer file to include")
     ap.add_argument("--out", default=str(HERE / "out"))
     ap.add_argument("--no-compress", action="store_true", help="leave a plain .img (Raspberry Pi Imager flashes it too)")
+    ap.add_argument("--set", action="append", default=[], metavar="KEY=VALUE",
+                    help="preset a line in the card's headunit.conf, e.g. --set DISPLAY_TYPE=monitor (repeatable)")
     a = ap.parse_args()
     out = Path(a.out); (out / "cache").mkdir(parents=True, exist_ok=True)
     base = Path(a.base).expanduser() if a.base else download_latest(out / "cache")
     if a.sha256:
         check_sha(base, a.sha256)
     for v in {"both": ["f250", "miata"], "all": ["f250", "miata", "frontier"]}.get(a.vehicle, [a.vehicle]):
-        build(base, v, a.tier, a.region, a.hudiy, out, do_compress=not a.no_compress)
+        sets = dict(kv.split("=", 1) for kv in a.set)
+        build(base, v, a.tier, a.region, a.hudiy, out, do_compress=not a.no_compress, sets=sets)
 
 if __name__ == "__main__":
     main()

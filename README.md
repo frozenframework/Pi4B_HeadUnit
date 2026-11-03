@@ -23,7 +23,7 @@ All run on a Raspberry Pi 4B (4 GB).
 | Themed offline navigation, four map skins | `apps/nav`: MapLibre + Protomaps map tiles + Valhalla routing |
 | iPod Nano (1st gen and later) / USB music | `apps/music`: MPD reads the song tags, so scrambled iPod file names never show |
 | AM/FM radio | `apps/radio` (AM + FM via RTL-SDR Blog V4), plus Hudiy's own FM player with RDS |
-| Settings: skin, voice, units, maps, test logs | `apps/theme` |
+| Settings: skin, display, driving, region & language, maps, updates, developer (terminal, SSH), test logs | `apps/theme`, `bin/hu-system.sh` |
 | Ignition-safe power (no SD card corruption) | `bin/hu-power.py` + relay latch, or CarPiHAT |
 
 The four skins are **original designs** inspired by the mood of driving-game maps. They copy no
@@ -35,35 +35,36 @@ Street Heat (underground street racing), After Midnight (deep-blue night city).
 ## 1. Install: pick one way
 
 ### A. Ready-to-flash image (recommended)
-**No Docker needed:** download *Raspberry Pi OS (64-bit) with desktop* (`.img.xz`) into `out/cache/`, then:
+Download *Raspberry Pi OS (64-bit) with desktop* (`.img.xz`) into `out/cache/`, then:
 ```bash
 python3 -m pip install pyfatfs
-python3 image/make-image.py --base out/cache/<raspios file>.img.xz --vehicle both [--hudiy <installer>]
+python3 image/make-image.py --base out/cache/<raspios file>.img.xz --vehicle miata [--hudiy <installer>] [--set DISPLAY_TYPE=monitor]
 ```
-This only edits the FAT boot partition: it copies this project to `bootfs/headunit/package` and adds a
-one-time `firstrun.sh` hook to `cmdline.txt`. On the first power-up that hook installs the package to
-`/opt/headunit`, enables the first-boot service, removes itself, and reboots. The Pi then reboots
-once more when setup finishes.
+(No Python? `./image/build-image.sh` takes the same options and runs it in Docker.)
+Only the FAT boot partition is edited: the project goes to `bootfs/headunit/package`, along with a
+one-time `firstrun.sh` hook in `cmdline.txt`.
 
-**Or with Docker Desktop** (edits the Linux partition directly):
-```bash
-./image/build-image.sh --vehicle all --hudiy ~/Downloads/<the Hudiy installer from your email>
-```
-This creates `out/headunit-f250-YYYYMMDD.img.xz` and `out/headunit-miata-YYYYMMDD.img.xz`.
-The script downloads the newest official Raspberry Pi OS (64-bit, Desktop), checks its SHA-256,
-and adds this folder plus a one-time first-boot service. **The OS itself stays unmodified until
-first boot**, because Hudiy needs to be installed on a clean system.
+1. Flash with **Raspberry Pi Imager**: *Choose OS → Use custom*. When Imager offers **OS
+   customisation, choose No**. The image sets everything itself, and Raspberry Pi's setup wizard never appears:
+   - user **headunit**, password **headunit**, logged in to the desktop automatically
+   - United States, American English (`en_US.UTF-8`), time zone America/Chicago, US keyboard
+   - network name `<vehicle>-headunit` (for example `miata-headunit.local`)
+2. Before you eject, open the **bootfs** drive → `headunit/headunit.conf` to change any of those, and add
+   Wi-Fi (`WIFI_SSID`/`WIFI_PSK`), the phone hotspot, and `DISPLAY_TYPE=monitor` for a bench monitor.
+   The Hudiy installer goes in `headunit/hudiy/`.
+3. Boot the Pi on the bench, within range of Wi-Fi. The first power-up sets up the user and region, then
+   reboots. The second boot installs Hudiy, then the add-ons, downloads maps, and reboots into Hudiy
+   (CarPlay / Android Auto starts by itself). This takes **15–45 minutes**. The log is
+   `bootfs/headunit/firstboot.log`. Passwords in `headunit.conf` are erased from the card once they're used.
+4. Change the password: *Settings → Developer → Open terminal*, then type `passwd`.
 
-1. Flash with **Raspberry Pi Imager**: *Choose OS → Use custom*. In *OS customisation*, set your
-   username, password, Wi-Fi, time zone (America/Chicago) and keyboard.
-2. Before you eject, open the **bootfs** drive → `headunit/headunit.conf`. Check the vehicle, tier and
-   map region. The Hudiy installer goes in `headunit/hudiy/`.
-3. Boot the Pi on the bench, within range of Wi-Fi. First boot takes **15–45 minutes**: it installs
-   Hudiy, then the add-ons, then downloads maps, and reboots on its own. You can read the log at
-   `bootfs/headunit/firstboot.log`.
+Country, language (10 languages: English, Spanish, Chinese, Tagalog, Vietnamese, Arabic, French,
+Korean, Portuguese, Hindi) and time zone can be changed any time in *Head Unit Settings → Region &
+language*. The head-unit screens and spoken directions switch right away; the Raspberry Pi desktop and
+Hudiy pick up the language at the next start. Translations are in `apps/common/i18n.json`.
 
 ### B. Stock Raspberry Pi OS + setup script (to see each step)
-1. Flash **Raspberry Pi OS (64-bit) with desktop** using Imager, with the same customisation as above.
+1. Flash **Raspberry Pi OS (64-bit) with desktop** using Imager (here, do use Imager's OS customisation for user, Wi-Fi and region).
 2. Install Hudiy following its email instructions.
 3. Copy this folder to the Pi and run:
 ```bash
@@ -269,8 +270,12 @@ when you choose), and maps (Settings → Maps).
   run from a known-good copy in `/usr/local/lib/headunit` that is replaced only after a new version
   has started correctly, so a broken release can't disable rollback.
 - Wi-Fi passwords in `headunit.conf` are erased from the card's boot partition after first boot.
-- The only root rights the head unit user gets (`/etc/sudoers.d/headunit`) are to start the map
-  updater, to start an update check, and to import a map pack from `/media/hu/*/HEADUNIT_MAPS`.
+- The head-unit apps get root only through `/etc/sudoers.d/headunit`: start the map updater, start an
+  update check, import a map pack from `/media/hu/*/HEADUNIT_MAPS`, and `bin/hu-system.sh` (country,
+  time zone, language, SSH on/off; every argument is checked against a fixed list or the system's tables).
+- The image's default login is `headunit` / `headunit`, like Raspberry Pi OS's own first user it has
+  `sudo` without a password. SSH is **off** by default; Settings → Developer warns while the default
+  password is still in use. Change it with `passwd` before turning SSH on.
 - USB drives mount **read-only** with `noexec,nosuid,nodev`. The one exception is a stick labeled
   HUEXPORT, which is used to export logs.
 - Hudiy is closed source. Everything in this folder is plain text you can read.
