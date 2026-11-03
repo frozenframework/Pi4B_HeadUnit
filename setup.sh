@@ -69,11 +69,12 @@ if [ -n "$VEHICLE" ]; then
     [ -n "$REGION" ] && echo "MAP_REGION=$REGION"
     echo "APP_DIR=$HU_ROOT/apps"
     echo "DATA_DIR=/var/lib/headunit"
-  } > "$HU_CONF"
+  } | awk -F= '/^[A-Za-z_][A-Za-z0-9_]*=/ { last[$1] = NR } { line[NR] = $0; key[NR] = ($0 ~ /^[A-Za-z_][A-Za-z0-9_]*=/) ? $1 : "" }
+      END { for (i = 1; i <= NR; i++) if (key[i] == "" || last[key[i]] == i) print line[i] }' > "$HU_CONF"
 elif [ ! -f "$HU_CONF" ]; then
   die "first run needs --vehicle f250, miata or frontier"
 fi
-for kv in "${SETS[@]}"; do      # --set KEY=VALUE: replace the key (last one wins) or add it
+for kv in "${SETS[@]}"; do      # --set KEY=VALUE: replace the key or add it
   k=${kv%%=*}; sed -i "/^$k=/d" "$HU_CONF"; echo "$kv" >> "$HU_CONF"
 done
 say "vehicle: $(conf_get VEHICLE_NAME)  tier: $(conf_get TIER)  user: $(hu_user)  maps: $(conf_get MAP_REGION)"

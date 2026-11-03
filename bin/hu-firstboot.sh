@@ -21,6 +21,16 @@ if [ -n "${HOTSPOT_SSID:-}" ]; then
 fi
 for i in $(seq 1 60); do curl -fsI https://deb.debian.org >/dev/null 2>&1 && break; echo "waiting for internet ($i)"; sleep 5; done
 
+# The Pi has no clock battery (until the CarPiHAT's clock is set), so it boots with the image's date.
+# Package signatures look "not valid yet" until the time is right, so wait for network time first,
+# and fall back to the time in a web server's reply.
+for i in $(seq 1 24); do [ "$(timedatectl show -p NTPSynchronized --value 2>/dev/null)" = yes ] && break; sleep 5; done
+if [ "$(timedatectl show -p NTPSynchronized --value 2>/dev/null)" != yes ]; then
+  d=$(curl -fsI https://deb.debian.org 2>/dev/null | tr -d '\r' | sed -n 's/^[Dd]ate: //p')
+  [ -n "$d" ] && date -s "$d" >/dev/null && echo "clock set from web server time"
+fi
+echo "time: $(date)"
+
 # The account made by firstrun.sh (HU_USERNAME), or the one Raspberry Pi Imager's customisation made.
 U=""
 for i in $(seq 1 60); do
@@ -42,7 +52,17 @@ run_hudiy() {   # dir script
     echo "!! sudo /opt/headunit/setup.sh --only 90-hudiy"
     return 1
   fi
-  printf '%s\nn\n' "$HUDIY_ORDER" | sudo -u "$U" -H timeout 60m bash -c "cd '$1' && ./$2"
+  # Run it like a logged-in user: some of its steps talk to the user's systemd (needs the session bus).
+  local uid; uid=$(id -u "$U"); loginctl enable-linger "$U"
+  for i in $(seq 1 20); do [ -S "/run/user/$uid/bus" ] && break; sleep 1; done
+  # Hudiy's installer prints the order number back; keep it out of this log (it's your license).
+  local num; num=$(printf '%s' "${HUDIY_ORDER#\#}" | sed 's/[^0-9A-Za-z]/./g')
+  printf '%s\nn\n' "$HUDIY_ORDER" | sudo -u "$U" -H XDG_RUNTIME_DIR="/run/user/$uid" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" timeout 60m bash -c "cd '$1' && ./$2" 2>&1 \
+    | sed -u "s/#\{0,1\}$num/(order number)/g"
+  local rc=${PIPESTATUS[1]}
+  loginctl disable-linger "$U"
+  return "$rc"
 }
 if [ ! -d "/home/$U/.hudiy" ]; then
   inst=$(find "$B/hudiy" -maxdepth 2 -type f \( -name '*.sh' -o -name '*.deb' -o -name '*.tar.gz' -o -name '*.zip' \) 2>/dev/null | head -1)
@@ -75,6 +95,8 @@ SETS=()   # optional overrides from this card's headunit.conf (e.g. DISPLAY_TYPE
 for k in DISPLAY_TYPE DISPLAY_ROTATE POWER_MODE; do [ -n "${!k:-}" ] && SETS+=(--set "$k=${!k}"); done
 /opt/headunit/setup.sh --vehicle "${VEHICLE:-f250}" --tier "${TIER:-2}" --region "${MAP_REGION:-texas-plus}" --user "$U" "${SETS[@]}" --yes
 if [ "${MAPS_AUTO:-1}" = 1 ]; then /opt/headunit/bin/hu-update-maps.sh || echo "map download failed; retry from Settings > Maps"; fi
+# Collect a diagnostics report on the next (first normal) boot: bootfs/headunit/diag.txt
+touch "$B/collect-diagnostics"
 systemctl disable headunit-firstboot.service
 # Don't leave Wi-Fi passwords readable on the card's boot partition (they're saved in NetworkManager now).
 sed -E 's/^(WIFI_PSK|HOTSPOT_PSK|HU_PASSWORD|HUDIY_ORDER)=.*/\1="(saved on the Pi)"/' "$B/headunit.conf" > "$B/headunit.conf.applied" && rm -f "$B/headunit.conf"

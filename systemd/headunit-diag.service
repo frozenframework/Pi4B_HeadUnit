@@ -1,0 +1,12 @@
+[Unit]
+Description=Head unit: write a diagnostics report to the SD card (bootfs/headunit/diag.txt)
+After=graphical.target
+ConditionPathExists=/boot/firmware/headunit/collect-diagnostics
+
+[Service]
+Type=oneshot
+ExecStart=/opt/headunit/bin/hu-diag.sh
+TimeoutStartSec=10min
+
+[Install]
+WantedBy=graphical.target

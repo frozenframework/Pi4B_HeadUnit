@@ -61,6 +61,13 @@ one-time `firstrun.sh` hook in `cmdline.txt`.
    `bootfs/headunit/firstboot.log`. Passwords in `headunit.conf` are erased from the card once they're used.
 4. Change the password: *Settings → Developer → Open terminal*, then type `passwd`.
 
+**Blank screen or something not working?** Put the SD card in your computer and open
+`bootfs/headunit/diag.txt`: the first normal boot writes a report there (screens, what's running, failed
+services, recent errors). Passwords and the Hudiy order number are left out. To get a fresh report, create an
+empty file named `collect-diagnostics` in that folder and boot the Pi once; the report appears about 90 s
+after boot. Desk monitors larger than 1920×1080 (Hudiy's limit) are switched to a mode that fits when
+`DISPLAY_TYPE=monitor`.
+
 Country, language (10 languages: English, Spanish, Chinese, Tagalog, Vietnamese, Arabic, French,
 Korean, Portuguese, Hindi) and time zone can be changed any time in *Head Unit Settings → Region &
 language*. The head-unit screens and spoken directions switch right away; the Raspberry Pi desktop and

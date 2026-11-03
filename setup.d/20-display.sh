@@ -74,6 +74,13 @@ t.write(p, xml_declaration=True, encoding="UTF-8")
 PY
 chown "$U:$U" "$RC"
 
+# A desk monitor bigger than 1920x1080 (Hudiy's limit) is switched to a mode that fits, before Hudiy
+# starts: first line of the desktop autostart. Car screens don't need it.
+AS="$H/.config/labwc/autostart"; CAP=/opt/headunit/bin/hu-display-cap.sh
+touch "$AS"; sed -i "\|$CAP|d" "$AS"
+[ "$TYPE" = monitor ] && sed -i "1i $CAP" "$AS"
+chown "$U:$U" "$AS"
+
 if command -v raspi-config >/dev/null; then
   raspi-config nonint do_boot_behaviour B4 || warn "couldn't set desktop autologin"
   raspi-config nonint do_blanking 1 || true

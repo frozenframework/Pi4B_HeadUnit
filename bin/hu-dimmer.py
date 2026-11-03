@@ -78,7 +78,9 @@ class Overlay:
         GtkLayerShell.set_namespace(w, "headunit-dimmer")
         w.set_app_paintable(True)
         visual = w.get_screen().get_rgba_visual()
-        if visual: w.set_visual(visual)
+        if visual is None or not w.get_screen().is_composited():
+            raise RuntimeError("no transparent windows on this screen: an overlay would black it out")
+        w.set_visual(visual)
         w.connect("draw", self._draw)
         w.connect("realize", lambda *_: w.input_shape_combine_region(cairo.Region()))
     def _draw(self, _w, cr):

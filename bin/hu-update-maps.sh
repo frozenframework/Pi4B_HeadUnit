@@ -5,7 +5,7 @@
 set -euo pipefail
 CONF=/etc/headunit/headunit.conf
 D=/var/lib/headunit/maps; mkdir -p "$D"
-REGION=$(grep -E '^MAP_REGION=' "$CONF" | cut -d= -f2 | tr -d '"'); REGION=${REGION:-texas-plus}
+REGION=$(grep -E '^MAP_REGION=' "$CONF" | tail -1 | cut -d= -f2 | tr -d '"'); REGION=${REGION:-texas-plus}
 status() { printf '{"message": "%s", "t": %s}\n' "$1" "$(date +%s)" > "$D/update-status.json"; echo "$1"; }
 trap 'status "Map update failed (see: journalctl -u headunit-update-maps)"' ERR
 
