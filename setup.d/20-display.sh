@@ -31,8 +31,9 @@ hdmi_cvt=1024 600 60 6 0 0 0"
     CMDV="";;
   monitor)
     # The vehicle's DISPLAY_ROTATE is for its car screen; a desk monitor uses MONITOR_ROTATE (default 0).
-    OUT=HDMI-A-1; MODE=""; ROT=$(conf_get MONITOR_ROTATE 0)
-    BLOCK="hdmi_force_hotplug=1"
+    # Either micro-HDMI port works ("*" = whichever is connected).
+    OUT="*"; MODE=""; ROT=$(conf_get MONITOR_ROTATE 0)
+    BLOCK="# desk monitor: its own resolution, either HDMI port"
     CMDV="";;
   *) die "unknown DISPLAY_TYPE $TYPE";;
 esac
@@ -62,7 +63,7 @@ import sys, xml.etree.ElementTree as ET
 p, out = sys.argv[1:]; t = ET.parse(p); r = t.getroot()
 for el in r.findall("touch"):
     r.remove(el)
-ET.SubElement(r, "touch", {"mapToOutput": out, "mouseEmulation": "no"})
+ET.SubElement(r, "touch", {"mouseEmulation": "no", **({} if out == "*" else {"mapToOutput": out})})
 # Settings > Developer > Open terminal: show the terminal maximized on top of Hudiy.
 wr = r.find("windowRules")
 if wr is None: wr = ET.SubElement(r, "windowRules")
@@ -82,7 +83,9 @@ touch "$AS"; sed -i "\|$CAP|d" "$AS"
 chown "$U:$U" "$AS"
 
 if command -v raspi-config >/dev/null; then
-  raspi-config nonint do_boot_behaviour B4 || warn "couldn't set desktop autologin"
-  raspi-config nonint do_blanking 1 || true
+  # raspi-config picks the account from SUDO_USER; from a service it would fall back to uid 1000.
+  SUDO_USER="$U" raspi-config nonint do_boot_behaviour B4 || warn "couldn't set desktop autologin"
+  SUDO_USER="$U" raspi-config nonint do_blanking 1 || true
+  grep -q "^autologin-user=$U$" /etc/lightdm/lightdm.conf 2>/dev/null || warn "lightdm autologin isn't $U: check /etc/lightdm/lightdm.conf"
 fi
-say "display: $TYPE on $OUT, rotation $ROT (change DISPLAY_ROTATE if the picture is upside down)"
+say "display: $TYPE on $( [ "$OUT" = "*" ] && echo "either HDMI port" || echo "$OUT" ), rotation $ROT (change DISPLAY_ROTATE if the picture is upside down)"

@@ -132,6 +132,8 @@ imports by itself. Sizes (estimates): texas-plus is about 3–6 GB in total, and
 Full harness pinouts and the parts for each tier are in the parts-list spreadsheet (tabs
 *Wiring F-250* and *Wiring Miata*). The Pi side:
 
+Car screens connect to **HDMI 0**, the micro-HDMI port next to the USB-C power socket (`DISPLAY_TYPE=monitor` works on either port).
+
 | Pi pin | Use |
 |---|---|
 | GPIO3 (pin 5) | ACC / ignition sense from the optocoupler (active low). It also wakes a halted Pi |

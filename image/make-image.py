@@ -58,19 +58,29 @@ if grep -qE '^[[:space:]]*(users|user):' /boot/firmware/user-data 2>/dev/null; t
 else
   U=$(get HU_USERNAME headunit); P=$(get HU_PASSWORD headunit)
   [[ "$U" =~ ^[a-z][a-z0-9-]{0,31}$ ]] || { echo "!! HU_USERNAME '$U' isn't valid; using headunit"; U=headunit; }
+  G=""; for g in adm dialout cdrom audio users sudo video games plugdev input gpio spi i2c netdev render lpadmin; do
+    getent group "$g" >/dev/null && G="$G,$g"; done
+  FIRST=$(getent passwd 1000 | cut -d: -f1)
+  mkdir -p /var/lib/userconf-pi; touch /var/lib/userconf-pi/autologin   # = desktop autologin, not a login screen
   if ! id "$U" >/dev/null 2>&1; then
-    G=""; for g in adm dialout cdrom audio users sudo video games plugdev input gpio spi i2c netdev render lpadmin; do
-      getent group "$g" >/dev/null && G="$G,$g"; done
-    useradd -m -u 1000 -U -s /bin/bash -c "Head unit" -G "${G#,}" "$U" || useradd -m -U -s /bin/bash -G "${G#,}" "$U"
+    if [ -n "$FIRST" ]; then
+      # The image ships a placeholder account (uid 1000, "pi", no login) that Raspberry Pi's setup
+      # wizard renames. Do the same: rename it, give it a shell, then cancel the wizard.
+      /usr/lib/userconf-pi/userconf "$FIRST" "$U" "" || { usermod -l "$U" -d "/home/$U" -m "$FIRST"; groupmod -n "$U" "$FIRST"; }
+    else
+      useradd -m -u 1000 -U -s /bin/bash "$U"
+    fi
   fi
+  usermod -s /bin/bash -aG "${G#,}" "$U"
+  [ -d "/home/$U" ] || { cp -a /etc/skel "/home/$U"; chown -R "$U:$U" "/home/$U"; }
   echo "$U:$P" | chpasswd
   echo "$U ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/010_pi-nopasswd; chmod 440 /etc/sudoers.d/010_pi-nopasswd
   # Raspberry Pi's own "skip the wizard" path: desktop autologin as this user, remove the wizard.
   mkdir -p /var/lib/userconf-pi; touch /var/lib/userconf-pi/autologin
-  /usr/bin/cancel-rename "$U" || { SUDO_USER="$U" raspi-config nonint do_boot_behaviour B4; rm -f /etc/xdg/autostart/piwiz.desktop; }
+  SUDO_USER="$U" /usr/bin/cancel-rename "$U" || { SUDO_USER="$U" raspi-config nonint do_boot_behaviour B4; rm -f /etc/xdg/autostart/piwiz.desktop; }
   touch /etc/cloud/cloud-init.disabled        # nothing left for cloud-init to set up (it would add a locked "pi" user)
   sed -i -E 's/^(HU_PASSWORD)=.*/\1="(set on first boot)"/' "$CONF"
-  echo "user: $U (desktop autologin)"
+  echo "user: $U (uid $(id -u "$U"), desktop autologin: $(grep '^autologin-user=' /etc/lightdm/lightdm.conf | cut -d= -f2))"
   # While setup runs (next boot), show its progress on the desktop instead of a plain desktop.
   install -d -o "$U" -g "$U" "/home/$U/.config" "/home/$U/.config/labwc"
   echo "/opt/headunit/bin/hu-setup-progress.sh &" >> "/home/$U/.config/labwc/autostart"

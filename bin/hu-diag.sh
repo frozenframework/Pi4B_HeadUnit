@@ -23,7 +23,8 @@ sec() { printf '\n===== %s\n' "$1"; }
   sec "head-unit services"; for s in headunit-power headunit-update-apply headunit-update-verify; do systemctl status "$s" --no-pager -n 0 2>&1 | head -3; done
   for s in headunit-bridge headunit-dimmer mpd; do asuser systemctl --user status "$s" --no-pager -n 15 2>&1 | head -25; done
   sec "dimmer status"; cat "$H/.config/headunit/display-status.json" 2>&1
-  sec "lightdm"; tail -40 /var/log/lightdm/lightdm.log 2>&1
+  sec "accounts / desktop login"; getent passwd 1000 "$U"; grep -E '^(autologin-user|autologin-session|user-session)=' /etc/lightdm/lightdm.conf
+  sec "lightdm (first problems, then the end)"; grep -m 15 -iE "fail|error|exit|crit" /var/log/lightdm/lightdm.log 2>&1; echo ...; tail -15 /var/log/lightdm/lightdm.log 2>&1
   sec "Hudiy files"; ls -la "$H/.hudiy/share" 2>&1 | head -40
   for f in $(find "$H/.hudiy" "$H/.cache" -maxdepth 4 -name '*.log' -mmin -30 2>/dev/null | head -5); do sec "log $f"; tail -60 "$f"; done
   sec "user journal (this boot)"; journalctl -b --no-pager _UID="$UID_" -n 200 2>&1
