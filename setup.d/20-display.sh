@@ -3,6 +3,7 @@
 #   waveshare-7.9       Waveshare 7.9" HDMI (400x1280 portrait panel, shown as 1280x400) - F-250, Miata
 #   hdmi-1024x600       any 7" 1024x600 HDMI + USB-touch panel - Frontier (2-DIN)
 #   pi-touch-display-2  official Raspberry Pi Touch Display 2 (DSI, 720x1280 portrait, shown as 1280x720)
+#   monitor             any HDMI monitor at its own native resolution (bench testing with mouse + keyboard)
 source "$(dirname "$(readlink -f "$0")")/../lib/common.sh"
 TYPE=$(conf_get DISPLAY_TYPE waveshare-7.9)
 ROT=$(conf_get DISPLAY_ROTATE 0)
@@ -28,6 +29,11 @@ hdmi_cvt=1024 600 60 6 0 0 0"
     OUT=DSI-1; MODE=720x1280@60; ROT=$(conf_get DISPLAY_ROTATE 90)
     BLOCK="dtoverlay=vc4-kms-dsi-ili9881-7inch,rotation=$ROT"
     CMDV="";;
+  monitor)
+    # The vehicle's DISPLAY_ROTATE is for its car screen; a desk monitor uses MONITOR_ROTATE (default 0).
+    OUT=HDMI-A-1; MODE=""; ROT=$(conf_get MONITOR_ROTATE 0)
+    BLOCK="hdmi_force_hotplug=1"
+    CMDV="";;
   *) die "unknown DISPLAY_TYPE $TYPE";;
 esac
 put_block "$BOOT_CFG" display "$BLOCK"
@@ -39,9 +45,10 @@ sed -i -E -e 's/ ?video=HDMI-A-1:[^ ]*//' -e 's/^ +//' "$BOOT_CMDLINE"
 # Desktop (labwc) rotation via kanshi, the same file Raspberry Pi's Screen Configuration writes.
 udir "$H/.config/kanshi"
 KT=$ROT; [ "$TYPE" = pi-touch-display-2 ] && KT=0      # the DSI overlay already rotates
+[ "$KT" = 0 ] && KT=normal                                # kanshi's name for "not rotated"
 cat > "$H/.config/kanshi/config" <<KAN
 profile headunit {
-    output $OUT enable mode $MODE position 0,0 transform $KT
+    output $OUT enable ${MODE:+mode $MODE }position 0,0 transform $KT
 }
 KAN
 chown "$U:$U" "$H/.config/kanshi/config"

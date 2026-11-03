@@ -3,7 +3,10 @@
 #  Raspberry Pi 4B head unit setup  (Hudiy + themed offline nav + iPod + AM/FM + safe power)
 #
 #  Usage:  sudo ./setup.sh --vehicle f250|miata|frontier [--tier 1|2|3] [--region texas-plus|texas|us]
-#                          [--user NAME] [--only 20-display,60-media] [--yes]
+#                          [--user NAME] [--only 20-display,60-media] [--set KEY=VALUE ...] [--yes]
+#
+#  --set changes one setting in /etc/headunit/headunit.conf, e.g. switch from a bench monitor to
+#  the car screen:  sudo /opt/headunit/setup.sh --set DISPLAY_TYPE=waveshare-7.9 --only 20-display
 #
 #  Safe to run more than once: every stage checks what's already done and only changes its own
 #  marked blocks in system files. A full log goes to /var/log/headunit-setup.log.
@@ -13,7 +16,7 @@ set -euo pipefail
 SRC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SRC_DIR/lib/common.sh"
 
-VEHICLE="" TIER=2 REGION="" USER_NAME="${SUDO_USER:-}" ONLY="" YES=0
+VEHICLE="" TIER=2 REGION="" USER_NAME="${SUDO_USER:-}" ONLY="" YES=0 SETS=()
 while [ $# -gt 0 ]; do
   case "$1" in
     --vehicle) VEHICLE=$2; shift 2;;
@@ -21,6 +24,7 @@ while [ $# -gt 0 ]; do
     --region) REGION=$2; shift 2;;
     --user) USER_NAME=$2; shift 2;;
     --only) ONLY=$2; shift 2;;
+    --set) [[ "$2" =~ ^[A-Z_][A-Z0-9_]*=[^\"\'\$\`]*$ ]] || die "--set needs KEY=VALUE (got '$2')"; SETS+=("$2"); shift 2;;
     --yes|-y) YES=1; shift;;
     -h|--help) sed -n '2,12p' "$0"; exit 0;;
     *) die "unknown option $1 (see --help)";;
@@ -69,6 +73,9 @@ if [ -n "$VEHICLE" ]; then
 elif [ ! -f "$HU_CONF" ]; then
   die "first run needs --vehicle f250, miata or frontier"
 fi
+for kv in "${SETS[@]}"; do      # --set KEY=VALUE: replace the key (last one wins) or add it
+  k=${kv%%=*}; sed -i "/^$k=/d" "$HU_CONF"; echo "$kv" >> "$HU_CONF"
+done
 say "vehicle: $(conf_get VEHICLE_NAME)  tier: $(conf_get TIER)  user: $(hu_user)  maps: $(conf_get MAP_REGION)"
 
 if [ "$YES" -ne 1 ] && [ -t 0 ]; then

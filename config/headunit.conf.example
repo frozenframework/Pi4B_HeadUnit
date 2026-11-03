@@ -13,6 +13,11 @@ TIER=2
 # Offline map region: texas-plus (TX, LA, OK, NM, AR), texas, or us
 MAP_REGION=texas-plus
 
+# Screen. Leave empty for the vehicle's own screen (Waveshare 7.9" in the F-250 and Miata).
+# Bench testing on a normal HDMI monitor with a mouse + keyboard: DISPLAY_TYPE=monitor
+# (later, switch to the car screen with: sudo /opt/headunit/setup.sh --set DISPLAY_TYPE=waveshare-7.9 --only 20-display)
+DISPLAY_TYPE=""
+
 # Download the map display data on first boot (needs Wi-Fi; texas-plus is a few GB)
 MAPS_AUTO=1
 

@@ -42,7 +42,9 @@ if [ ! -d "/home/$U/.hudiy" ]; then
   fi
 fi
 
-/opt/headunit/setup.sh --vehicle "${VEHICLE:-f250}" --tier "${TIER:-2}" --region "${MAP_REGION:-texas-plus}" --user "$U" --yes
+SETS=()   # optional overrides from this card's headunit.conf (e.g. DISPLAY_TYPE=monitor for bench testing)
+for k in DISPLAY_TYPE DISPLAY_ROTATE POWER_MODE; do [ -n "${!k:-}" ] && SETS+=(--set "$k=${!k}"); done
+/opt/headunit/setup.sh --vehicle "${VEHICLE:-f250}" --tier "${TIER:-2}" --region "${MAP_REGION:-texas-plus}" --user "$U" "${SETS[@]}" --yes
 if [ "${MAPS_AUTO:-1}" = 1 ]; then /opt/headunit/bin/hu-update-maps.sh || echo "map download failed; retry from Settings > Maps"; fi
 systemctl disable headunit-firstboot.service
 # Don't leave Wi-Fi passwords readable on the card's boot partition (they're saved in NetworkManager now).
