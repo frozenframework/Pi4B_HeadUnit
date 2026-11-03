@@ -2,7 +2,9 @@
 """
 Ignition-aware power manager (runs as root).
 
-Key ON  -> optocoupler pulls ACC_GPIO low -> amp turns on after AMP_ON_DELAY (no turn-on pop).
+Key ON  -> ACC_GPIO goes active -> amp turns on after AMP_ON_DELAY (no turn-on pop).
+          DIY board: the optocoupler pulls ACC_GPIO (GPIO3) low. CarPiHAT (tier 3): its 12V-sense
+          input drives GPIO12 high (ACC_ACTIVE=high, ILLUM_ACTIVE=high, REVERSE_ACTIVE=high).
 Key OFF -> amp off at once, then a SHUTDOWN_DELAY countdown. Key back on cancels it.
           When the countdown ends: clean shutdown. The gpio-poweroff overlay drops the hold
           relay only after the Pi has fully halted, which cuts power to everything.
@@ -75,14 +77,15 @@ def main():
         state.write_text(json.dumps({"mode": "none", "acc": True, "illum": False, "armed": False})); os.chmod(state, 0o644)
         print("power management disabled (bench mode)"); return
     from gpiozero import DigitalInputDevice, OutputDevice
-    acc = DigitalInputDevice(int(C.get("ACC_GPIO", 3)), pull_up=True, bounce_time=0.05)            # low = key on
-    illum = DigitalInputDevice(int(C["ILLUM_GPIO"]), pull_up=True, bounce_time=0.2) if C.get("ILLUM_GPIO") else None
+    low = lambda key: C.get(key, "low") != "high"     # DIY optocouplers pull low; CarPiHAT inputs drive high
+    acc = DigitalInputDevice(int(C.get("ACC_GPIO", 3)), pull_up=low("ACC_ACTIVE"), bounce_time=0.05)
+    illum = DigitalInputDevice(int(C["ILLUM_GPIO"]), pull_up=low("ILLUM_ACTIVE"), bounce_time=0.2) if C.get("ILLUM_GPIO") else None
     amp = OutputDevice(int(C["AMP_GPIO"]), active_high=True, initial_value=False) if C.get("AMP_GPIO") else None
     reverse = camera = None
     if C.get("CAMERA") == "1" and C.get("REVERSE_GPIO"):
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
         from hu_hudiy_api import HudiyLink
-        reverse = DigitalInputDevice(int(C["REVERSE_GPIO"]), pull_up=True, bounce_time=0.1)     # low = in reverse
+        reverse = DigitalInputDevice(int(C["REVERSE_GPIO"]), pull_up=low("REVERSE_ACTIVE"), bounce_time=0.1)
         link = HudiyLink("headunit-power", port=int(C.get("HUDIY_API_PORT", 44405)))
         camera = link.set_reverse
     pm = PowerManager(C, acc, illum, amp, state_file=state, reverse=reverse, camera=camera)

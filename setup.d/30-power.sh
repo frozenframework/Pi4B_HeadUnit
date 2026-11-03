@@ -11,9 +11,13 @@ case "$MODE" in
 dtoverlay=gpio-poweroff,gpiopin=$HOLD,active_low=1"
     ;;
   carpihat)
-    # The CarPiHAT has its own latch circuit. Pin numbers in /etc/headunit/headunit.conf must match
-    # TJD's CarPiHAT manual (ACC_GPIO, HOLD_GPIO) -- confirm them before the first drive.
-    put_block "$BOOT_CFG" power "dtoverlay=gpio-poweroff,gpiopin=$HOLD,active_low=1"
+    # TJD CarPiHAT: its own 12V supply and latch. Ignition switches the supply on by itself (so no wake
+    # pin is needed); the Pi holds the latch on GPIO25 until it has halted. I2C stays on for its clock.
+    RTC=$(conf_get RTC ds1307)
+    put_block "$BOOT_CFG" power "dtparam=i2c_arm=on
+dtoverlay=gpio-poweroff,gpiopin=$HOLD,active_low=1$( [ "$RTC" != none ] && printf '\ndtoverlay=i2c-rtc,%s' "$RTC")"
+    # The Pi keeps the right time with no internet: the kernel reads the CarPiHAT's clock at boot.
+    [ "$RTC" != none ] && { apt-get purge -y -qq fake-hwclock >/dev/null 2>&1 || true; }
     ;;
   none) put_block "$BOOT_CFG" power "# power management disabled (bench mode)";;
 esac

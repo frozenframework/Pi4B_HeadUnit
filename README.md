@@ -131,6 +131,13 @@ Full harness pinouts and the parts for each tier are in the parts-list spreadshe
 | GPIO26 (pin 37) | Power hold → relay module CH1 (`gpio-poweroff`; drops only after a clean halt) |
 | GPIO27 (pin 13) | Amp remote turn-on → relay CH2 |
 | GPIO22 (pin 15) | Power antenna → relay CH3 (raised only while the radio plays) |
+
+**Tier 3 (TJD CarPiHAT)** uses the HAT's own pins instead (from its
+[Quick Start Guide](https://github.com/gecko242/CarPiHat/wiki/Quick-Start-Guide)): ignition sense GPIO12
+(high = key on), power latch GPIO25, illumination GPIO13, 12V outputs OUT_0 = GPIO27 (amp remote) and
+OUT_1 = GPIO22 (power antenna), and its real-time clock on I2C (DS1307 on boards v0.4–0.6; set `RTC=ds3231`
+for a v0.3 board, `RTC=none` without one). The ignition wire switches the HAT's 12V supply on by itself, and
+the Pi keeps the latch until it has shut down.
 | GPIO5 (pin 29) | Reverse sense (Frontier) → shows the backup camera through Hudiy's API |
 
 How the power sequence works:
@@ -140,8 +147,8 @@ How the power sequence works:
   When the countdown ends, the Pi shuts down cleanly and then releases its own power.
 - The power daemon only arms after it has seen the key **on** once, so a Pi on the bench never
   shuts itself off.
-- **Tier 3 (CarPiHAT):** confirm the CarPiHAT pin numbers in TJD's manual and put them in
-  `/etc/headunit/headunit.conf` before the first drive.
+- **Tier 3 (CarPiHAT):** the pins above are set automatically (`TIER3` in `config/tiers.conf`); check
+  them against your board's revision before the first drive.
 - **Bench testing without the ignition wire:** set `POWER_MODE=none`.
 
 Before connecting anything, **meter every factory wire** with the key off, the key on, and the
