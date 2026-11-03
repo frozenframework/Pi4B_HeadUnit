@@ -77,6 +77,7 @@ sudo ./setup.sh --vehicle f250 --tier 2          # or: --vehicle miata, --tier 1
 | `20-display` | screen timings, rotation (console + kanshi), touch mapped to HDMI-A-1, no blanking, desktop autologin |
 | `30-power` | `gpio-poweroff` hold pin, I2C off (GPIO3 is the ignition sense), power daemon |
 | `40-audio` | USB audio output preferred over HDMI (WirePlumber rule) |
+| `45-dimmer` | screen dimmer service (backlight, HDMI DDC/CI, or overlay), backlight permissions, i2c-dev |
 | `50-gps` | gpsd with USB auto-detect |
 | `60-media` | iPod/USB auto-mount (read-only) + MPD as a user service |
 | `70-radio` | RTL-SDR (tier 3 only) |
@@ -142,6 +143,18 @@ Before connecting anything, **meter every factory wire** with the key off, the k
 lights on.
 
 ---
+
+### Screen dimming (all vehicles)
+Head Unit Settings → **Display**: a brightness slider, or auto-dim with separate **Day** and **Night**
+levels that switch on the dash-light (headlight) wire. `hu-dimmer` picks the best method each screen supports:
+
+| Screen | Method | What it changes |
+|---|---|---|
+| Raspberry Pi Touch Display 2 | backlight (`/sys/class/backlight`) | the real backlight |
+| HDMI screen that answers DDC/CI (likely the Orient Display; checked at startup) | `ddcutil setvcp 10` | the screen's own backlight |
+| Anything else (Waveshare 7.9") | click-through black overlay above all apps, including Hudiy and CarPlay | the picture (taps pass through) |
+
+Backlight methods go down to 5%; the overlay stops at 20% so the screen never goes unreadably black.
 
 ### Backup camera (Frontier)
 Factory Nissan camera → Axxess AXBUCS-NI326V (powers the camera with 6 V) → RCA → USB capture stick

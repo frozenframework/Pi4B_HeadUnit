@@ -53,7 +53,8 @@ for d in (USER_DIR, LOG_DIR):
     d.mkdir(parents=True, exist_ok=True)
 
 DEFAULT_SETTINGS = {"theme": C("DEFAULT_THEME", "neon-overdrive"), "units": "imperial", "voice": True,
-                    "syncHudiyColors": False, "nightAuto": True, "radio": {"band": "FM", "FM": 101100, "AM": 740,
+                    "syncHudiyColors": False, "nightAuto": True,
+                    "display": {"level": 100, "auto": True, "day": 100, "night": 45, "method": "auto"}, "radio": {"band": "FM", "FM": 101100, "AM": 740,
                     "presets": {"FM": [], "AM": []}}}
 
 def read_json(p, default):
@@ -425,7 +426,14 @@ async def settings_api(request):
         return web.json_response(settings())
     body = await request.json()
     s = settings(); old_theme = s.get("theme")
-    s.update({k: v for k, v in body.items() if k in DEFAULT_SETTINGS})
+    for k, v in body.items():
+        if k not in DEFAULT_SETTINGS: continue
+        if isinstance(v, dict) and isinstance(s.get(k), dict):
+            s[k] = {**DEFAULT_SETTINGS[k], **s[k], **v} if isinstance(DEFAULT_SETTINGS[k], dict) else {**s[k], **v}
+        else:
+            s[k] = v
+    if "display" in body:
+        usage("display", **{k: s["display"].get(k) for k in ("level", "auto", "day", "night")})
     write_json(USER_DIR / "settings.json", s)
     if s.get("theme") != old_theme:
         usage("theme_change", theme=s["theme"], prev=old_theme)
@@ -468,6 +476,12 @@ async def maps_update(request):
 
 async def maps_update_status(request):
     return web.json_response(read_json(MAPS_DIR / "update-status.json", {"message": ""}))
+
+async def display_status(request):
+    st = read_json(USER_DIR / "display-status.json", {})
+    st["night"] = read_json(STATE_FILE, {}).get("illum", False)
+    st["settings"] = {**DEFAULT_SETTINGS["display"], **settings().get("display", {})}
+    return web.json_response(st)
 
 async def logs_summary(request):
     files = sorted(LOG_DIR.glob("*.jsonl"))
@@ -533,6 +547,7 @@ def make_app():
     app.router.add_post("/api/maps/update", maps_update)
     app.router.add_get("/api/maps/update-status", maps_update_status)
     app.router.add_get("/api/logs/summary", logs_summary)
+    app.router.add_get("/api/display/status", display_status)
     app.router.add_static("/apps", APP_DIR, follow_symlinks=False)
     MAPS_DIR.mkdir(parents=True, exist_ok=True)
     app.router.add_static("/maps", MAPS_DIR, follow_symlinks=True)

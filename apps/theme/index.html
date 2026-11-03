@@ -4,12 +4,23 @@
 <body data-app="theme">
 <nav id="side" class="panel">
   <button data-page="skins" data-log="pg_skins">Map skin</button>
+  <button data-page="display" data-log="pg_display">Display</button>
   <button data-page="drive" data-log="pg_drive">Driving</button>
   <button data-page="maps" data-log="pg_maps">Maps</button>
   <button data-page="about" data-log="pg_about">Test data</button>
 </nav>
 <main class="panel">
   <section id="skins" class="page"><div id="cards"></div></section>
+  <section id="display" class="page hidden">
+    <div class="opt"><div><b>Auto-dim with headlights</b><div class="sub">Uses the dash-light wire: night level when the lights are on</div></div><button id="dimAuto" class="sw" data-log="dim_auto"></button></div>
+    <div id="manualRow" class="srow"><div class="slab"><b>Brightness</b><span id="levelVal" class="accent"></span></div>
+      <input id="level" type="range" min="5" max="100" step="1" data-log="dim_level"></div>
+    <div id="autoRows">
+      <div class="srow"><div class="slab"><b>Day</b><span id="dayVal" class="accent"></span></div><input id="day" type="range" min="5" max="100" step="1" data-log="dim_day"></div>
+      <div class="srow"><div class="slab"><b>Night</b><span id="nightVal" class="accent"></span></div><input id="night" type="range" min="5" max="100" step="1" data-log="dim_night"></div>
+    </div>
+    <div id="dimStatus" class="muted small"></div>
+  </section>
   <section id="drive" class="page hidden">
     <div class="opt"><div><b>Voice directions</b><div class="sub">Spoken turn prompts</div></div><button id="voice" class="sw"></button></div>
     <div class="opt"><div><b>Units</b><div class="sub">Distances and speed</div></div><button id="units" class="sw"></button></div>

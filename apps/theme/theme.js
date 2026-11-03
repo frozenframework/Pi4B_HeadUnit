@@ -7,7 +7,7 @@ let S = {};
 function page(id) {
   document.querySelectorAll('.page').forEach(p => p.classList.toggle('hidden', p.id !== id));
   document.querySelectorAll('[data-page]').forEach(b => b.classList.toggle('on', b.dataset.page === id));
-  if (id === 'maps') maps(); if (id === 'about') about();
+  if (id === 'maps') maps(); if (id === 'about') about(); if (id === 'display') display();
 }
 async function cards() {
   const themes = await loadThemes(); const box = $('cards'); box.innerHTML = '';
@@ -27,6 +27,36 @@ function switches() {
   const u = $('units'); u.textContent = S.units === 'imperial' ? 'Miles' : 'Kilometers'; u.classList.add('on');
   u.onclick = async () => { S = await saveSettings({ units: S.units === 'imperial' ? 'metric' : 'imperial' }); switches(); };
 }
+// ---- Display: brightness / auto-dim (hu-dimmer applies it within a quarter second)
+let dimTimer = null;
+function paintSlider(el) { el.style.setProperty('--pct', `${((el.value - el.min) / (el.max - el.min)) * 100}%`); }
+async function display() {
+  const st = await api('/api/display/status').catch(() => ({}));
+  const d = st.settings || S.display || {};
+  const auto = $('dimAuto'); auto.textContent = d.auto ? 'On' : 'Off'; auto.classList.toggle('on', !!d.auto);
+  $('manualRow').classList.toggle('hidden', !!d.auto); $('autoRows').classList.toggle('hidden', !d.auto);
+  for (const k of ['level', 'day', 'night']) {
+    const el = $(k);
+    if (document.activeElement !== el) { el.value = d[k]; }
+    if (st.min) el.min = st.min;
+    $(k + 'Val').textContent = `${el.value}%`; paintSlider(el);
+  }
+  $('dimStatus').textContent = st.method
+    ? `${st.label} · now ${st.applied}% (${st.night ? 'headlights on' : 'headlights off'})${st.min ? ' · lowest ' + st.min + '%' : ''}`
+    : 'Dimmer service is starting…';
+}
+function wireDisplay() {
+  $('dimAuto').onclick = async () => { S = await saveSettings({ display: { auto: !(S.display?.auto ?? true) } }); display(); };
+  for (const k of ['level', 'day', 'night']) {
+    const el = $(k);
+    el.oninput = () => {
+      $(k + 'Val').textContent = `${el.value}%`; paintSlider(el);
+      clearTimeout(dimTimer);
+      dimTimer = setTimeout(async () => { S = await saveSettings({ display: { [k]: +el.value } }); logEvent('dim_set', { k, v: +el.value }); }, 120);
+    };
+  }
+}
+
 async function maps() {
   const st = await api('/api/status'); const m = st.maps;
   const yes = (v) => v ? '<span class="accent">installed</span>' : '<span style="color:var(--warn)">missing</span>';
@@ -40,6 +70,7 @@ async function about() {
   S = await getSettings(); await applyUiTheme(S.theme);
   document.querySelectorAll('[data-page]').forEach(b => b.onclick = () => page(b.dataset.page));
   $('update').onclick = async () => { const r = await api('/api/maps/update', { json: {} }); toast(r.message || 'Started'); setTimeout(maps, 3000); };
-  cards(); switches(); page(new URLSearchParams(location.search).get('page') || 'skins');
+  cards(); switches(); wireDisplay(); page(new URLSearchParams(location.search).get('page') || 'skins');
   setInterval(() => { if (!$('maps').classList.contains('hidden')) maps(); }, 5000);
+  setInterval(() => { if (!$('display').classList.contains('hidden')) display(); }, 2000);
 })();
