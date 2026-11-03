@@ -22,6 +22,8 @@ openssh-client
 fonts-noto-core
 fonts-noto-cjk
 locales
+python3-pil
+plymouth
 rtl-sdr
 ddcutil
 python3-gi

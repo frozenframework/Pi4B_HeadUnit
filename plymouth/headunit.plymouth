@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=Head unit
+Description=Head-unit boot image (from boot-splash.png), centered on black
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/headunit
+ScriptFile=/usr/share/plymouth/themes/headunit/headunit.script

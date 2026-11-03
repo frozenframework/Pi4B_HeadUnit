@@ -15,6 +15,9 @@ search.sqlite
 
 # Hudiy is commercial: never commit the installer or license files
 hudiy/
+# Personal files built into your own images only (boot picture, etc.)
+private/
+boot-splash*.png
 *hudiy*install*
 
 # Tooling

@@ -61,6 +61,10 @@ one-time `firstrun.sh` hook in `cmdline.txt`.
    `bootfs/headunit/firstboot.log`. Passwords in `headunit.conf` are erased from the card once they're used.
 4. Change the password: *Settings → Developer → Open terminal*, then type `passwd`.
 
+**Your own boot picture:** `make-image.py --splash my-picture.png` shows it (centered on black) instead of
+the Raspberry Pi logo and rainbow screen. It's stored only on the card (`bootfs/headunit/boot-splash.png`),
+never in the project. To change it later, replace that file and run `sudo /opt/headunit/setup.sh --only 25-bootsplash`.
+
 **Blank screen or something not working?** Put the SD card in your computer and open
 `bootfs/headunit/diag.txt`: about 90 s after every boot the Pi writes a report there (screens, what's
 running, failed services, recent errors). Passwords and the Hudiy order number are left out. Delete
@@ -87,6 +91,7 @@ sudo ./setup.sh --vehicle f250 --tier 2          # or: --vehicle miata, --tier 1
 |---|---|
 | `10-packages` | apt packages (mpd, gpsd, espeak-ng, hfsplus…) and a Python venv with pyvalhalla |
 | `20-display` | screen timings, rotation (console + kanshi), touch mapped to HDMI-A-1, no blanking, desktop autologin |
+| `25-bootsplash` | your boot picture as the Plymouth boot screen (if you supplied one), no rainbow screen |
 | `30-power` | `gpio-poweroff` hold pin, I2C off (GPIO3 is the ignition sense), power daemon |
 | `40-audio` | USB audio output preferred over HDMI (WirePlumber rule) |
 | `45-dimmer` | screen dimmer service (backlight, HDMI DDC/CI, or overlay), backlight permissions, i2c-dev |

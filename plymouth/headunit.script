@@ -1,0 +1,13 @@
+# Plymouth boot screen: the head-unit boot image, scaled to fit the screen (90%) on black.
+Window.SetBackgroundTopColor(0, 0, 0);
+Window.SetBackgroundBottomColor(0, 0, 0);
+logo = Image("splash.png");
+sw = Window.GetWidth();
+sh = Window.GetHeight();
+scale = sw / logo.GetWidth();
+if (sh / logo.GetHeight() < scale) scale = sh / logo.GetHeight();
+scale = scale * 0.9;
+art = logo.Scale(logo.GetWidth() * scale, logo.GetHeight() * scale);
+sprite = Sprite(art);
+sprite.SetX(Window.GetX() + (sw - art.GetWidth()) / 2);
+sprite.SetY(Window.GetY() + (sh - art.GetHeight()) / 2);

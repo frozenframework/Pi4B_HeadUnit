@@ -22,7 +22,7 @@ import argparse, datetime, hashlib, lzma, os, shutil, struct, subprocess, sys, t
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent.parent
-SKIP_DIRS = {".git", "out", "node_modules", "__pycache__", "docs"}
+SKIP_DIRS = {".git", "out", "node_modules", "__pycache__", "docs", "hudiy", "private"}   # hudiy/, private/: your licensed / personal files
 SKIP_EXT = {".stl", ".step", ".img", ".xz"}
 
 FIRSTRUN = r"""#!/bin/bash
@@ -178,7 +178,7 @@ def package_files():
                 continue
             yield p, p.relative_to(HERE).as_posix()
 
-def patch_boot(img, vehicle, tier, region, hudiy, sets=None):
+def patch_boot(img, vehicle, tier, region, hudiy, sets=None, splash=None):
     """Write the head-unit files + first-run hook into the image's FAT boot partition (in place)."""
     from pyfatfs.PyFatFS import PyFatFS
     off = boot_partition(img)
@@ -210,6 +210,8 @@ def patch_boot(img, vehicle, tier, region, hudiy, sets=None):
             "3. Eject, put the card in the Pi, and power it on the bench with Wi-Fi in range.\r\n"
             "   It reboots twice by itself. First boot takes 15-45 minutes.\r\n"
             "   Progress log: firstboot.log in this folder.\r\n").encode())
+        if splash:   # your boot image (stays out of the project and GitHub; setup.d/25-bootsplash.sh uses it)
+            fat_write(fs, "/headunit/boot-splash.png", Path(splash).read_bytes())
         fat_mkdirs(fs, "/headunit/hudiy")
         if hudiy:
             fat_write(fs, f"/headunit/hudiy/{Path(hudiy).name}", Path(hudiy).read_bytes())
@@ -235,10 +237,10 @@ def compress(img, preset="6"):
     xz.with_name(xz.name + ".sha256").write_text(f"{h.hexdigest()}  {xz.name}\n")
     log("done:", xz, f"({xz.stat().st_size / 2**30:.2f} GB)")
 
-def build(base_img, vehicle, tier, region, hudiy, out, do_compress=True, sets=None):
+def build(base_img, vehicle, tier, region, hudiy, out, do_compress=True, sets=None, splash=None):
     img = out / f"headunit-{vehicle}-{datetime.date.today():%Y%m%d}.img"
     decompress(base_img, img)
-    patch_boot(img, vehicle, tier, region, hudiy, sets)
+    patch_boot(img, vehicle, tier, region, hudiy, sets, splash)
     if do_compress:
         compress(img)
     else:
@@ -251,6 +253,7 @@ def main():
     ap.add_argument("--vehicle", default="both", help="f250, miata, frontier, both (f250+miata) or all")
     ap.add_argument("--tier", default="2"); ap.add_argument("--region", default="texas-plus")
     ap.add_argument("--hudiy", help="Hudiy installer file to include")
+    ap.add_argument("--splash", help="PNG to show while the Pi boots, instead of the Raspberry Pi logo")
     ap.add_argument("--out", default=str(HERE / "out"))
     ap.add_argument("--no-compress", action="store_true", help="leave a plain .img (Raspberry Pi Imager flashes it too)")
     ap.add_argument("--set", action="append", default=[], metavar="KEY=VALUE",
@@ -262,7 +265,7 @@ def main():
         check_sha(base, a.sha256)
     for v in {"both": ["f250", "miata"], "all": ["f250", "miata", "frontier"]}.get(a.vehicle, [a.vehicle]):
         sets = dict(kv.split("=", 1) for kv in a.set)
-        build(base, v, a.tier, a.region, a.hudiy, out, do_compress=not a.no_compress, sets=sets)
+        build(base, v, a.tier, a.region, a.hudiy, out, do_compress=not a.no_compress, sets=sets, splash=a.splash)
 
 if __name__ == "__main__":
     main()
