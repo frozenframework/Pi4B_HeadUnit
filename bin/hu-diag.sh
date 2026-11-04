@@ -22,6 +22,9 @@ sec() { printf '\n===== %s\n' "$1"; }
   sec "failed services"; systemctl --failed --no-pager; asuser systemctl --user --failed --no-pager 2>&1
   sec "head-unit services"; for s in headunit-power headunit-update-apply headunit-update-verify; do systemctl status "$s" --no-pager -n 0 2>&1 | head -3; done
   for s in headunit-bridge headunit-dimmer mpd; do asuser systemctl --user status "$s" --no-pager -n 15 2>&1 | head -25; done
+  sec "map updates"; cat /var/lib/headunit/maps/update-status.json 2>&1; echo; df -h /var/lib/headunit | tail -1
+  journalctl -u headunit-update-maps -u headunit-maps-firstrun -b --no-pager -n 40 2>&1 | grep -v 'fetching chunks' | tail -25
+  sec "network"; nmcli -t -f DEVICE,TYPE,STATE,CONNECTION dev 2>&1; curl -s -o /dev/null -w "build.protomaps.com: %{http_code}\n" -m 10 -I https://build.protomaps.com/ 2>&1
   sec "dimmer status"; cat "$H/.config/headunit/display-status.json" 2>&1
   sec "accounts / desktop login"; getent passwd 1000 "$U"; grep -E '^(autologin-user|autologin-session|user-session)=' /etc/lightdm/lightdm.conf
   sec "lightdm (first problems, then the end)"; grep -m 15 -iE "fail|error|exit|crit" /var/log/lightdm/lightdm.log 2>&1; echo ...; tail -15 /var/log/lightdm/lightdm.log 2>&1

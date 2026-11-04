@@ -8,3 +8,5 @@ Type=oneshot
 ExecStart=/opt/headunit/bin/hu-update-maps.sh
 Nice=10
 IOSchedulingClass=idle
+# The whole-US download is ~15 GB: never time it out.
+TimeoutStartSec=infinity
