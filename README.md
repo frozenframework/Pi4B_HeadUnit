@@ -61,6 +61,12 @@ one-time `firstrun.sh` hook in `cmdline.txt`.
    `bootfs/headunit/firstboot.log`. Passwords in `headunit.conf` are erased from the card once they're used.
 4. Change the password: *Settings → Developer → Open terminal*, then type `passwd`.
 
+**Hudiy and CarPlay follow the map skin:** with *Settings → Driving → Skin Hudiy with the map skin* on
+(the default), Hudiy's own screens take the skin's colors and a matching background picture, and CarPlay /
+Android Auto switch to their night look for the dark skins and day look for Sunset Junction. It's applied
+every time Hudiy starts and right away when you pick a skin (backgrounds at Hudiy's next start).
+CarPlay's own screens are drawn by the iPhone, so beyond day/night they can't be restyled.
+
 **Your own boot picture:** `make-image.py --splash my-picture.png` shows it (centered on black) instead of
 the Raspberry Pi logo and rainbow screen. It's stored only on the card (`bootfs/headunit/boot-splash.png`),
 never in the project. To change it later, replace that file and run `sudo /opt/headunit/setup.sh --only 25-bootsplash`.

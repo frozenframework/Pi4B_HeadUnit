@@ -1,6 +1,7 @@
 """
 Tiny client for Hudiy's local API (TCP, Protocol Buffers in length-prefixed frames).
-Only what the head unit needs: hello, reverse-camera visibility, dispatching an action, ping/pong.
+Only what the head unit needs: hello, reverse-camera visibility, dispatching an action, dark mode,
+theme colors (SetDarkMode = 37, SetThemeColors = 54 in Hudiy's api/Api.proto), ping/pong.
 Frame: <uint32 payload_len><uint32 message_id><uint32 flags=0> + protobuf payload (little-endian),
 as in Hudiy's examples/api/python/common/Client.py. Messages are hand-encoded (proto2, api 1.5),
 so no generated code or protobuf package is needed.
@@ -34,6 +35,35 @@ def reverse_camera_status(visible):
 
 def dispatch_action(action):
     return _field_bytes(1, action.encode())
+
+def set_dark_mode(enabled):
+    return _field_varint(1, 1 if enabled else 0)
+
+def set_theme_colors(dark_color, light_color):
+    return _field_bytes(1, dark_color.encode()) + _field_bytes(2, light_color.encode())
+
+def api_port(default=44405):
+    """Hudiy's API port from its config (api.tcpEndpointPort) when set there, else the default."""
+    import json, os
+    from pathlib import Path
+    try:
+        cfg = json.loads((Path.home() / ".hudiy" / "share" / "config" / "main_configuration.json").read_text())
+        return int(cfg.get("api", {}).get("tcpEndpointPort") or os.environ.get("HUDIY_API_PORT") or default)
+    except (OSError, ValueError, AttributeError, TypeError):
+        return int(os.environ.get("HUDIY_API_PORT") or default)
+
+def send_once(name, messages, host="127.0.0.1", port=None, timeout=3):
+    """Connect, say hello, send [(message_id, payload), ...], close. True if it was delivered."""
+    try:
+        with socket.create_connection((host, port or api_port()), timeout=timeout) as s:
+            s.sendall(frame(HELLO_REQUEST, hello_request(name)))
+            for mid, payload in messages:
+                s.sendall(frame(mid, payload))
+            time.sleep(0.3)
+            s.sendall(frame(BYEBYE))
+        return True
+    except OSError:
+        return False
 
 def frame(msg_id, payload=b""):
     return struct.pack("<III", len(payload), msg_id, 0) + payload

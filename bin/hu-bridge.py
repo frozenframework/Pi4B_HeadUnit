@@ -81,7 +81,7 @@ def system_language():
 
 DEFAULT_SETTINGS = {"theme": C("DEFAULT_THEME", "neon-overdrive"), "units": "imperial", "voice": True,
                     "language": system_language(), "lastPos": None,
-                    "syncHudiyColors": False, "nightAuto": True,
+                    "syncHudiyColors": True, "nightAuto": True,
                     "display": {"level": 100, "auto": True, "day": 100, "night": 45, "method": "auto"}, "radio": {"band": "FM", "FM": 101100, "AM": 740,
                     "presets": {"FM": [], "AM": []}}}
 
@@ -480,8 +480,9 @@ async def settings_api(request):
     write_json(USER_DIR / "settings.json", s)
     if s.get("theme") != old_theme:
         usage("theme_change", theme=s["theme"], prev=old_theme)
-        if s.get("syncHudiyColors"):
-            subprocess.Popen([sys.executable, "/opt/headunit/bin/hu-hudiy-theme.py", s["theme"]])
+        if s.get("syncHudiyColors"):   # skin Hudiy too: colors right away, backgrounds at its next start
+            subprocess.Popen([sys.executable, "/opt/headunit/bin/hu-hudiy-theme.py", s["theme"], "--live"],
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return web.json_response(s)
 
 async def favorites_api(request):

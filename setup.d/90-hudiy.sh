@@ -7,6 +7,11 @@ if [ ! -d "$H/.hudiy/share/config" ]; then
   exit 0
 fi
 as_user python3 /opt/headunit/bin/hu-hudiy-config.py
+# Skin Hudiy (and CarPlay / Android Auto's night look) with the map skin: now, and every time the desktop
+# starts, before Hudiy does (first line of the desktop autostart).
+as_user python3 /opt/headunit/bin/hu-hudiy-theme.py --startup || true
+AS="$H/.config/labwc/autostart"; THEME_LINE="python3 /opt/headunit/bin/hu-hudiy-theme.py --startup"
+touch "$AS"; sed -i "\|hu-hudiy-theme.py|d" "$AS"; sed -i "1i $THEME_LINE" "$AS"; chown "$(hu_user):$(hu_user)" "$AS"
 # Start Hudiy (CarPlay / Android Auto) when the desktop starts. Hudiy's installer normally adds this
 # itself; this only fills it in if it's missing.
 RUN="$H/.hudiy/share/hudiy_run.sh"
