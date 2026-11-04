@@ -519,7 +519,14 @@ async def maps_update(request):
     return web.json_response({"ok": True, "message": "Map update started. It keeps going in the background."})
 
 async def maps_update_status(request):
-    return web.json_response(read_json(MAPS_DIR / "update-status.json", {"message": ""}))
+    """Progress for Settings > Maps (written by hu-update-maps.sh / hu-maps-progress.py), plus whether the
+    updater is still running, so a download cut off by a reboot shows as stopped, not stuck at 87%."""
+    st = read_json(MAPS_DIR / "update-status.json", {"message": ""})
+    r = await asyncio.create_subprocess_exec("systemctl", "is-active", "headunit-update-maps.service", "headunit-maps-firstrun.service",
+                                             stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL)
+    out, _ = await r.communicate()
+    st["running"] = any(x in ("active", "activating", "reloading") for x in out.decode().split())
+    return web.json_response(st)
 
 # ---------------------------------------------------------------- region & language, developer tools
 SYSTEM_HELPER = "/opt/headunit/bin/hu-system.sh"

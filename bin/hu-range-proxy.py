@@ -12,8 +12,12 @@ over. This tiny local proxy sits in between:
 
     hu-range-proxy.py --upstream https://build.protomaps.com --cache DIR --port 8766
 Then: pmtiles extract http://127.0.0.1:8766/<build>.pmtiles ...
+
+With --stats FILE it also writes its counters there every second, for the progress bar in Settings:
+  served    bytes handed to the extractor          net       bytes downloaded from the internet
+  inflight  bytes of pieces still being downloaded
 """
-import argparse, asyncio, hashlib, logging, os, re
+import argparse, asyncio, hashlib, json, logging, os, re, time
 from pathlib import Path
 from aiohttp import ClientSession, ClientTimeout, web
 
@@ -24,6 +28,12 @@ async def fetch_range(app, name, start, end, dest: Path):
     """Download [start, end] of upstream/name into dest, resuming on errors. Returns when complete."""
     want = end - start + 1
     part = dest.with_suffix(".part")
+    try:
+        return await _fetch(app, name, start, end, dest, want, part)
+    finally:
+        app["inflight"].pop(dest.name, None)
+
+async def _fetch(app, name, start, end, dest, want, part):
     for attempt in range(1, app["tries"] + 1):
         have = part.stat().st_size if part.exists() else 0
         if have >= want:
@@ -42,8 +52,10 @@ async def fetch_range(app, name, start, end, dest: Path):
                 if r.status == 200 and have:                       # server ignored Range: start over
                     have = 0; part.unlink(missing_ok=True)
                 with open(part, "ab") as f:
+                    got = f.tell()
                     async for chunk in r.content.iter_chunked(1 << 20):
-                        f.write(chunk)
+                        f.write(chunk); got += len(chunk)
+                        app["net"] += len(chunk); app["inflight"][dest.name] = got
         except Exception as e:                                    # dropped stream, reset, timeout...
             done = part.stat().st_size if part.exists() else 0
             log.warning("range %d-%d: %s at %d/%d bytes (try %d), continuing", start, end, e, done, want, attempt)
@@ -78,6 +90,7 @@ async def handle(request):
         while chunk := f.read(1 << 20):
             await resp.write(chunk)
     await resp.write_eof()
+    app["served"] += size
     return resp
 
 async def head(request):
@@ -86,18 +99,37 @@ async def head(request):
         if r.headers.get("Content-Length"): app["sizes"][name] = r.headers["Content-Length"]
         return web.Response(status=r.status, headers={"Content-Length": r.headers.get("Content-Length", "0"), "Accept-Ranges": "bytes"})
 
+async def write_stats(app):
+    """Counters for the progress bar, rewritten every second while the proxy runs."""
+    path = app["stats"]
+    while True:
+        try:
+            tmp = path.with_suffix(".tmp")
+            tmp.write_text(json.dumps({"served": app["served"], "net": app["net"],
+                                       "inflight": sum(app["inflight"].values()), "t": time.time()}))
+            tmp.replace(path)
+        except OSError:
+            pass
+        await asyncio.sleep(1)
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--upstream", required=True); ap.add_argument("--cache", required=True)
     ap.add_argument("--port", type=int, default=8766); ap.add_argument("--tries", type=int, default=12)
     ap.add_argument("--backoff", type=float, default=2.0); ap.add_argument("--read-timeout", type=float, default=60)
+    ap.add_argument("--stats", help="write served/downloaded byte counters to this JSON file every second")
     a = ap.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
     app = web.Application()
-    app.update(upstream=a.upstream.rstrip("/"), cache=Path(a.cache), tries=a.tries, backoff=a.backoff, read_timeout=a.read_timeout, locks={}, sizes={})
+    app.update(upstream=a.upstream.rstrip("/"), cache=Path(a.cache), tries=a.tries, backoff=a.backoff, read_timeout=a.read_timeout, locks={}, sizes={},
+               served=0, net=0, inflight={}, stats=Path(a.stats) if a.stats else None)
     app["cache"].mkdir(parents=True, exist_ok=True)
-    async def start(app): app["session"] = ClientSession(timeout=ClientTimeout(total=None, sock_connect=30, sock_read=app["read_timeout"]))
-    async def stop(app): await app["session"].close()
+    async def start(app):
+        app["session"] = ClientSession(timeout=ClientTimeout(total=None, sock_connect=30, sock_read=app["read_timeout"]))
+        if app["stats"]: app["stats_task"] = asyncio.create_task(write_stats(app))
+    async def stop(app):
+        if app.get("stats_task"): app["stats_task"].cancel()
+        await app["session"].close()
     app.on_startup.append(start); app.on_cleanup.append(stop)
     app.router.add_get("/{name}", handle, allow_head=False); app.router.add_route("HEAD", "/{name}", head)
     web.run_app(app, host="127.0.0.1", port=a.port, access_log=None, print=None)

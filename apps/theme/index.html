@@ -38,6 +38,11 @@
   </section>
   <section id="maps" class="page hidden">
     <div id="mapInfo" class="info"></div>
+    <div id="mapProg" class="prog hidden">
+      <div class="pbar"><div id="mapBar"></div></div>
+      <div class="prow"><b id="mapPct" class="accent"></b><span id="mapEta"></span></div>
+      <div id="mapDet" class="muted small"></div>
+    </div>
     <div class="row"><button id="update" class="primary" data-log="maps_update" data-i18n="set.update_maps">Update maps now (Wi-Fi)</button><span id="upd" class="muted"></span></div>
     <p class="muted small" data-i18n="set.maps_help">Map display data downloads straight to the head unit. Routing and search come from a USB stick with a HEADUNIT_MAPS folder (made on your computer with maps/build-routing.py). It imports by itself when you plug the stick in.</p>
   </section>

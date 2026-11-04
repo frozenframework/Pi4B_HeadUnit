@@ -138,7 +138,18 @@
   "set.logs_help": "Every tap, route, skin change, map frame rate and error is logged on the head unit. To collect it, plug in a USB stick named HUEXPORT: the logs copy onto it automatically.",
   "set.logged_days": "Logged days",
   "set.events": "events",
-  "set.size": "size"
+  "set.size": "size",
+  "set.map_preparing": "Getting ready…",
+  "set.map_left": "About {time} left",
+  "set.map_calc": "Working out the time left…",
+  "set.map_of": "{done} of {total}",
+  "set.map_retrying": "Connection dropped, continuing where it left off…",
+  "set.map_checking": "Checking the map file…",
+  "set.map_stopped": "Stopped at {pct}. Start the update again to continue where it left off.",
+  "set.map_hm": "{h} h {m} min",
+  "set.map_m": "{m} min",
+  "set.map_lt1": "less than a minute",
+  "set.map_done": "Map display data updated"
  },
  "es": {
   "common.back": "Atrás",
@@ -278,7 +289,18 @@
   "set.logs_help": "Cada toque, ruta, cambio de estilo, velocidad del mapa y error se registra en la unidad. Para recogerlo, conecte una memoria USB llamada HUEXPORT: los registros se copian solos.",
   "set.logged_days": "Días registrados",
   "set.events": "eventos",
-  "set.size": "tamaño"
+  "set.size": "tamaño",
+  "set.map_preparing": "Preparando…",
+  "set.map_left": "Quedan unos {time}",
+  "set.map_calc": "Calculando el tiempo restante…",
+  "set.map_of": "{done} de {total}",
+  "set.map_retrying": "Se cortó la conexión; continúa donde se quedó…",
+  "set.map_checking": "Comprobando el archivo del mapa…",
+  "set.map_stopped": "Se detuvo en {pct}. Vuelve a iniciar la actualización para continuar donde se quedó.",
+  "set.map_hm": "{h} h {m} min",
+  "set.map_m": "{m} min",
+  "set.map_lt1": "menos de un minuto",
+  "set.map_done": "Mapa actualizado"
  },
  "zh": {
   "common.back": "返回",
@@ -439,7 +461,18 @@
   "set.logs_help": "每次点按、路线、风格切换、地图帧率和错误都会记录在主机上。插入名为 HUEXPORT 的 U 盘即可自动复制日志。",
   "set.logged_days": "已记录天数",
   "set.events": "事件",
-  "set.size": "大小"
+  "set.size": "大小",
+  "set.map_preparing": "正在准备…",
+  "set.map_left": "大约还剩 {time}",
+  "set.map_calc": "正在计算剩余时间…",
+  "set.map_of": "{done} / {total}",
+  "set.map_retrying": "连接中断，正在从中断处继续…",
+  "set.map_checking": "正在检查地图文件…",
+  "set.map_stopped": "已在 {pct} 处停止。再次开始更新即可从中断处继续。",
+  "set.map_hm": "{h} 小时 {m} 分钟",
+  "set.map_m": "{m} 分钟",
+  "set.map_lt1": "不到一分钟",
+  "set.map_done": "地图已更新"
  },
  "tl": {
   "common.back": "Bumalik",
@@ -600,7 +633,18 @@
   "set.logs_help": "Itinatala sa head unit ang bawat tap, ruta, pagpalit ng istilo, frame rate ng mapa at error. Para kunin ito, magsaksak ng USB stick na pinangalanang HUEXPORT: kusang makokopya roon ang mga log.",
   "set.logged_days": "Mga araw na naitala",
   "set.events": "mga event",
-  "set.size": "laki"
+  "set.size": "laki",
+  "set.map_preparing": "Inihahanda…",
+  "set.map_left": "Mga {time} pa ang natitira",
+  "set.map_calc": "Kinakalkula ang natitirang oras…",
+  "set.map_of": "{done} sa {total}",
+  "set.map_retrying": "Naputol ang koneksyon, itinutuloy kung saan huminto…",
+  "set.map_checking": "Sinusuri ang file ng mapa…",
+  "set.map_stopped": "Huminto sa {pct}. Simulan muli ang update para ituloy kung saan huminto.",
+  "set.map_hm": "{h} oras {m} min",
+  "set.map_m": "{m} min",
+  "set.map_lt1": "wala pang isang minuto",
+  "set.map_done": "Na-update na ang mapa"
  },
  "vi": {
   "common.back": "Quay lại",
@@ -740,7 +784,18 @@
   "set.logs_help": "Mọi thao tác chạm, lộ trình, đổi giao diện, tốc độ khung hình bản đồ và lỗi đều được ghi lại trên máy. Để lấy dữ liệu, cắm USB có tên HUEXPORT: nhật ký sẽ tự sao chép vào.",
   "set.logged_days": "Số ngày đã ghi",
   "set.events": "sự kiện",
-  "set.size": "dung lượng"
+  "set.size": "dung lượng",
+  "set.map_preparing": "Đang chuẩn bị…",
+  "set.map_left": "Còn khoảng {time}",
+  "set.map_calc": "Đang tính thời gian còn lại…",
+  "set.map_of": "{done} / {total}",
+  "set.map_retrying": "Mất kết nối, đang tiếp tục từ chỗ đã dừng…",
+  "set.map_checking": "Đang kiểm tra tệp bản đồ…",
+  "set.map_stopped": "Đã dừng ở {pct}. Hãy bắt đầu cập nhật lại để tiếp tục từ chỗ đã dừng.",
+  "set.map_hm": "{h} giờ {m} phút",
+  "set.map_m": "{m} phút",
+  "set.map_lt1": "chưa đến một phút",
+  "set.map_done": "Đã cập nhật bản đồ"
  },
  "ar": {
   "common.back": "رجوع",
@@ -880,7 +935,18 @@
   "set.logs_help": "يُسجَّل على الجهاز كل لمس ومسار وتغيير نمط ومعدل إطارات الخريطة وكل خطأ. لجمعها، أدخل ذاكرة USB باسم HUEXPORT وستُنسخ السجلات إليها تلقائياً.",
   "set.logged_days": "الأيام المسجلة",
   "set.events": "الأحداث",
-  "set.size": "الحجم"
+  "set.size": "الحجم",
+  "set.map_preparing": "جارٍ التحضير…",
+  "set.map_left": "يتبقى حوالي {time}",
+  "set.map_calc": "جارٍ حساب الوقت المتبقي…",
+  "set.map_of": "{done} من {total}",
+  "set.map_retrying": "انقطع الاتصال، تتم المتابعة من حيث توقف…",
+  "set.map_checking": "جارٍ فحص ملف الخريطة…",
+  "set.map_stopped": "توقف عند {pct}. ابدأ التحديث مرة أخرى للمتابعة من حيث توقف.",
+  "set.map_hm": "{h} س {m} د",
+  "set.map_m": "{m} دقيقة",
+  "set.map_lt1": "أقل من دقيقة",
+  "set.map_done": "تم تحديث الخريطة"
  },
  "fr": {
   "common.back": "Retour",
@@ -1020,7 +1086,18 @@
   "set.logs_help": "Chaque appui, itinéraire, changement de style, fluidité de la carte et erreur est enregistré sur l'appareil. Pour les récupérer, branchez une clé USB nommée HUEXPORT : les journaux s'y copient automatiquement.",
   "set.logged_days": "Jours enregistrés",
   "set.events": "événements",
-  "set.size": "taille"
+  "set.size": "taille",
+  "set.map_preparing": "Préparation…",
+  "set.map_left": "Encore environ {time}",
+  "set.map_calc": "Calcul du temps restant…",
+  "set.map_of": "{done} sur {total}",
+  "set.map_retrying": "Connexion coupée, reprise là où elle s'est arrêtée…",
+  "set.map_checking": "Vérification du fichier de carte…",
+  "set.map_stopped": "Arrêté à {pct}. Relancez la mise à jour pour reprendre là où elle s'est arrêtée.",
+  "set.map_hm": "{h} h {m} min",
+  "set.map_m": "{m} min",
+  "set.map_lt1": "moins d'une minute",
+  "set.map_done": "Carte mise à jour"
  },
  "ko": {
   "common.back": "뒤로",
@@ -1160,7 +1237,18 @@
   "set.logs_help": "모든 터치, 경로, 스타일 변경, 지도 프레임 속도와 오류가 헤드 유닛에 기록됩니다. HUEXPORT라는 이름의 USB를 꽂으면 기록이 자동으로 복사됩니다.",
   "set.logged_days": "기록된 날짜 수",
   "set.events": "이벤트",
-  "set.size": "크기"
+  "set.size": "크기",
+  "set.map_preparing": "준비 중…",
+  "set.map_left": "약 {time} 남음",
+  "set.map_calc": "남은 시간 계산 중…",
+  "set.map_of": "{done} / {total}",
+  "set.map_retrying": "연결이 끊겼습니다. 중단된 곳부터 계속합니다…",
+  "set.map_checking": "지도 파일 확인 중…",
+  "set.map_stopped": "{pct}에서 멈췄습니다. 업데이트를 다시 시작하면 중단된 곳부터 계속합니다.",
+  "set.map_hm": "{h}시간 {m}분",
+  "set.map_m": "{m}분",
+  "set.map_lt1": "1분 미만",
+  "set.map_done": "지도가 업데이트되었습니다"
  },
  "pt": {
   "common.back": "Voltar",
@@ -1300,7 +1388,18 @@
   "set.logs_help": "Cada toque, rota, troca de estilo, fluidez do mapa e erro é registrado na central. Para coletar, conecte um pen drive chamado HUEXPORT: os registros são copiados automaticamente.",
   "set.logged_days": "Dias registrados",
   "set.events": "eventos",
-  "set.size": "tamanho"
+  "set.size": "tamanho",
+  "set.map_preparing": "Preparando…",
+  "set.map_left": "Faltam cerca de {time}",
+  "set.map_calc": "Calculando o tempo restante…",
+  "set.map_of": "{done} de {total}",
+  "set.map_retrying": "A conexão caiu; continuando de onde parou…",
+  "set.map_checking": "Verificando o arquivo do mapa…",
+  "set.map_stopped": "Parou em {pct}. Inicie a atualização novamente para continuar de onde parou.",
+  "set.map_hm": "{h} h {m} min",
+  "set.map_m": "{m} min",
+  "set.map_lt1": "menos de um minuto",
+  "set.map_done": "Mapa atualizado"
  },
  "hi": {
   "common.back": "वापस",
@@ -1440,6 +1539,17 @@
   "set.logs_help": "हर टैप, रास्ता, स्टाइल बदलाव, मैप की फ़्रेम दर और गड़बड़ी हेड यूनिट पर दर्ज होती है। इन्हें लेने के लिए HUEXPORT नाम की USB स्टिक लगाएँ: लॉग अपने-आप कॉपी हो जाएँगे।",
   "set.logged_days": "दर्ज दिन",
   "set.events": "घटनाएँ",
-  "set.size": "आकार"
+  "set.size": "आकार",
+  "set.map_preparing": "तैयारी हो रही है…",
+  "set.map_left": "लगभग {time} बाकी",
+  "set.map_calc": "बचा हुआ समय निकाला जा रहा है…",
+  "set.map_of": "{total} में से {done}",
+  "set.map_retrying": "कनेक्शन टूट गया, जहाँ रुका था वहीं से जारी…",
+  "set.map_checking": "मैप फ़ाइल जाँची जा रही है…",
+  "set.map_stopped": "{pct} पर रुक गया। जहाँ रुका था वहीं से जारी रखने के लिए अपडेट फिर से शुरू करें।",
+  "set.map_hm": "{h} घंटे {m} मिनट",
+  "set.map_m": "{m} मिनट",
+  "set.map_lt1": "एक मिनट से कम",
+  "set.map_done": "मैप अपडेट हो गया"
  }
 }

@@ -126,7 +126,46 @@ async function maps() {
   const st = await api('/api/status'); const m = st.maps;
   const yes = (v) => v ? `<span class="accent">${esc(t('set.installed'))}</span>` : `<span style="color:var(--warn)">${esc(t('set.missing'))}</span>`;
   $('mapInfo').innerHTML = `${esc(t('set.map_region'))}: <b>${esc(m.name || m.region || t('set.not_set'))}</b><br>${esc(t('set.map_display'))}: ${yes(m.basemap)} ${m.basemap_date ? '(' + esc(m.basemap_date) + ')' : ''}<br>${esc(t('set.routing'))}: ${yes(m.routing)} · ${esc(t('set.search'))}: ${yes(m.search)} ${m.built ? '(' + esc(t('set.built', { date: m.built.slice(0, 10) })) + ')' : ''}`;
-  const u = await api('/api/maps/update-status'); $('upd').textContent = u.message || '';
+  mapProgress();
+}
+// ---- Map download progress bar (status from bin/hu-update-maps.sh + hu-maps-progress.py)
+const ACTIVE = ['preparing', 'downloading', 'retrying', 'checking'];
+function bytes(n) {
+  const u = ['B', 'KB', 'MB', 'GB', 'TB']; let i = 0; while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+  return n.toLocaleString(langTag(), { maximumFractionDigits: i >= 3 ? 1 : 0 }) + ' ' + u[i];
+}
+function timeLeft(s) {
+  if (s < 60) return t('set.map_lt1');
+  const m = Math.round(s / 60);
+  return m >= 60 ? t('set.map_hm', { h: Math.floor(m / 60), m: m % 60 }) : t('set.map_m', { m });
+}
+async function mapProgress() {
+  const u = await api('/api/maps/update-status').catch(() => null); if (!u) return;
+  const box = $('mapProg'), bar = $('mapBar'), pctOf = (p) => (p ?? 0).toLocaleString(langTag(), { maximumFractionDigits: 0 }) + '%';
+  const active = ACTIVE.includes(u.phase), running = !!u.running;
+  box.classList.toggle('hidden', !active);
+  $('update').disabled = active && running;
+  $('upd').textContent = '';
+  if (!active) {                                   // finished, failed, or never run
+    $('upd').textContent = u.phase === 'done' ? t('set.map_done') : (u.message || '');
+    return;
+  }
+  const stopped = !running, pct = u.percent;
+  box.classList.toggle('stopped', stopped);
+  box.classList.toggle('busy', running && (u.phase === 'preparing' || (u.phase === 'retrying' && pct == null)));
+  bar.style.width = (u.phase === 'checking' ? 100 : (pct ?? 0)) + '%';
+  $('mapPct').textContent = u.phase === 'checking' ? '100%' : (pct != null ? pctOf(pct) : '');
+  let line = '';
+  if (stopped) line = t('set.map_stopped', { pct: pctOf(pct) });
+  else if (u.phase === 'preparing') line = t('set.map_preparing');
+  else if (u.phase === 'retrying') line = t('set.map_retrying');
+  else if (u.phase === 'checking') line = t('set.map_checking');
+  else line = u.eta != null ? t('set.map_left', { time: timeLeft(u.eta) }) : t('set.map_calc');
+  $('mapEta').textContent = line;
+  const det = [];
+  if (u.done != null && u.total) det.push(t('set.map_of', { done: bytes(u.done), total: bytes(u.total) }));
+  if (u.rate && running && u.phase === 'downloading') det.push(bytes(u.rate) + '/s');
+  $('mapDet').textContent = det.join(' · ');
 }
 async function about() {
   const r = await api('/api/logs/summary');
@@ -147,10 +186,11 @@ async function updates() {
 (async () => {
   S = await getSettings(); await applyUiTheme(S.theme); await initI18n(S.language);
   document.querySelectorAll('[data-page]').forEach(b => b.onclick = () => page(b.dataset.page));
-  $('update').onclick = async () => { const r = await api('/api/maps/update', { json: {} }); toast(r.message || ''); setTimeout(maps, 3000); };
+  $('update').onclick = async () => { const r = await api('/api/maps/update', { json: {} }); toast(r.message || ''); setTimeout(mapProgress, 1500); };
   $('updCheck').onclick = async () => { const r = await api('/api/update/check', { json: {} }); toast(r.message || ''); setTimeout(updates, 2000); };
   cards(); switches(); wireDisplay(); wireRegion(); wireDev(); page(new URLSearchParams(location.search).get('page') || 'skins');
-  setInterval(() => { if (!$('maps').classList.contains('hidden')) maps(); }, 5000);
+  setInterval(() => { if (!$('maps').classList.contains('hidden')) mapProgress(); }, 2000);
+  setInterval(() => { if (!$('maps').classList.contains('hidden')) maps(); }, 15000);
   setInterval(() => { if (!$('display').classList.contains('hidden')) display(); }, 2000);
   setInterval(() => { if (!$('updates').classList.contains('hidden')) updates(); }, 3000);
 })();

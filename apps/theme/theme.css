@@ -40,3 +40,15 @@ input[type=range]::-moz-range-thumb { width: 40px; height: 40px; border-radius: 
 .warn { color: var(--warn); margin: 10px 0; }
 .opt .row { flex-shrink: 0; }
 .opt > div:first-child { padding-inline-end: 14px; }
+
+/* map download progress bar (Settings > Maps) */
+.prog { margin: 6px 0 16px; }
+.pbar { height: 26px; border-radius: 13px; overflow: hidden; background: color-mix(in srgb, var(--muted) 25%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); }
+#mapBar { height: 100%; width: 0; border-radius: 13px; background: linear-gradient(90deg, var(--accent2), var(--accent));
+  box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 55%, transparent); transition: width 1.5s linear; }
+.prog.busy #mapBar { width: 30% !important; animation: pbusy 1.6s ease-in-out infinite alternate; transition: none; }
+@keyframes pbusy { from { margin-inline-start: 0; } to { margin-inline-start: 70%; } }
+.prow { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-top: 8px; font-size: 22px; }
+#mapPct { font-size: 34px; }
+.prog.stopped #mapBar { background: var(--muted); box-shadow: none; }
