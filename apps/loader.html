@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Hudiy opens this local file first; it waits for the head-unit service, then jumps to the app.
+<!-- Fallback page for opening an app from a local file (Hudiy itself now opens the http:// address directly).
      It checks with an image load, not fetch(): Hudiy's web view (QtWebEngine) doesn't let local file://
      pages make fetch/XHR requests to http:// addresses, but ordinary image loads are allowed. -->
 <html><head><meta charset="utf-8"><style>

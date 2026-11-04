@@ -11,7 +11,10 @@ as_user python3 /opt/headunit/bin/hu-hudiy-config.py
 # starts, before Hudiy does (first line of the desktop autostart).
 as_user python3 /opt/headunit/bin/hu-hudiy-theme.py --startup || true
 AS="$H/.config/labwc/autostart"; THEME_LINE="python3 /opt/headunit/bin/hu-hudiy-theme.py --startup"
-touch "$AS"; sed -i "\|hu-hudiy-theme.py|d" "$AS"; sed -i "1i $THEME_LINE" "$AS"; chown "$(hu_user):$(hu_user)" "$AS"
+touch "$AS"; sed -i -e "\|hu-hudiy-theme.py|d" -e "\|hu-wait-bridge.sh|d" "$AS"
+# ...and Hudiy waits (up to 30 s) for the head-unit bridge, so the Drive menu apps load on the first try.
+sed -i "1i /opt/headunit/bin/hu-wait-bridge.sh" "$AS"; sed -i "1i $THEME_LINE" "$AS"
+chown "$(hu_user):$(hu_user)" "$AS"
 # Start Hudiy (CarPlay / Android Auto) when the desktop starts. Hudiy's installer normally adds this
 # itself; this only fills it in if it's missing.
 RUN="$H/.hudiy/share/hudiy_run.sh"

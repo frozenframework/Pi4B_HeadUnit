@@ -5,7 +5,17 @@ import json, shutil
 from pathlib import Path
 
 CFG = Path.home() / ".hudiy" / "share" / "config"
-LOADER = "file:///opt/headunit/apps/loader.html?to="
+# Hudiy opens the apps straight from the head-unit bridge (an http:// address, like Hudiy's own web widgets).
+# A local file:// page can't check for the bridge inside Hudiy's web view, so the desktop autostart waits
+# for the bridge before Hudiy starts instead (bin/hu-wait-bridge.sh).
+def _port():
+    try:
+        for line in Path("/etc/headunit/headunit.conf").read_text().splitlines():
+            if line.startswith("BRIDGE_PORT="): return line.split("=", 1)[1].strip().strip('"')
+    except OSError:
+        pass
+    return "8765"
+APP_URL = "http://127.0.0.1:%s/apps/{}/index.html" % _port()
 APPS = [
     {"action": "hu_navigation", "label": "Navigation", "icon": "map", "page": "nav", "bg": True},
     {"action": "hu_music", "label": "iPod & USB", "icon": "library_music", "page": "music", "bg": False},
@@ -27,7 +37,7 @@ def save(name, data):
 apps = load("applications.json", {"applications": []})
 apps["applications"] = [a for a in apps.get("applications", []) if not a.get("action", "").startswith("hu_")]
 for a in APPS:
-    apps["applications"].append({"action": a["action"], "url": LOADER + a["page"], "allowBackground": a["bg"],
+    apps["applications"].append({"action": a["action"], "url": APP_URL.format(a["page"]), "allowBackground": a["bg"],
                                  "controlAudioFocus": False, "audioStreamCategory": "NONE", "zoomFactor": 1.0})
 save("applications.json", apps)
 
