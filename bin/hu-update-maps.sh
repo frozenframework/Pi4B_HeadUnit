@@ -26,30 +26,56 @@ if [ ! -x "$PMT" ]; then
   install -D -m 755 "$tmp/pmtiles" "$PMT"; rm -rf "$tmp"
 fi
 
-# 2) newest daily planet build (checks back up to 10 days)
+# 2) which planet build: one we already half-downloaded (if the server still has it), else the newest
 STEP="looking for the newest map build"
+CACHE="$D/download-cache"; mkdir -p "$CACHE"
 BUILD=""
-for i in $(seq 0 10); do
-  day=$(date -u -d "-$i day" +%Y%m%d)
-  if curl -fsI "https://build.protomaps.com/$day.pmtiles" >/dev/null 2>&1; then BUILD=$day; break; fi
+for c in $(ls -1 "$CACHE" 2>/dev/null | sort -r); do
+  if [ -n "$(ls -A "$CACHE/$c" 2>/dev/null)" ] && curl -fsI "https://build.protomaps.com/$c.pmtiles" >/dev/null 2>&1; then
+    BUILD=$c; echo "Resuming the download of build $BUILD"; break
+  fi
 done
+if [ -z "$BUILD" ]; then
+  for i in $(seq 0 10); do
+    day=$(date -u -d "-$i day" +%Y%m%d)
+    if curl -fsI "https://build.protomaps.com/$day.pmtiles" >/dev/null 2>&1; then BUILD=$day; break; fi
+  done
+fi
 [ -n "$BUILD" ] || { status "Couldn't reach build.protomaps.com (check Wi-Fi)"; exit 1; }
+for c in "$CACHE"/*; do [ "$c" = "$CACHE/$BUILD" ] || rm -rf "$c"; done   # parts of older builds are useless now
 
-# 3) space check (rough: texas-plus ~5 GB, us at z14 ~20 GB) and extract
-need=$([ "$REGION" = us ] && echo 30 || echo 8)
+# 3) space check (rough: texas-plus ~5 GB, whole US ~15 GB; the download cache holds a second copy
+#    until the map is finished) and extract
+need=$([ "$REGION" = us ] && echo 40 || echo 12)
+have_gb=$(( $(du -s --block-size=1G "$CACHE/$BUILD" 2>/dev/null | cut -f1 || echo 0) ))
 free=$(df -BG --output=avail "$D" | tail -1 | tr -dc 0-9)
-[ "$free" -ge "$need" ] || { status "Not enough space: ${free} GB free, about ${need} GB needed"; exit 1; }
-status "Downloading ${NAME//_/ } map (build $BUILD). This can take a while"
-# A Wi-Fi drop ends a download (it can't resume), so try up to 3 times.
-for try in 1 2 3; do
-  STEP="downloading (try $try of 3)"
-  if "$PMT" extract "https://build.protomaps.com/$BUILD.pmtiles" "$D/basemap.pmtiles.part" --bbox="$BBOX" --maxzoom="$MAXZ" --download-threads=4; then break; fi
-  [ "$try" = 3 ] && { status "Map download kept failing (Wi-Fi dropped?). Try again later"; exit 1; }
-  status "Download interrupted; retrying (try $((try+1)) of 3)"; sleep 30
+[ $((free + have_gb)) -ge "$need" ] || { status "Not enough space: ${free} GB free, about ${need} GB needed"; exit 1; }
+
+# The extractor can't resume and gives up on the first dropped connection, so it reads through a local
+# proxy (hu-range-proxy.py) that saves every piece to $CACHE/$BUILD, retries and continues dropped
+# pieces from the last byte, and serves pieces it already has from disk. A failed or interrupted run
+# (Wi-Fi drop, server reset, power off) picks up where it stopped the next time this runs.
+PROXY_PORT=8766
+python3 /opt/headunit/bin/hu-range-proxy.py --upstream https://build.protomaps.com --cache "$CACHE/$BUILD" \
+  --port "$PROXY_PORT" 2> >(sed -u 's/^/proxy: /' >&2) &
+PROXY_PID=$!
+trap 'kill $PROXY_PID 2>/dev/null || true' EXIT
+for _ in $(seq 1 40); do
+  curl -fsI "http://127.0.0.1:$PROXY_PORT/$BUILD.pmtiles" >/dev/null 2>&1 && break; sleep 0.5
 done
+status "Downloading ${NAME//_/ } map (build $BUILD). This can take a while; if it stops, it continues where it left off"
+for try in 1 2 3 4 5; do
+  STEP="downloading (try $try of 5)"
+  rm -f "$D/basemap.pmtiles.part"                           # rebuilt from the cache in a minute or two
+  if "$PMT" extract "http://127.0.0.1:$PROXY_PORT/$BUILD.pmtiles" "$D/basemap.pmtiles.part" --bbox="$BBOX" --maxzoom="$MAXZ" --download-threads=4; then break; fi
+  [ "$try" = 5 ] && { status "Map download stopped (Wi-Fi dropped?). Run it again: it continues where it left off"; exit 1; }
+  status "Download interrupted; continuing (try $((try+1)) of 5)"; sleep 30
+done
+kill $PROXY_PID 2>/dev/null || true
 STEP="checking the downloaded file"
 "$PMT" verify "$D/basemap.pmtiles.part" >/dev/null
 mv -f "$D/basemap.pmtiles.part" "$D/basemap.pmtiles"
+rm -rf "$CACHE"                                             # finished: the saved pieces aren't needed any more
 python3 - "$D/manifest.json" "$REGION" "$BUILD" "${NAME//_/ }" <<'PY'
 import json, sys, os
 p, region, build, name = sys.argv[1:]
