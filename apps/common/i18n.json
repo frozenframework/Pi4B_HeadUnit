@@ -72,7 +72,7 @@
   "set.maps": "Maps",
   "set.updates": "Updates",
   "set.developer": "Developer",
-  "set.test_data": "Test data",
+  "set.test_data": "Drive logs",
   "set.applied": "{name} applied",
   "set.dim_auto": "Auto-dim with headlights",
   "set.dim_auto_sub": "Uses the dash-light wire: night level when the lights are on",
@@ -188,7 +188,10 @@
   "set.voice_waiting": "Downloads on Wi-Fi (uses the plain voice until then)",
   "set.voice_yours": "Your pack",
   "set.voice_lang_note": "Voice packs speak English; in this language the Standard voice speaks.",
-  "set.voice_sample_text": "This is {name}. In half a mile, turn left."
+  "set.voice_sample_text": "This is {name}. In half a mile, turn left.",
+  "set.voice_unavailable": "Voices aren't available right now. Try again in a moment.",
+  "set.start_map_on": "The head unit will start on the map from the next start. The home button already goes to the map.",
+  "set.start_map_off": "The head unit will start on Hudiy's home screen from the next start."
  },
  "es": {
   "common.back": "Atrás",
@@ -262,7 +265,7 @@
   "set.maps": "Mapas",
   "set.updates": "Actualizaciones",
   "set.developer": "Desarrollador",
-  "set.test_data": "Datos de prueba",
+  "set.test_data": "Registros de manejo",
   "set.applied": "{name} aplicado",
   "set.dim_auto": "Atenuar con los faros",
   "set.dim_auto_sub": "Usa el cable de luces del tablero: nivel nocturno con las luces encendidas",
@@ -378,7 +381,10 @@
   "set.voice_waiting": "Se descarga con Wi-Fi (mientras tanto, voz básica)",
   "set.voice_yours": "Tu paquete",
   "set.voice_lang_note": "Los paquetes de voz hablan inglés; en este idioma habla la voz estándar.",
-  "set.voice_sample_text": "Esta es {name}. En media milla, gira a la izquierda."
+  "set.voice_sample_text": "Esta es {name}. En media milla, gira a la izquierda.",
+  "set.voice_unavailable": "Las voces no están disponibles ahora. Inténtalo en un momento.",
+  "set.start_map_on": "El equipo empezará en el mapa desde el próximo arranque. El botón de inicio ya lleva al mapa.",
+  "set.start_map_off": "El equipo empezará en la pantalla de inicio de Hudiy desde el próximo arranque."
  },
  "zh": {
   "common.back": "返回",
@@ -473,7 +479,7 @@
   "set.maps": "地图",
   "set.updates": "更新",
   "set.developer": "开发者",
-  "set.test_data": "测试数据",
+  "set.test_data": "驾驶日志",
   "set.applied": "已应用 {name}",
   "set.dim_auto": "随车灯自动调暗",
   "set.dim_auto_sub": "使用仪表灯线：开灯时使用夜间亮度",
@@ -589,7 +595,10 @@
   "set.voice_waiting": "连接 Wi-Fi 时下载（在此之前使用普通语音）",
   "set.voice_yours": "你的语音包",
   "set.voice_lang_note": "语音包使用英语；在此语言下使用标准语音。",
-  "set.voice_sample_text": "这是 {name}。半英里后左转。"
+  "set.voice_sample_text": "这是 {name}。半英里后左转。",
+  "set.voice_unavailable": "暂时无法使用语音，请稍后再试。",
+  "set.start_map_on": "下次启动起将显示地图。主页按钮已会返回地图。",
+  "set.start_map_off": "下次启动起将显示 Hudiy 主屏幕。"
  },
  "tl": {
   "common.back": "Bumalik",
@@ -684,7 +693,7 @@
   "set.maps": "Mga mapa",
   "set.updates": "Mga update",
   "set.developer": "Developer",
-  "set.test_data": "Data ng pagsubok",
+  "set.test_data": "Mga log ng biyahe",
   "set.applied": "Nailapat ang {name}",
   "set.dim_auto": "Awtomatikong padilimin kasabay ng headlight",
   "set.dim_auto_sub": "Ginagamit ang wire ng ilaw ng dashboard: pang-gabing liwanag kapag nakabukas ang ilaw",
@@ -800,7 +809,10 @@
   "set.voice_waiting": "Dina-download kapag naka-Wi-Fi (simpleng boses muna)",
   "set.voice_yours": "Iyong pack",
   "set.voice_lang_note": "Ingles ang mga voice pack; sa wikang ito, Standard na boses ang nagsasalita.",
-  "set.voice_sample_text": "Ito si {name}. Sa kalahating milya, kumaliwa."
+  "set.voice_sample_text": "Ito si {name}. Sa kalahating milya, kumaliwa.",
+  "set.voice_unavailable": "Hindi available ang mga boses ngayon. Subukan ulit mamaya.",
+  "set.start_map_on": "Sa mapa na magsisimula ang head unit sa susunod na pag-start. Sa mapa na rin pumupunta ang home button.",
+  "set.start_map_off": "Sa home screen ng Hudiy magsisimula ang head unit sa susunod na pag-start."
  },
  "vi": {
   "common.back": "Quay lại",
@@ -874,7 +886,7 @@
   "set.maps": "Bản đồ",
   "set.updates": "Cập nhật",
   "set.developer": "Nhà phát triển",
-  "set.test_data": "Dữ liệu thử nghiệm",
+  "set.test_data": "Nhật ký lái xe",
   "set.applied": "Đã áp dụng {name}",
   "set.dim_auto": "Tự giảm sáng theo đèn pha",
   "set.dim_auto_sub": "Dùng dây đèn táp-lô: mức ban đêm khi bật đèn",
@@ -990,7 +1002,10 @@
   "set.voice_waiting": "Tải khi có Wi-Fi (tạm dùng giọng thường)",
   "set.voice_yours": "Gói của bạn",
   "set.voice_lang_note": "Gói giọng nói nói tiếng Anh; với ngôn ngữ này, giọng Tiêu chuẩn sẽ đọc.",
-  "set.voice_sample_text": "Đây là {name}. Nửa dặm nữa, rẽ trái."
+  "set.voice_sample_text": "Đây là {name}. Nửa dặm nữa, rẽ trái.",
+  "set.voice_unavailable": "Hiện chưa dùng được giọng nói. Thử lại sau giây lát.",
+  "set.start_map_on": "Từ lần khởi động sau, đầu máy sẽ mở bản đồ. Nút trang chủ đã đưa về bản đồ.",
+  "set.start_map_off": "Từ lần khởi động sau, đầu máy sẽ mở màn hình chính của Hudiy."
  },
  "ar": {
   "common.back": "رجوع",
@@ -1064,7 +1079,7 @@
   "set.maps": "الخرائط",
   "set.updates": "التحديثات",
   "set.developer": "المطوّر",
-  "set.test_data": "بيانات الاختبار",
+  "set.test_data": "سجلات القيادة",
   "set.applied": "تم تطبيق {name}",
   "set.dim_auto": "تعتيم تلقائي مع المصابيح الأمامية",
   "set.dim_auto_sub": "يستخدم سلك إضاءة لوحة العدادات: مستوى ليلي عند تشغيل المصابيح",
@@ -1180,7 +1195,10 @@
   "set.voice_waiting": "يُنزَّل عند الاتصال بـ Wi-Fi (يُستخدم الصوت العادي حتى ذلك الحين)",
   "set.voice_yours": "حزمتك",
   "set.voice_lang_note": "حزم الأصوات تتحدث الإنجليزية؛ بهذه اللغة يتحدث الصوت القياسي.",
-  "set.voice_sample_text": "هذا {name}. بعد نصف ميل، انعطف يسارًا."
+  "set.voice_sample_text": "هذا {name}. بعد نصف ميل، انعطف يسارًا.",
+  "set.voice_unavailable": "الأصوات غير متاحة الآن. حاول بعد قليل.",
+  "set.start_map_on": "سيبدأ الجهاز على الخريطة من التشغيل القادم. زر الرئيسية يفتح الخريطة الآن.",
+  "set.start_map_off": "سيبدأ الجهاز على الشاشة الرئيسية لـ Hudiy من التشغيل القادم."
  },
  "fr": {
   "common.back": "Retour",
@@ -1254,7 +1272,7 @@
   "set.maps": "Cartes",
   "set.updates": "Mises à jour",
   "set.developer": "Développeur",
-  "set.test_data": "Données de test",
+  "set.test_data": "Journaux de conduite",
   "set.applied": "{name} appliqué",
   "set.dim_auto": "Atténuer avec les phares",
   "set.dim_auto_sub": "Utilise le fil d'éclairage du tableau de bord : niveau de nuit phares allumés",
@@ -1370,7 +1388,10 @@
   "set.voice_waiting": "Se télécharge en Wi-Fi (voix simple en attendant)",
   "set.voice_yours": "Votre pack",
   "set.voice_lang_note": "Les packs de voix parlent anglais ; dans cette langue, la voix Standard parle.",
-  "set.voice_sample_text": "Ici {name}. Dans un demi-mille, tournez à gauche."
+  "set.voice_sample_text": "Ici {name}. Dans un demi-mille, tournez à gauche.",
+  "set.voice_unavailable": "Les voix ne sont pas disponibles pour le moment. Réessayez dans un instant.",
+  "set.start_map_on": "L'autoradio démarrera sur la carte au prochain démarrage. Le bouton d'accueil mène déjà à la carte.",
+  "set.start_map_off": "L'autoradio démarrera sur l'accueil de Hudiy au prochain démarrage."
  },
  "ko": {
   "common.back": "뒤로",
@@ -1444,7 +1465,7 @@
   "set.maps": "지도",
   "set.updates": "업데이트",
   "set.developer": "개발자",
-  "set.test_data": "테스트 데이터",
+  "set.test_data": "주행 기록",
   "set.applied": "{name} 적용됨",
   "set.dim_auto": "전조등에 맞춰 자동 밝기 조절",
   "set.dim_auto_sub": "계기판 조명 선 사용: 조명을 켜면 야간 밝기",
@@ -1560,7 +1581,10 @@
   "set.voice_waiting": "Wi-Fi에서 다운로드 (그전까지 기본 음성)",
   "set.voice_yours": "내 음성 팩",
   "set.voice_lang_note": "음성 팩은 영어로 말합니다. 이 언어에서는 표준 음성이 말합니다.",
-  "set.voice_sample_text": "{name}입니다. 0.5마일 후 좌회전하세요."
+  "set.voice_sample_text": "{name}입니다. 0.5마일 후 좌회전하세요.",
+  "set.voice_unavailable": "지금은 음성을 사용할 수 없습니다. 잠시 후 다시 시도하세요.",
+  "set.start_map_on": "다음 시동부터 지도로 시작합니다. 홈 버튼은 이미 지도로 이동합니다.",
+  "set.start_map_off": "다음 시동부터 Hudiy 홈 화면으로 시작합니다."
  },
  "pt": {
   "common.back": "Voltar",
@@ -1634,7 +1658,7 @@
   "set.maps": "Mapas",
   "set.updates": "Atualizações",
   "set.developer": "Desenvolvedor",
-  "set.test_data": "Dados de teste",
+  "set.test_data": "Registros de direção",
   "set.applied": "{name} aplicado",
   "set.dim_auto": "Escurecer com os faróis",
   "set.dim_auto_sub": "Usa o fio da luz do painel: nível noturno com as luzes acesas",
@@ -1750,7 +1774,10 @@
   "set.voice_waiting": "Baixa no Wi-Fi (voz simples até lá)",
   "set.voice_yours": "Seu pacote",
   "set.voice_lang_note": "Os pacotes de voz falam inglês; neste idioma fala a voz Padrão.",
-  "set.voice_sample_text": "Aqui é {name}. Em meia milha, vire à esquerda."
+  "set.voice_sample_text": "Aqui é {name}. Em meia milha, vire à esquerda.",
+  "set.voice_unavailable": "As vozes não estão disponíveis agora. Tente de novo em instantes.",
+  "set.start_map_on": "A central vai abrir no mapa a partir da próxima partida. O botão inicial já leva ao mapa.",
+  "set.start_map_off": "A central vai abrir na tela inicial do Hudiy a partir da próxima partida."
  },
  "hi": {
   "common.back": "वापस",
@@ -1824,7 +1851,7 @@
   "set.maps": "मैप",
   "set.updates": "अपडेट",
   "set.developer": "डेवलपर",
-  "set.test_data": "टेस्ट डेटा",
+  "set.test_data": "ड्राइव लॉग",
   "set.applied": "{name} लागू हुआ",
   "set.dim_auto": "हेडलाइट के साथ अपने-आप धीमा करें",
   "set.dim_auto_sub": "डैश-लाइट तार का इस्तेमाल: लाइट जलने पर रात वाली चमक",
@@ -1940,6 +1967,9 @@
   "set.voice_waiting": "Wi-Fi पर डाउनलोड होगा (तब तक सामान्य आवाज़)",
   "set.voice_yours": "आपका पैक",
   "set.voice_lang_note": "वॉइस पैक अंग्रेज़ी बोलते हैं; इस भाषा में स्टैंडर्ड आवाज़ बोलती है।",
-  "set.voice_sample_text": "यह {name} है। आधे मील बाद बाएँ मुड़ें।"
+  "set.voice_sample_text": "यह {name} है। आधे मील बाद बाएँ मुड़ें।",
+  "set.voice_unavailable": "आवाज़ें अभी उपलब्ध नहीं हैं। थोड़ी देर में फिर कोशिश करें।",
+  "set.start_map_on": "अगली बार चालू होने से हेड यूनिट मैप पर शुरू होगी। होम बटन अभी से मैप पर ले जाता है।",
+  "set.start_map_off": "अगली बार चालू होने से हेड यूनिट Hudiy की होम स्क्रीन पर शुरू होगी।"
  }
 }

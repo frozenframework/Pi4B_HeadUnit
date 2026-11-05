@@ -75,3 +75,12 @@ input[type=range]::-moz-range-thumb { width: 40px; height: 40px; border-radius: 
 .ask { margin: 10px 0; padding: 12px 14px; border: 2px solid var(--warn); border-radius: var(--radius); display: flex; gap: 14px;
   align-items: center; justify-content: space-between; font-size: 19px; }
 .ask .row { flex-shrink: 0; }
+
+/* short screens (the 1280x400 dash screen): the whole menu fits without scrolling */
+@media (max-height: 460px) {
+  body { padding: 6px; gap: 6px; }
+  #side { padding: 6px; gap: 4px; }
+  #side button { min-height: 0; font-size: 15px; padding: 0 6px; }
+  #side button.exit { min-height: 0; flex: 1.3 1 0; font-size: 16px; }
+  .opt { min-height: 60px; }
+}

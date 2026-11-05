@@ -82,17 +82,45 @@ def api_port(default=44405):
     except (OSError, ValueError, AttributeError, TypeError):
         return int(os.environ.get("HUDIY_API_PORT") or default)
 
+def hello_ok(payload):
+    """HelloResponse.result (field 3): 1 = OK."""
+    try: return decode(payload).get(3, [0])[0] == 1
+    except Exception: return False
+
+def _recv_frame(s):
+    head = b""
+    while len(head) < 12:
+        c = s.recv(12 - len(head))
+        if not c: raise ConnectionError("closed")
+        head += c
+    size, mid, _ = struct.unpack("<III", head)
+    body = b""
+    while len(body) < size:
+        c = s.recv(size - len(body))
+        if not c: raise ConnectionError("closed")
+        body += c
+    return mid, body
+
 def send_once(name, messages, host="127.0.0.1", port=None, timeout=3):
-    """Connect, say hello, send [(message_id, payload), ...], close. True if it was delivered."""
+    """Connect, say hello, WAIT for Hudiy's hello response (it ignores anything sent before that),
+    send [(message_id, payload), ...], close. True only if Hudiy accepted the connection."""
     try:
         with socket.create_connection((host, port or api_port()), timeout=timeout) as s:
             s.sendall(frame(HELLO_REQUEST, hello_request(name)))
+            deadline = time.time() + timeout
+            while True:
+                if time.time() > deadline: return False
+                mid, body = _recv_frame(s)
+                if mid == PING: s.sendall(frame(PONG))
+                elif mid == HELLO_RESPONSE:
+                    if not hello_ok(body): log.warning("Hudiy refused the API hello (version?)"); return False
+                    break
             for mid, payload in messages:
                 s.sendall(frame(mid, payload))
             time.sleep(0.3)
             s.sendall(frame(BYEBYE))
         return True
-    except OSError:
+    except (OSError, ConnectionError, struct.error):
         return False
 
 def frame(msg_id, payload=b""):
@@ -105,7 +133,7 @@ class HudiyLink:
     def __init__(self, name="headunit", host="127.0.0.1", port=44405, subscriptions=(), on_message=None, on_connect=None):
         self.name, self.host, self.port = name, host, port
         self.subscriptions, self.on_message, self.on_connect = list(subscriptions), on_message, on_connect
-        self.sock = None; self.lock = threading.Lock(); self.reverse = None
+        self.sock = None; self.ready = False; self.lock = threading.Lock(); self.reverse = None; self.pending = []
         threading.Thread(target=self._loop, daemon=True).start()
 
     def set_reverse(self, visible):
@@ -113,11 +141,13 @@ class HudiyLink:
         self._send(SET_REVERSE_CAMERA_STATUS, reverse_camera_status(self.reverse))
 
     def action(self, name):
-        self._send(DISPATCH_ACTION, dispatch_action(name))
+        if not self.ready:                         # not connected yet: send it once Hudiy says hello back
+            self.pending = (self.pending + [name])[-3:]; return False
+        return self._send(DISPATCH_ACTION, dispatch_action(name))
 
-    def _send(self, msg_id, payload):
+    def _send(self, msg_id, payload, before_hello=False):
         with self.lock:
-            if not self.sock: return False
+            if not self.sock or not (self.ready or before_hello): return False
             try:
                 self.sock.sendall(frame(msg_id, payload)); return True
             except OSError:
@@ -126,7 +156,7 @@ class HudiyLink:
     def _drop(self):
         try: self.sock.close()
         except Exception: pass
-        self.sock = None
+        self.sock = None; self.ready = False
 
     def _recv_exact(self, s, n):
         data = b""
@@ -142,19 +172,26 @@ class HudiyLink:
                 s = socket.create_connection((self.host, self.port), timeout=5)
                 s.settimeout(None)
                 s.sendall(frame(HELLO_REQUEST, hello_request(self.name)))
-                with self.lock: self.sock = s
-                log.info("connected to Hudiy API")
-                if self.reverse is not None:
-                    self.set_reverse(self.reverse)
-                if self.subscriptions:
-                    self._send(SET_STATUS_SUBSCRIPTIONS, status_subscriptions(self.subscriptions))
-                if self.on_connect:
-                    self.on_connect()
+                with self.lock: self.sock = s; self.ready = False
                 while True:
                     size, mid, _ = struct.unpack("<III", self._recv_exact(s, 12))
                     payload = self._recv_exact(s, size) if size else b""
-                    if mid == PING:
-                        self._send(PONG, b"")
+                    if mid == HELLO_RESPONSE:
+                        # Hudiy only listens after its hello response: now set everything up
+                        if not hello_ok(payload):
+                            log.warning("Hudiy refused the API hello"); raise ConnectionError("hello refused")
+                        with self.lock: self.ready = True
+                        log.info("connected to Hudiy API")
+                        if self.reverse is not None:
+                            self.set_reverse(self.reverse)
+                        if self.subscriptions:
+                            self._send(SET_STATUS_SUBSCRIPTIONS, status_subscriptions(self.subscriptions))
+                        for a in self.pending: self._send(DISPATCH_ACTION, dispatch_action(a))
+                        self.pending = []
+                        if self.on_connect:
+                            self.on_connect()
+                    elif mid == PING:
+                        self._send(PONG, b"", before_hello=True)
                     elif mid == BYEBYE:
                         raise ConnectionError("bye")
                     elif self.on_message:

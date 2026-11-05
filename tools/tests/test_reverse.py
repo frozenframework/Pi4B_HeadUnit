@@ -24,23 +24,15 @@ Rv.drive_low(); A.drive_high(); pm.tick(10); assert calls == [True, False], "key
 print("timing ok")
 
 # --- 2. protocol against a mock Hudiy
-got = []
-srv = socket.socket(); srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1); srv.bind(("127.0.0.1", 0)); srv.listen(1)
-port = srv.getsockname()[1]
-def serve():
-    c, _ = srv.accept()
-    def rx(n):
-        d = b""
-        while len(d) < n: d += c.recv(n - len(d))
-        return d
-    c.sendall(struct.pack("<III", 0, api.PING, 0))
-    for _ in range(3):
-        size, mid, flags = struct.unpack("<III", rx(12)); got.append((mid, rx(size)))
-threading.Thread(target=serve, daemon=True).start()
-link = api.HudiyLink("test", port=port)
-time.sleep(0.5); link.set_reverse(True); time.sleep(0.5)
-ids = [m for m, _ in got]
-assert ids[0] == api.HELLO_REQUEST and api.PONG in ids and api.SET_REVERSE_CAMERA_STATUS in ids, ids
-hello = got[0][1]; assert b"test" in hello and hello.endswith(bytes([0x12, 4, 0x08, 1, 0x10, 5])), hello
-assert dict(got)[api.SET_REVERSE_CAMERA_STATUS] == b"\x08\x01"
-print("protocol ok:", ids)
+sys.path.insert(0, os.path.dirname(__file__))
+from fake_hudiy import FakeHudiy
+hud = FakeHudiy(ping=True, delay=0.5)
+link = api.HudiyLink("test", port=hud.port)
+link.set_reverse(True)                       # before Hudiy answered hello: must be held, then sent
+time.sleep(1.5)
+ids = hud.ids()
+assert not hud.early, ("sent before Hudiy's hello response", hud.early)
+assert api.PONG in ids and api.SET_REVERSE_CAMERA_STATUS in ids, ids
+hello = hud.hellos[0]; assert b"test" in hello and hello.endswith(bytes([0x12, 4, 0x08, 1, 0x10, 5])), hello
+assert dict(hud.got)[api.SET_REVERSE_CAMERA_STATUS] == b"\x08\x01"
+print("protocol ok (waits for Hudiy's hello response):", ids)

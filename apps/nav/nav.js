@@ -173,6 +173,7 @@ function onFix(p, track, speed) {
 }
 
 function camera() {
+  if (currentApp !== 'map') return;                // covered by Music / Radio / Settings: no map animation work
   const nav = !!state.route;
   const z = nav ? (state.speed > 25 ? 15.2 : state.speed > 13 ? 15.8 : 16.4) : Math.max(state.map.getZoom(), 14.5);
   state.map.easeTo({ center: state.pos, bearing: state.speed > 2 || nav ? state.heading : state.map.getBearing(),
@@ -392,6 +393,7 @@ async function showMap() {
   $('appLayer').classList.add('hidden'); currentApp = 'map'; railOn('map');
   const sf = $('appLayer').querySelector('iframe[data-app="settings"]'); if (sf) sf.remove();
   state.map?.resize();
+  if (state.pos && state.follow) camera();          // catch up with where the car went meanwhile
   if (!wasSettings) return;
   const s = await getSettings().catch(() => null); if (!s) return;     // pick up what changed in Settings
   if (s.language !== settingsLang) { location.reload(); return; }      // new language: redraw everything
@@ -470,7 +472,7 @@ function setupPhone() {
   $('npPlay').onclick = () => api('/api/phone/toggle', { json: {} }).then(phoneTick).catch(() => {});
   $('npPrev').onclick = () => api('/api/phone/previous', { json: {} }).catch(() => {});
   $('npNext').onclick = () => api('/api/phone/next', { json: {} }).catch(() => {});
-  if (!PREVIEW) { phoneTick(); setInterval(phoneTick, 1000); }
+  if (!PREVIEW) { phoneTick(); setInterval(() => { if (currentApp === 'map') phoneTick(); }, 1000); }
 }
 
 async function main() {

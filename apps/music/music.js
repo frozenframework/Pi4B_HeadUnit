@@ -1,6 +1,6 @@
 // iPod Nano / USB music browser, plus what CarPlay / Android Auto is playing. The library is read by MPD from song tags,
 // so the iPod's scrambled file names (F00/ABCD.m4a) never show up here.
-import { api, getSettings, applyUiTheme, followTheme, logEvent, icons, toast } from '../common/hu.js';
+import { api, getSettings, applyUiTheme, followTheme, logEvent, icons, toast, onScreen } from '../common/hu.js';
 import { initI18n, t } from '../common/i18n.js';
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -101,5 +101,5 @@ const press = (usbAction, phoneAction) => () => (showing === 'phone' ? phoneKey(
   $('back').onclick = () => { if (stack.length > 1) { stack.pop(); show(stack.at(-1)); } };
   document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => reset(b.dataset.tab));
   $('bar').onclick = async (e) => { if (showing === 'phone') return; const s = await api('/api/music/status'); const d = s.duration || 0; if (d) api('/api/music/control', { json: { action: 'seek', pos: d * e.offsetX / e.currentTarget.clientWidth } }); };
-  reset('artists'); poll(); setInterval(poll, 1000);
+  reset('artists'); poll(); setInterval(() => { if (onScreen()) poll(); }, 1000);
 })();

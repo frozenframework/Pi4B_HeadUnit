@@ -19,6 +19,10 @@ export async function loadThemes() {
   return themesCache;
 }
 
+// Is this screen actually showing? (Not when the head unit's own window is hidden, nor when it's an app
+// layer over the map that's tucked away.) Polling loops skip their work when it isn't, to save the Pi.
+export const onScreen = () => !document.hidden && !(window.frameElement && window.frameElement.hidden);
+
 // Day and night skins: the bridge switches the skin at sunrise / sunset; open screens follow along.
 export function followTheme(onChange, every = 20000) {
   setInterval(async () => {

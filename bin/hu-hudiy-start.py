@@ -50,7 +50,9 @@ def open_map(wait=60):
     else:
         return False
     time.sleep(2)                                   # let Hudiy finish drawing its first screen
-    return send_once("headunit-start", [(DISPATCH_ACTION, dispatch_action(MAP_ACTION))])
+    ok = send_once("headunit-start", [(DISPATCH_ACTION, dispatch_action(MAP_ACTION))])
+    time.sleep(4)                                   # once more: Hudiy can still be busy starting up the first time
+    return send_once("headunit-start", [(DISPATCH_ACTION, dispatch_action(MAP_ACTION))]) or ok
 
 def main():
     if "--config" in sys.argv:

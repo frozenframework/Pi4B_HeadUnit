@@ -17,33 +17,22 @@ assert json.loads(cfg.read_text())["application"]["defaultAction"] == "", "switc
 print("1) defaultAction follows the Start on the map switch (default on)")
 
 got = []
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from fake_hudiy import FakeHudiy
+hud = {}
 def fake_hudiy():                       # Hudiy's API comes up a few seconds after the head unit starts
-    time.sleep(3)
-    srv = socket.socket(); srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1); srv.bind(("127.0.0.1", port)); srv.listen()
-    srv.settimeout(20)
-    while True:
-        try: c, _ = srv.accept()
-        except OSError: return
-        buf = b""
-        c.settimeout(3)
-        try:
-            while True:
-                d = c.recv(4096)
-                if not d: break
-                buf += d
-        except OSError: pass
-        while len(buf) >= 12:
-            n, mid, _ = struct.unpack("<III", buf[:12]); got.append((mid, buf[12:12 + n])); buf = buf[12 + n:]
+    time.sleep(3); hud["h"] = FakeHudiy(port=port, listen_for=12)
 threading.Thread(target=fake_hudiy, daemon=True).start()
 st.write_text(json.dumps({"startOnMap": True}))
 r = run("--open"); time.sleep(0.5)
 assert "sent" in r.stdout, (r.stdout, r.stderr)
-ids = [m for m, _ in got]
-assert ids[0] == 1 and 43 in ids, got          # hello, then DispatchAction
+h = hud["h"]; got = h.got; ids = h.ids()
+assert h.hellos and not h.early, ("sent before Hudiy's hello response", h.early)
+assert 43 in ids, got                              # DispatchAction after Hudiy's hello response
 payload = dict(got)[43]; assert b"hu_navigation" in payload, payload
-assert ids.count(43) == 1
+assert 1 <= ids.count(43) <= 2
 print("2) waits for Hudiy's API, then opens the map once:", ids)
-st.write_text(json.dumps({"startOnMap": False})); got.clear()
-r = run("--open"); assert "open map" not in r.stdout and not got
+st.write_text(json.dumps({"startOnMap": False})); n = len(h.got)
+r = run("--open"); assert "open map" not in r.stdout and len(h.got) == n
 print("3) switch off: nothing dispatched")
 print("hudiy start screen: all tests passed")

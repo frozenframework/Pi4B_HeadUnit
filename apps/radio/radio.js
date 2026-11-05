@@ -1,5 +1,5 @@
 // AM/FM radio through the RTL-SDR Blog V4. (Hudiy's own FM player adds RDS station names.)
-import { api, getSettings, applyUiTheme, followTheme, logEvent, toast } from '../common/hu.js';
+import { api, getSettings, applyUiTheme, followTheme, logEvent, toast, onScreen } from '../common/hu.js';
 import { initI18n, t } from '../common/i18n.js';
 const $ = (id) => document.getElementById(id);
 const BANDS = { FM: { min: 87900, max: 107900, step: 200, big: 1000, unit: 'MHz' }, AM: { min: 530, max: 1700, step: 10, big: 100, unit: 'kHz' } };
@@ -48,5 +48,5 @@ async function status() {
   $('dn').onclick = () => step(-BANDS[band].step); $('up').onclick = () => step(BANDS[band].step);
   $('dn2').onclick = () => step(-BANDS[band].big); $('up2').onclick = () => step(BANDS[band].big);
   $('power').onclick = async () => { if (playing) { await api('/api/radio/stop', { json: {} }); playing = false; render(); status(); } else tune(); };
-  render(); status(); setInterval(status, 5000);
+  render(); status(); setInterval(() => { if (onScreen()) status(); }, 5000);
 })();

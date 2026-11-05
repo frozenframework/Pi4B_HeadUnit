@@ -74,28 +74,19 @@ proj(True); assert sent == ["hu_navigation"], "reconnect after being away = new 
 print("5) 'Show CarPlay' setting respected; reconnecting after being away is a new connection")
 
 # Part 2: the real link: subscribes, receives framed messages, dispatches actions back to Hudiy
-s = socket.socket(); s.bind(("127.0.0.1", 0)); port = s.getsockname()[1]; s.listen()
-got = []; seen = []
-def server():
-    c, _ = s.accept(); c.settimeout(5); buf = b""
-    def frame(mid, pl=b""): return struct.pack("<III", len(pl), mid, 0) + pl
-    c.sendall(frame(H.PROJECTION_STATUS, fi(1, 1)) + frame(H.NAVIGATION_MANEUVER_DISTANCE, fb(1, "500 ft")) + frame(H.PING))
-    end = time.time() + 4
-    while time.time() < end:
-        try: d = c.recv(4096)
-        except OSError: break
-        if not d: break
-        buf += d
-        while len(buf) >= 12:
-            n, mid, _ = struct.unpack("<III", buf[:12]); got.append((mid, buf[12:12 + n])); buf = buf[12 + n:]
-threading.Thread(target=server, daemon=True).start()
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from fake_hudiy import FakeHudiy
+def fr(mid, pl=b""): return mid, pl
+hud = FakeHudiy(after_hello=[fr(H.PROJECTION_STATUS, fi(1, 1)), fr(H.NAVIGATION_MANEUVER_DISTANCE, fb(1, "500 ft"))], ping=True)
+port = hud.port; seen = []
 p3 = PhoneState(lambda a: link.action(a), lambda: "map")
 def on(mid, pl): seen.append(mid); p3.handle(mid, pl)
 link = H.HudiyLink("headunit-phone-test", port=port, on_message=on,
                    subscriptions=[H.SUB_PROJECTION, H.SUB_MEDIA, H.SUB_NAVIGATION, H.SUB_PHONE, H.SUB_CURRENT_MENU_ACTION])
 time.sleep(2.5)
-ids = [m for m, _ in got]
-assert ids[:2] == [H.HELLO_REQUEST, H.SET_STATUS_SUBSCRIPTIONS], ids
+got = hud.got; ids = hud.ids()
+assert not hud.early, ("sent before Hudiy's hello response", hud.early)
+assert ids[0] == H.SET_STATUS_SUBSCRIPTIONS, ids
 assert H.decode(dict(got)[H.SET_STATUS_SUBSCRIPTIONS]) == {1: [1, 2, 3, 5, 7]}
 assert H.PONG in ids and H.DISPATCH_ACTION in ids, ids
 assert b"hu_navigation" in dict(got)[H.DISPATCH_ACTION]

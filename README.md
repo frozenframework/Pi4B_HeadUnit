@@ -108,7 +108,7 @@ sudo ./setup.sh --vehicle f250 --tier 2          # or: --vehicle miata, --tier 1
 | `85-updates` | signed software updates from GitHub: check timer, Wi-Fi hook, install-at-key-on + rollback services |
 | `75-camera` | backup camera (Frontier): v4l/GStreamer, `/dev/hu-rearcam` for the USB capture stick, set to NTSC |
 | `77-swc` | steering-wheel controls (Frontier): SPI on, `python3-spidev`, `headunit-swc` service |
-| `90-hudiy` | adds a **Drive** menu to Hudiy (Navigation, iPod & USB, AM/FM Radio, Head Unit Settings); Android Auto GPS → gpsd; Hudiy starts on the offline map (and its home button goes back to it); *Settings → Driving → Start on the map* switches that off. When a phone connects (CarPlay / Android Auto), the map stays in front with the phone running behind it, the phone's next turn (while Apple Maps / Google Maps / Waze guides on the phone), now playing and calls shown on the map, and a phone button to bring CarPlay up (*Settings → Driving → When a phone connects*) |
+| `90-hudiy` | adds a **Drive** menu to Hudiy (Map, Music, Radio, Head Unit Settings); Android Auto GPS → gpsd; Hudiy starts on the offline map (and its home button goes back to it); *Settings → Driving → Start on the map* switches that off. When a phone connects (CarPlay / Android Auto), the map stays in front with the phone running behind it, the phone's next turn (while Apple Maps / Google Maps / Waze guides on the phone), now playing and calls shown on the map, and a phone button to bring CarPlay up (*Settings → Driving → When a phone connects*) |
 
 Every stage can be run again safely: system files are only edited inside `# >>> headunit:` blocks.
 To redo one stage: `sudo /opt/headunit/setup.sh --only 20-display`.

@@ -12,20 +12,12 @@ base = {"theme": {"darkThemeEnabled": False, "availableColors": ["#ff0000"],
         "androidAuto": {"dayNightMode": "day", "dpi": 140}, "autobox": {"dayNightMode": "NIGHT", "productId": 5409},
         "api": {"tcpEndpointPort": 0}, "appearance": {"showClock": True}}
 
-# fake Hudiy API: record message ids and payloads
-srv = socket.socket(); srv.bind(("127.0.0.1", 0)); srv.listen(1); port = srv.getsockname()[1]
+# strict fake Hudiy API (only listens after its hello response, like the real one)
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from fake_hudiy import FakeHudiy
+hud = FakeHudiy(); port = hud.port; got = hud.got
 base["api"]["tcpEndpointPort"] = port
 cfg.write_text(json.dumps(base))
-got = []
-def serve():
-    c, _ = srv.accept(); buf = b""
-    while True:
-        d = c.recv(4096)
-        if not d: break
-        buf += d
-    while len(buf) >= 12:
-        n, mid, _ = struct.unpack("<III", buf[:12]); got.append((mid, buf[12:12 + n])); buf = buf[12 + n:]
-threading.Thread(target=serve, daemon=True).start()
 
 env = {**os.environ, "HOME": str(home), "HU_STYLES": str(ROOT / "apps/styles"), "HU_HUDIY_BG": str(T / "bg"), "HU_CONF": str(T / "none")}
 run = lambda *a: subprocess.run([sys.executable, str(ROOT / "bin/hu-hudiy-theme.py"), *a], env=env, capture_output=True, text=True)
@@ -42,9 +34,10 @@ assert d["androidAuto"]["dpi"] == 140 and d["autobox"]["productId"] == 5409 and 
 assert (cfgdir / "main_configuration.json.hu-orig").exists()
 import time; time.sleep(0.6)
 ids = [m for m, _ in got]
-assert ids[:3] == [1, 37, 54] and ids[-1] == 49, ids
-assert got[1][1] == b"\x08\x01", got[1]                       # SetDarkMode enabled=true
-assert b"#00E5FF" in got[2][1], got[2]
+assert hud.hellos and not hud.early, ("sent before Hudiy's hello response", hud.early)
+assert ids[:2] == [37, 54] and ids[-1] == 49, ids
+assert got[0][1] == b"\x08\x01", got[0]                       # SetDarkMode enabled=true
+assert b"#00E5FF" in got[1][1], got[1]
 # light skin, at startup, from settings.json
 (home / ".config/headunit").mkdir(parents=True); (home / ".config/headunit/settings.json").write_text(json.dumps({"theme": "sunset-junction"}))
 print(run("--startup").stdout.strip())

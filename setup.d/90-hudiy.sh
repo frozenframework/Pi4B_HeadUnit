@@ -32,4 +32,4 @@ if [ -f "$RUN" ] && ! grep -qs hudiy_run "$H/.config/labwc/autostart" /etc/xdg/l
   chown "$(hu_user):$(hu_user)" "$H/.config/labwc/autostart"
   say "hudiy: added to the desktop autostart"
 fi
-say "hudiy: added Navigation, iPod & USB, AM/FM Radio and Head Unit Settings to the menu"
+say "hudiy: added Map, Music, Radio and Head Unit Settings to the menu"

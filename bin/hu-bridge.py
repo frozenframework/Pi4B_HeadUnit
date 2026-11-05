@@ -814,6 +814,31 @@ async def nocache(request, handler):
 async def index(request):
     raise web.HTTPFound("/apps/nav/index.html")
 
+# Every app page is sent with its scripts and styles addressed by version (nav.js?v=1.2.12) plus an
+# import map that does the same for every module they import. A web view can then never mix in a copy
+# of a file it kept from an older version (that showed up as nav.app_map labels and dead buttons).
+_pages = {}
+_ASSET_RE = re.compile(r'(\s(?:src|href)=")(?!https?:|/|data:|#)([^"?#]+\.(?:m?js|css))(")')
+def _importmap():
+    files = sorted(p for p in APP_DIR.rglob("*") if p.suffix in (".js", ".mjs") and p.is_file())
+    imports = {"/apps/" + p.relative_to(APP_DIR).as_posix(): "/apps/" + p.relative_to(APP_DIR).as_posix() + "?v=" + VERSION
+               for p in files}
+    return '<script type="importmap">' + json.dumps({"imports": imports}) + "</script>"
+
+async def app_page(request):
+    rel = request.match_info["path"]
+    f = (APP_DIR / rel).resolve()
+    if not str(f).startswith(str(APP_DIR.resolve()) + os.sep) or not f.is_file():
+        raise web.HTTPNotFound()
+    html = _pages.get(rel)
+    if html is None:
+        html = f.read_text(encoding="utf-8")
+        html = _ASSET_RE.sub(lambda m: f"{m.group(1)}{m.group(2)}?v={VERSION}{m.group(3)}", html)
+        im = _importmap()
+        html = re.sub(r"(<head[^>]*>)", lambda m: m.group(1) + im, html, count=1) if "<head" in html else im + html
+        _pages[rel] = html
+    return web.Response(text=html, content_type="text/html")
+
 def hudiy_hotspot_guard():
     """Hudiy turns its own Wi-Fi hotspot on by default, which stops the Pi joining home Wi-Fi / the phone
     hotspot (needed for updates). With PI_WIFI=client, switch it back off in Hudiy's config; Hudiy reads
@@ -853,9 +878,9 @@ def start_phone_link():
     from hu_phone import PhoneState
     link = None
     def dispatch(action):
-        if link: link.action(action)
+        return bool(link and link.action(action))
     global phone_link_up
-    phone_link_up = lambda: link is not None and link.sock is not None
+    phone_link_up = lambda: link is not None and link.ready
     phone = PhoneState(dispatch, lambda: "carplay" if settings().get("phoneScreen") == "carplay" else "map", log=log)
     link = H.HudiyLink("headunit-phone", port=H.api_port(), on_message=phone.handle,
                        subscriptions=[H.SUB_PROJECTION, H.SUB_MEDIA, H.SUB_NAVIGATION, H.SUB_PHONE, H.SUB_CURRENT_MENU_ACTION])
@@ -883,7 +908,7 @@ async def hudiy_action_api(request):
     if action not in HUDIY_ACTIONS:
         raise web.HTTPBadRequest(text="unknown action")
     if phone is not None and phone_link_up():
-        phone.dispatch(action); ok = True
+        ok = phone.dispatch(action)
     else:
         sys.path.insert(0, str(Path(__file__).resolve().parent))
         import hu_hudiy_api as H
@@ -924,6 +949,7 @@ def make_app():
     app.router.add_post("/api/dev/{action}", dev_api)
     app.router.add_post("/api/update/check", update_check)
     app.router.add_post("/api/update/goback", update_goback)
+    app.router.add_get(r"/apps/{path:[A-Za-z0-9_/.-]+\.html}", app_page)     # before the static files
     app.router.add_static("/apps", APP_DIR, follow_symlinks=False)
     MAPS_DIR.mkdir(parents=True, exist_ok=True)
     app.router.add_static("/maps", MAPS_DIR, follow_symlinks=True)

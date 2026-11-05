@@ -8,10 +8,20 @@ let S = {};
 // "Back to map": opened from the map (embedded) -> close the layer; opened from Hudiy's menu -> Hudiy's
 // home screen, which is the map when Start on the map is on (else Hudiy's dashboard).
 const EMBEDDED = new URLSearchParams(location.search).has('embedded') && window.parent !== window;
+// Opened over the map: close this layer. Opened from Hudiy's Drive menu: ask Hudiy for the Navigation app.
+// Either way, if nothing happened a moment later, this page turns into the map itself, so Settings can
+// never be a dead end.
 async function exitSettings() {
-  if (EMBEDDED) { window.parent.postMessage({ type: 'hu-close-settings' }, location.origin); return; }
-  const r = await api('/api/hudiy/action', { json: { action: 'go_home' } }).catch(() => null);
-  if (!r?.ok) location.href = '../nav/index.html';               // Hudiy not reachable: at least show the map
+  logEvent('settings_exit', { embedded: EMBEDDED });
+  const toMap = () => { (EMBEDDED ? window.top : window).location.href = '/apps/nav/index.html'; };
+  if (EMBEDDED) {
+    window.parent.postMessage({ type: 'hu-close-settings' }, location.origin);
+    setTimeout(() => { if (window.frameElement && !window.frameElement.hidden && window.frameElement.isConnected) toMap(); }, 800);
+    return;
+  }
+  const r = await api('/api/hudiy/action', { json: { action: 'hu_navigation' } }).catch(() => null);
+  if (!r?.ok) { toMap(); return; }
+  setTimeout(() => { if (document.visibilityState === 'visible') toMap(); }, 1500);
 }
 
 function page(id) {
@@ -59,7 +69,10 @@ const onOff = (v) => v ? t('common.on') : t('common.off');
 function switches() {
   for (const k of ['startOnMap', 'voice', 'nightAuto', 'syncHudiyColors']) {
     const b = $(k); b.textContent = onOff(S[k]); b.classList.toggle('on', !!S[k]);
-    b.onclick = async () => { S = await saveSettings({ [k]: !S[k] }); logEvent('setting', { k, v: S[k] }); switches(); };
+    b.onclick = async () => {
+      S = await saveSettings({ [k]: !S[k] }); logEvent('setting', { k, v: S[k] }); switches();
+      if (k === 'startOnMap') toast(t(S[k] ? 'set.start_map_on' : 'set.start_map_off'), 4000);
+    };
   }
   const ps = $('phoneScreen'), onMap = S.phoneScreen !== 'carplay';
   ps.textContent = onMap ? t('set.phone_map') : t('set.phone_carplay'); ps.classList.toggle('on', onMap);
@@ -117,17 +130,34 @@ async function region() {
 let VOICES = [];
 const voiceState = (v) => v.state === 'ready' ? t('set.voice_ready') : v.state === 'downloading' ? t('set.voice_downloading', { pct: v.pct ?? 0 })
   : t('set.voice_waiting');
+let VOICE_LANG = 'en';
+async function loadVoices() {
+  const r = await api('/api/voices').catch(() => null);
+  if (r?.packs?.length) { VOICES = r.packs; VOICE_LANG = r.language || 'en'; }
+  return VOICES;
+}
+const curVoice = () => VOICES.find(v => v.current) || VOICES.find(v => v.id === S.voicePack) || null;
 async function voiceRow() {
-  const r = await api('/api/voices').catch(() => null); if (!r) return;
-  VOICES = r.packs || [];
-  const cur = VOICES.find(v => v.current) || VOICES[0];
-  $('voicePack').textContent = cur?.name || 'Standard'; $('voicePack').classList.add('on');
-  $('voiceSub').textContent = r.language !== 'en' && cur?.language === 'en' ? t('set.voice_lang_note')
+  await loadVoices();
+  const cur = curVoice();
+  $('voicePack').textContent = cur?.name || (S.voicePack && S.voicePack !== 'standard' ? S.voicePack : 'Standard');
+  $('voicePack').classList.add('on');
+  $('voiceSub').textContent = VOICE_LANG !== 'en' && cur?.language === 'en' ? t('set.voice_lang_note')
     : (cur && cur.state !== 'ready' ? `${cur.description} · ${voiceState(cur)}` : (cur?.description || t('set.voice_pack_sub')));
-  $('voicePack').onclick = () => pick(t('set.voice_pack'), VOICES.map(v => ({ value: v.id, label: v.name,
-      sub: [v.description, v.kind === 'yours' ? t('set.voice_yours') : '', v.engine === 'piper' ? voiceState(v) : ''].filter(Boolean).join(' · ') })),
-    cur?.id, async (id) => { S = await saveSettings({ voicePack: id }); logEvent('setting', { k: 'voicePack', v: id }); await voiceRow(); sample(id); });
-  $('voiceSample').onclick = () => sample(cur?.id);
+}
+// wired once, up front: the buttons work even before (or without) the voice list loading
+function wireVoice() {
+  $('voicePack').onclick = async () => {
+    if (!VOICES.length) await loadVoices();
+    if (!VOICES.length) { toast(t('set.voice_unavailable'), 4000); return; }
+    pick(t('set.voice_pack'), VOICES.map(v => ({ value: v.id, label: v.name,
+        sub: [v.description, v.kind === 'yours' ? t('set.voice_yours') : '', v.engine === 'piper' ? voiceState(v) : ''].filter(Boolean).join(' · ') })),
+      curVoice()?.id, async (id) => {
+        S = await saveSettings({ voicePack: id }); VOICES.forEach(v => { v.current = v.id === id; });
+        logEvent('setting', { k: 'voicePack', v: id }); voiceRow(); sample(id); toast(t('set.saved'));
+      });
+  };
+  $('voiceSample').onclick = () => sample(curVoice()?.id || S.voicePack || 'standard');
 }
 function sample(id) {
   const v = VOICES.find(x => x.id === id);
@@ -272,8 +302,7 @@ function askGoBack(v, cur) {
   $('update').onclick = async () => { const r = await api('/api/maps/update', { json: {} }); toast(r.message || ''); setTimeout(mapProgress, 1500); };
   $('updCheck').onclick = async () => { const r = await api('/api/update/check', { json: {} }); toast(r.message || ''); setTimeout(updates, 2000); };
   $('exitBtn').onclick = exitSettings;
-  if (!EMBEDDED && S.startOnMap === false) $('exitBtn').textContent = t('set.exit');
-  wireSkins(); cards(); switches(); wireDisplay(); followTheme((s) => { S = s; cards(); }); wireRegion(); wireDev(); page(new URLSearchParams(location.search).get('page') || 'skins');
+  wireVoice(); wireSkins(); cards(); switches(); wireDisplay(); followTheme((s) => { S = s; cards(); }); wireRegion(); wireDev(); page(new URLSearchParams(location.search).get('page') || 'skins');
   setInterval(() => { if (!$('maps').classList.contains('hidden')) mapProgress(); }, 2000);
   setInterval(() => { if (!$('maps').classList.contains('hidden')) maps(); }, 15000);
   setInterval(() => { if (!$('display').classList.contains('hidden')) display(); }, 2000);
