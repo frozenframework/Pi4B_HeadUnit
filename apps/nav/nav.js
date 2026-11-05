@@ -432,7 +432,7 @@ async function phoneTick() {
   const btn = $('phoneBtn'); btn.classList.toggle('hidden', !p.connected);
   if (phoneSeen.src !== srcName) { btn.setAttribute('aria-label', srcName); phoneSeen.src = srcName; }
   // next turn
-  const n = p.nav, showTurn = n.active && (n.text || n.distance);
+  const n = p.nav || {}, showTurn = n.active && (n.text || n.distance);
   $('phoneTurn').classList.toggle('hidden', !showTurn);
   if (showTurn) {
     if (n.v !== phoneSeen.navV) {
@@ -451,7 +451,7 @@ async function phoneTick() {
     active: t('nav.call_active', { name: c.name || c.number || '' }) };
   if (c.state) $('callChip').textContent = CALL[c.state] || '';
   // now playing from the phone
-  const m = p.media, showMusic = (m.source === 'carplay' || m.source === 'android_auto') && (m.title || m.artist);
+  const m = p.media || {}, showMusic = (m.source === 'carplay' || m.source === 'android_auto') && (m.title || m.artist);
   $('nowPlaying').classList.toggle('hidden', !showMusic); document.body.classList.toggle('np', !!showMusic);
   if (showMusic) {
     $('npTitle').textContent = m.title || ''; $('npArtist').textContent = [m.artist, m.album].filter(Boolean).join(' · ');

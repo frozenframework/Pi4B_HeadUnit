@@ -53,18 +53,21 @@ async function poll() {
   const [s, p] = await Promise.all([api('/api/music/status').catch(() => null), api('/api/phone').catch(() => null)]);
   const pm = p?.media || {}, phoneHas = !!(p && !p.error && (pm.source === 'carplay' || pm.source === 'android_auto') && (pm.title || pm.artist));
   phoneName = pm.source === 'android_auto' ? 'Android Auto' : 'CarPlay';
-  $('srcPhone').textContent = phoneName; $('srcTabs').classList.toggle('hidden', !phoneHas);
+  // the CarPlay tab is there whenever the head unit can hear Hudiy; it fills in while the phone plays
+  const linked = !!(p && !p.error);
+  $('srcPhone').textContent = phoneName; $('srcTabs').classList.toggle('hidden', !linked);
   const usbPlaying = s && !s.error && s.state === 'play';
-  showing = phoneHas && (srcChoice === 'phone' || (srcChoice === null && (pm.playing || !usbPlaying))) ? 'phone' : 'usb';
+  showing = linked && (srcChoice === 'phone' || (srcChoice === null && phoneHas && (pm.playing || !usbPlaying))) ? 'phone' : 'usb';
   document.querySelectorAll('[data-src]').forEach(b => b.classList.toggle('on', b.dataset.src === showing));
   document.body.classList.toggle('phone', showing === 'phone');
   $('openPhone').classList.toggle('hidden', showing !== 'phone');
   if (showing === 'phone') {
     $('openPhone').textContent = t('mu.open_phone', { name: phoneName });
-    $('src').textContent = t('mu.from_phone', { name: phoneName });
-    $('title').textContent = pm.title || t('mu.nothing');
+    $('src').textContent = phoneHas ? t('mu.from_phone', { name: phoneName }) : t('mu.phone_idle', { name: phoneName });
+    $('title').textContent = (phoneHas && pm.title) || t('mu.nothing');
     $('artist').textContent = [pm.artist, pm.album].filter(Boolean).join(' — ');
     $('toggle').innerHTML = pm.playing ? icons.pause : icons.play;
+    if (!phoneHas) { $('cover').hidden = true; coverV = -1; $('artist').textContent = ''; $('fill').style.width = '0'; $('el').textContent = ''; $('du').textContent = ''; return; }
     if (pm.v !== coverV) { coverV = pm.v; const c = $('cover'); if (pm.has_cover) { c.src = `/api/phone/cover?v=${pm.v}`; c.hidden = false; } else c.hidden = true; }
     const el = secs(pm.position), du = secs(pm.duration);
     $('fill').style.width = du ? `${Math.min(100, (el / du) * 100)}%` : '0';

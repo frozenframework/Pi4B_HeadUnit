@@ -1,6 +1,6 @@
 // Shared helpers for the head-unit web apps (served by hu-bridge on 127.0.0.1:8765).
 export async function api(path, opts = {}) {
-  const init = { ...opts };
+  const init = { cache: 'no-store', ...opts };
   if (opts.json !== undefined) {
     init.method = init.method || 'POST';
     init.headers = { 'Content-Type': 'application/json' };
@@ -15,7 +15,7 @@ export const saveSettings = (patch) => api('/api/settings', { json: patch });
 
 let themesCache = null;
 export async function loadThemes() {
-  if (!themesCache) themesCache = await (await fetch('/apps/styles/themes.json')).json();
+  if (!themesCache) themesCache = await (await fetch('/apps/styles/themes.json', { cache: 'no-store' })).json();
   return themesCache;
 }
 

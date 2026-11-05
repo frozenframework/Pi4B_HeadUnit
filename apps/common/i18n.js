@@ -16,7 +16,8 @@ export const LANGS = [
 let all = null, cur = 'en';
 
 export async function initI18n(code) {
-  if (!all) all = await (await fetch('/apps/common/i18n.json')).json().catch(() => ({ en: {} }));
+  // always the installed version's phrases, never a copy the web view kept from an older version
+  if (!all) all = await fetch('/apps/common/i18n.json', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ en: {} }));
   cur = LANGS.some(l => l.code === code) ? code : 'en';
   const L = LANGS.find(l => l.code === cur);
   document.documentElement.lang = L.tag;
@@ -34,7 +35,16 @@ export const has = (key) => !!all?.[cur]?.[key];
 export const lang = () => cur;
 export const langTag = () => LANGS.find(l => l.code === cur).tag;
 
+// A phrase that can't be found keeps the English text written in the page, never shows its key name.
 export function translatePage(root = document) {
-  root.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
-  root.querySelectorAll('[data-i18n-aria]').forEach(el => el.setAttribute('aria-label', t(el.dataset.i18nAria)));
+  root.querySelectorAll('[data-i18n]').forEach(el => {
+    if (el.dataset.i18nDefault === undefined) el.dataset.i18nDefault = el.textContent;
+    const s = t(el.dataset.i18n);
+    el.textContent = s === el.dataset.i18n && el.dataset.i18nDefault ? el.dataset.i18nDefault : s;
+  });
+  root.querySelectorAll('[data-i18n-aria]').forEach(el => {
+    if (el.dataset.i18nAriaDefault === undefined) el.dataset.i18nAriaDefault = el.getAttribute('aria-label') || '';
+    const s = t(el.dataset.i18nAria);
+    el.setAttribute('aria-label', s === el.dataset.i18nAria && el.dataset.i18nAriaDefault ? el.dataset.i18nAriaDefault : s);
+  });
 }

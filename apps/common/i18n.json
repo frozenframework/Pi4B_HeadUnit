@@ -178,7 +178,8 @@
   "set.going_back": "Going back to version {v}. The head unit restarts in a minute or two.",
   "mu.src_usb": "iPod & USB",
   "mu.from_phone": "Playing from {name}",
-  "mu.open_phone": "Open {name}"
+  "mu.open_phone": "Open {name}",
+  "mu.phone_idle": "Nothing playing from {name} yet. Connect your iPhone and play something."
  },
  "es": {
   "common.back": "Atrás",
@@ -358,7 +359,8 @@
   "set.going_back": "Volviendo a la versión {v}. El equipo se reinicia en uno o dos minutos.",
   "mu.src_usb": "iPod y USB",
   "mu.from_phone": "Sonando desde {name}",
-  "mu.open_phone": "Abrir {name}"
+  "mu.open_phone": "Abrir {name}",
+  "mu.phone_idle": "Nada sonando desde {name} todavía. Conecta tu iPhone y reproduce algo."
  },
  "zh": {
   "common.back": "返回",
@@ -559,7 +561,8 @@
   "set.going_back": "正在返回版本 {v}。主机将在一两分钟内重启。",
   "mu.src_usb": "iPod 和 USB",
   "mu.from_phone": "正在从 {name} 播放",
-  "mu.open_phone": "打开 {name}"
+  "mu.open_phone": "打开 {name}",
+  "mu.phone_idle": "{name} 还没有播放内容。连接 iPhone 并播放音乐。"
  },
  "tl": {
   "common.back": "Bumalik",
@@ -760,7 +763,8 @@
   "set.going_back": "Bumabalik sa bersyon {v}. Magre-restart ang head unit sa loob ng isa o dalawang minuto.",
   "mu.src_usb": "iPod at USB",
   "mu.from_phone": "Tumutugtog mula sa {name}",
-  "mu.open_phone": "Buksan ang {name}"
+  "mu.open_phone": "Buksan ang {name}",
+  "mu.phone_idle": "Wala pang tumutugtog mula sa {name}. Ikonekta ang iyong iPhone at magpatugtog."
  },
  "vi": {
   "common.back": "Quay lại",
@@ -940,7 +944,8 @@
   "set.going_back": "Đang quay lại phiên bản {v}. Đầu máy sẽ khởi động lại sau một hai phút.",
   "mu.src_usb": "iPod và USB",
   "mu.from_phone": "Đang phát từ {name}",
-  "mu.open_phone": "Mở {name}"
+  "mu.open_phone": "Mở {name}",
+  "mu.phone_idle": "Chưa có gì phát từ {name}. Hãy kết nối iPhone và phát nhạc."
  },
  "ar": {
   "common.back": "رجوع",
@@ -1120,7 +1125,8 @@
   "set.going_back": "جارٍ العودة إلى الإصدار {v}. سيُعاد تشغيل الجهاز خلال دقيقة أو دقيقتين.",
   "mu.src_usb": "iPod وUSB",
   "mu.from_phone": "يُشغَّل من {name}",
-  "mu.open_phone": "فتح {name}"
+  "mu.open_phone": "فتح {name}",
+  "mu.phone_idle": "لا يُشغَّل شيء من {name} بعد. وصّل iPhone وشغّل شيئًا."
  },
  "fr": {
   "common.back": "Retour",
@@ -1300,7 +1306,8 @@
   "set.going_back": "Retour à la version {v}. L'autoradio redémarre dans une ou deux minutes.",
   "mu.src_usb": "iPod et USB",
   "mu.from_phone": "Lecture depuis {name}",
-  "mu.open_phone": "Ouvrir {name}"
+  "mu.open_phone": "Ouvrir {name}",
+  "mu.phone_idle": "Rien en lecture depuis {name} pour l'instant. Connectez votre iPhone et lancez de la musique."
  },
  "ko": {
   "common.back": "뒤로",
@@ -1480,7 +1487,8 @@
   "set.going_back": "버전 {v}(으)로 돌아가는 중입니다. 1~2분 안에 다시 시작됩니다.",
   "mu.src_usb": "iPod 및 USB",
   "mu.from_phone": "{name}에서 재생 중",
-  "mu.open_phone": "{name} 열기"
+  "mu.open_phone": "{name} 열기",
+  "mu.phone_idle": "아직 {name}에서 재생 중인 것이 없습니다. iPhone을 연결하고 재생하세요."
  },
  "pt": {
   "common.back": "Voltar",
@@ -1660,7 +1668,8 @@
   "set.going_back": "Voltando para a versão {v}. A central reinicia em um ou dois minutos.",
   "mu.src_usb": "iPod e USB",
   "mu.from_phone": "Tocando pelo {name}",
-  "mu.open_phone": "Abrir {name}"
+  "mu.open_phone": "Abrir {name}",
+  "mu.phone_idle": "Nada tocando pelo {name} ainda. Conecte seu iPhone e toque algo."
  },
  "hi": {
   "common.back": "वापस",
@@ -1840,6 +1849,7 @@
   "set.going_back": "संस्करण {v} पर वापस जा रहे हैं। हेड यूनिट एक-दो मिनट में फिर से शुरू होगी।",
   "mu.src_usb": "iPod और USB",
   "mu.from_phone": "{name} से चल रहा है",
-  "mu.open_phone": "{name} खोलें"
+  "mu.open_phone": "{name} खोलें",
+  "mu.phone_idle": "{name} से अभी कुछ नहीं चल रहा। अपना iPhone जोड़ें और कुछ चलाएँ।"
  }
 }
