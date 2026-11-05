@@ -220,6 +220,8 @@
   "nav.k_address": "Address",
   "nav.k_address_approx": "Approximate address",
   "nav.k_street_only": "Street (house number not found)",
+  "nav.did_you_mean": "No exact match. Did you mean:",
+  "nav.k_area": "City / ZIP area",
   "nav.k_street": "Street",
   "nav.enter": "Enter"
  },
@@ -443,6 +445,8 @@
   "nav.k_address": "Dirección",
   "nav.k_address_approx": "Dirección aproximada",
   "nav.k_street_only": "Calle (número no encontrado)",
+  "nav.did_you_mean": "No hay coincidencia exacta. ¿Quiso decir:",
+  "nav.k_area": "Ciudad / código postal",
   "nav.k_street": "Calle",
   "nav.enter": "Intro"
  },
@@ -687,6 +691,8 @@
   "nav.k_address": "地址",
   "nav.k_address_approx": "大致地址",
   "nav.k_street_only": "街道（未找到门牌号）",
+  "nav.did_you_mean": "没有完全匹配。您是不是要找：",
+  "nav.k_area": "城市 / 邮编区域",
   "nav.k_street": "街道",
   "nav.enter": "确定"
  },
@@ -931,6 +937,8 @@
   "nav.k_address": "Address",
   "nav.k_address_approx": "Tinatayang address",
   "nav.k_street_only": "Kalye (hindi nakita ang numero ng bahay)",
+  "nav.did_you_mean": "Walang eksaktong tugma. Ito ba ang ibig mong sabihin:",
+  "nav.k_area": "Lungsod / ZIP",
   "nav.k_street": "Kalye",
   "nav.enter": "Enter"
  },
@@ -1154,6 +1162,8 @@
   "nav.k_address": "Địa chỉ",
   "nav.k_address_approx": "Địa chỉ ước tính",
   "nav.k_street_only": "Đường (không tìm thấy số nhà)",
+  "nav.did_you_mean": "Không có kết quả khớp chính xác. Có phải bạn muốn tìm:",
+  "nav.k_area": "Thành phố / mã ZIP",
   "nav.k_street": "Đường",
   "nav.enter": "Nhập"
  },
@@ -1377,6 +1387,8 @@
   "nav.k_address": "العنوان",
   "nav.k_address_approx": "عنوان تقريبي",
   "nav.k_street_only": "شارع (لم يُعثر على رقم المنزل)",
+  "nav.did_you_mean": "لا توجد نتيجة مطابقة تمامًا. هل تقصد:",
+  "nav.k_area": "المدينة / الرمز البريدي",
   "nav.k_street": "شارع",
   "nav.enter": "إدخال"
  },
@@ -1600,6 +1612,8 @@
   "nav.k_address": "Adresse",
   "nav.k_address_approx": "Adresse approximative",
   "nav.k_street_only": "Rue (numéro introuvable)",
+  "nav.did_you_mean": "Aucune correspondance exacte. Vouliez-vous dire :",
+  "nav.k_area": "Ville / code postal",
   "nav.k_street": "Rue",
   "nav.enter": "Entrée"
  },
@@ -1823,6 +1837,8 @@
   "nav.k_address": "주소",
   "nav.k_address_approx": "대략적인 주소",
   "nav.k_street_only": "도로 (번지를 찾지 못함)",
+  "nav.did_you_mean": "정확히 일치하는 결과가 없습니다. 이것을 찾으셨나요:",
+  "nav.k_area": "도시 / 우편번호",
   "nav.k_street": "도로",
   "nav.enter": "확인"
  },
@@ -2046,6 +2062,8 @@
   "nav.k_address": "Endereço",
   "nav.k_address_approx": "Endereço aproximado",
   "nav.k_street_only": "Rua (número não encontrado)",
+  "nav.did_you_mean": "Nenhuma correspondência exata. Você quis dizer:",
+  "nav.k_area": "Cidade / CEP",
   "nav.k_street": "Rua",
   "nav.enter": "Enter"
  },
@@ -2269,6 +2287,8 @@
   "nav.k_address": "पता",
   "nav.k_address_approx": "अनुमानित पता",
   "nav.k_street_only": "सड़क (मकान नंबर नहीं मिला)",
+  "nav.did_you_mean": "कोई सटीक मिलान नहीं मिला। क्या आपका मतलब था:",
+  "nav.k_area": "शहर / ZIP क्षेत्र",
   "nav.k_street": "सड़क",
   "nav.enter": "एंटर"
  }

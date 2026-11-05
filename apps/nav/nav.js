@@ -334,7 +334,7 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === 'Escape') closeSheets();
   else if (e.key.length === 1 && /[\p{L}\p{N} ,.&'#/-]/u.test(e.key)) { e.preventDefault(); typeKey(e.key); }
 });
-const kindName = (k) => ({ address: t('nav.k_address'), address_approx: t('nav.k_address_approx'), street_only: t('nav.k_street_only'), street: t('nav.k_street') })[k] || k;
+const kindName = (k) => ({ address: t('nav.k_address'), address_approx: t('nav.k_address_approx'), street_only: t('nav.k_street_only'), street: t('nav.k_street'), area: t('nav.k_area') })[k] || k;
 async function pickResult(r, near) {
   const dist = fmtDist(hav(near, [r.lon, r.lat]), state.units);
   if (state.assign) {                                // finding Home / Work / ... from the Places panel
@@ -354,6 +354,8 @@ async function runSearch() {
   if (q !== query) return null;                      // typed on meanwhile: a newer search is coming
   lastResults = { q, res, near };
   if (!res.length) { list.innerHTML = `<div class="item muted">${esc(t('nav.no_matches'))}</div>`; return res; }
+  // nothing found: the search lists options instead (similar spellings, the city / ZIP typed)
+  if (res[0].option) list.innerHTML = `<div class="item muted">${esc(t('nav.did_you_mean'))}</div>`;
   for (const r of res) {
     const el = document.createElement('div'); el.className = 'item';
     const dist = fmtDist(hav(near, [r.lon, r.lat]), state.units);
@@ -370,6 +372,7 @@ async function enterSearch() {
   const res = lastResults.q === query ? lastResults.res : await runSearch();
   if (!res) return;
   if (!res.length) { toast(t('nav.no_matches')); return; }
+  if (res[0].option) { toast(t('nav.did_you_mean')); return; }   // options are listed: let the driver pick
   logEvent('search_enter', { n: res.length });
   pickResult(res[0], lastResults.near || state.pos || state.map.getCenter().toArray());
 }

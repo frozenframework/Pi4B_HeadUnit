@@ -219,9 +219,49 @@ async def route(request):
     return web.json_response(out)
 
 # ---------------------------------------------------------------- offline search
+class ZipCentres:
+    """ZIP code centres for search data built before the builder stored them (areas table): worked out
+    once in the background from the street addresses and kept next to the user settings."""
+    def __init__(self): self.zips, self.stamp, self.busy = {}, None, False
+    def get(self):
+        try: st = SEARCH_DB.stat().st_mtime
+        except OSError: return {}
+        if self.stamp != st and not self.busy:
+            self.busy = True; threading.Thread(target=self._load, args=(st,), daemon=True).start()
+        return self.zips
+    def _load(self, st):
+        f = USER_DIR / "search-zips.json"
+        try:
+            c = read_json(f, {})
+            if c.get("stamp") == st: self.zips = c.get("zips", {}); return
+            con = sqlite3.connect(f"file:{SEARCH_DB}?mode=ro", uri=True)
+            try:
+                if con.execute("SELECT 1 FROM sqlite_master WHERE name='areas'").fetchone() or \
+                   not con.execute("SELECT 1 FROM sqlite_master WHERE name='addr'").fetchone():
+                    self.zips = {}
+                else:
+                    t = time.time()
+                    acc = {}                         # streamed (no big sort in /tmp, even for the whole US)
+                    for z, x, y in con.execute("SELECT zip, lon, lat FROM addr WHERE zip != ''"):
+                        a = acc.get(z)
+                        if a: a[0] += x; a[1] += y; a[2] += 1
+                        else: acc[z] = [x, y, 1]
+                    self.zips = {z: [round(a[0] / a[2], 5), round(a[1] / a[2], 5)] for z, a in acc.items()}
+                    log.info("search: %d ZIP code centres worked out in %.0f s", len(self.zips), time.time() - t)
+            finally:
+                con.close()
+            write_json(f, {"stamp": st, "zips": self.zips})
+        except Exception as e:
+            log.warning("search: ZIP centres: %s", e)
+        finally:
+            self.stamp, self.busy = st, False
+ZIPS = ZipCentres()
+
 def do_search(q, near):
-    """Street addresses first ("1234 N Main St, Conroe": bin/hu_addr.py), then places, businesses and
-    streets by name."""
+    """Searches all of the search data (the whole state and its neighbours, Texas first unless another
+    state is typed): street addresses first ("1234 N Main St, Conroe TX 77301", searched in the ZIP /
+    city typed first: bin/hu_addr.py), then places, businesses and streets by name. Nothing found:
+    options to pick from (similar spellings, the city / ZIP), marked "option"."""
     if not SEARCH_DB.exists() or not q.strip():
         return []
     terms = [re.sub(r'[^0-9A-Za-zÀ-ɏ]', '', t) for t in q.replace("&", " ").split()]
@@ -229,35 +269,29 @@ def do_search(q, near):
     if not terms:
         return []
     fts = " ".join(f'"{t}"*' for t in terms)
+    import hu_addr
+    zips = ZIPS.get()
     con = sqlite3.connect(f"file:{SEARCH_DB}?mode=ro", uri=True)
-    addrs = []
     try:
+        addrs = []
         try:
-            import hu_addr
-            addrs = hu_addr.lookup(con, q, near)
+            addrs = hu_addr.lookup(con, q, near, zips=zips)
+            if not addrs and re.match(r"^\s*\d", q):
+                addrs = hu_addr.streets_by_name(con, q, near, zips)
         except Exception as e:
             log.warning("address search: %s", e)
-        rows = con.execute("SELECT name, kind, detail, lon, lat FROM places WHERE places MATCH ? LIMIT 200", (fts,)).fetchall()
-        if not addrs and re.match(r"^\s*\d", q):
-            # "1234 Smith Rd, Conroe TX" with no house-number match (or search data built without
-            # addresses): find the street itself by name, dropping the number and then trailing words
-            words = [re.sub(r'[^0-9A-Za-zÀ-ɏ]', '', w) for w in re.sub(r"^\s*\d+\w?\s+", "", q).replace(",", " ").split()]
-            words = [w for w in words if w and not re.fullmatch(r"\d{5}", w)]
-            for cut in range(len(words), 0, -1):
-                st = con.execute("SELECT name, kind, detail, lon, lat FROM places WHERE places MATCH ? AND kind='street' LIMIT 100",
-                                 (" ".join(f'"{w}"*' for w in words[:cut]),)).fetchall()
-                if st:
-                    st.sort(key=lambda r: (r[3] - near[0]) ** 2 + (r[4] - near[1]) ** 2 if near else 0)
-                    addrs = [{"name": r[0], "kind": "street_only", "detail": r[2], "lon": r[3], "lat": r[4]} for r in st[:3]]
-                    break
+        rows = con.execute("SELECT name, kind, detail, lon, lat FROM places WHERE places MATCH ? LIMIT 5000", (fts,)).fetchall()
+        anchor, want, rest = hu_addr.place_anchor(con, q, near, zips)
+        if not rows and rest and not addrs:          # "walmart conroe": the store's data may not say Conroe
+            rows = con.execute("SELECT name, kind, detail, lon, lat FROM places WHERE places MATCH ? LIMIT 5000",
+                               (" ".join(f'"{t}"*' for t in rest),)).fetchall()
+        hu_addr._sort_places(rows, want, anchor)
+        res = addrs + [{"name": r[0], "kind": r[1], "detail": r[2], "lon": r[3], "lat": r[4]} for r in rows[:25 - len(addrs)]]
+        if not res:
+            res = hu_addr.suggest(con, q, near, zips)
+        return res
     finally:
         con.close()
-    def dist(r):
-        if not near: return 0
-        dx = (r[3] - near[0]) * math.cos(math.radians(near[1])); dy = r[4] - near[1]
-        return dx * dx + dy * dy
-    rows.sort(key=dist)
-    return addrs + [{"name": r[0], "kind": r[1], "detail": r[2], "lon": r[3], "lat": r[4]} for r in rows[:25 - len(addrs)]]
 
 async def search(request):
     q = request.query.get("q", "")
@@ -912,6 +946,7 @@ async def on_start(app):
     app["daynight"] = asyncio.create_task(day_night_watch())
     app["voices"] = asyncio.create_task(voice_watch())
     app["parked"] = asyncio.create_task(parked_watch())
+    ZIPS.get()                                       # ZIP centres for older search data, in the background
     usage("bridge_start", vehicle=C("VEHICLE_ID", ""))
     asyncio.get_running_loop().run_in_executor(None, hudiy_hotspot_guard)
     if C("PHONE_LINK", "1") == "1":

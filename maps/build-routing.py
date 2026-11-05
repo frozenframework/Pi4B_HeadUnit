@@ -214,7 +214,9 @@ def build_search(pbfs, out, addresses, work=Path(".")):
     flush(); con.execute("INSERT INTO places(places) VALUES('optimize')"); con.commit()
     log("indexing street addresses")
     con.executescript(hu_addr.INDEXES)
-    con.execute("INSERT OR REPLACE INTO meta VALUES ('format', '2')"); con.commit()
+    # ZIP code centres, so "..., 77301" searches that ZIP first
+    con.execute("INSERT INTO areas SELECT 'zip', zip, avg(lon), avg(lat), count(*) FROM addr WHERE zip != '' GROUP BY zip")
+    con.execute("INSERT OR REPLACE INTO meta VALUES ('format', '3')"); con.commit()
     n = con.execute("SELECT count(*) FROM places").fetchone()[0]
     na = con.execute("SELECT count(*) FROM addr").fetchone()[0]; con.execute("ANALYZE"); con.close()
     log(f"search index: {n:,} places and streets, {na:,} street addresses")
