@@ -10,6 +10,7 @@ const params = new URLSearchParams(location.search);
 const SIM = params.has('sim');            // drive along the route by itself (bench testing)
 const PREVIEW = params.has('preview');    // static render for skin previews
 if (params.has('clean')) document.documentElement.classList.add('clean');
+if (PREVIEW || params.has('clean') || params.has('norail')) document.documentElement.classList.add('norail');   // skin previews: map only
 
 const state = {
   settings: null, theme: null, map: null, pos: null, heading: 0, speed: 0, follow: true,
@@ -357,27 +358,57 @@ async function openThemes() {
 }
 function closeSheets() { document.querySelectorAll('.sheet').forEach(s => s.classList.add('hidden')); }
 
-// ------------------------------------------------------------------ Head Unit Settings over the map
-// Opened in a layer on top (not by leaving the map page, which had no way back and dropped the route);
-// its "Back to map" button closes the layer, then the map picks up any changed settings.
-function openSettings() {
+// ------------------------------------------------------------------ apps from the map screen (left rail)
+// iPod & USB, AM/FM Radio and Head Unit Settings open in a layer over the map; the map (and any route)
+// keeps running underneath. Music and radio stay loaded once opened (playback runs on the head unit
+// either way); Settings starts fresh each time and its Back to map button closes it.
+const APPS = { music: '../music/index.html', radio: '../radio/index.html', settings: '../theme/index.html?embedded=1' };
+const RAIL_ICONS = {
+  map: '<svg class="icon" viewBox="0 0 24 24"><path d="M3 6.5l6-2.5 6 2.5 6-2.5v13.5l-6 2.5-6-2.5-6 2.5z"/><path d="M9 4v13.5M15 6.5V20"/></svg>',
+  music: '<svg class="icon" viewBox="0 0 24 24"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>',
+  radio: '<svg class="icon" viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="12" rx="2"/><path d="M7 8l10-5"/><circle cx="15.5" cy="14" r="3"/><path d="M6.5 12h4M6.5 15h4M6.5 18h4"/></svg>',
+  settings: icons.gear,
+};
+let currentApp = 'map', settingsLang = null;
+function railOn(id) { document.querySelectorAll('[data-app-btn]').forEach(b => b.classList.toggle('on', b.dataset.appBtn === id)); }
+function openApp(id) {
+  if (id === 'map') { showMap(); return; }
   closeSheets();
-  $('settingsFrame').src = '../theme/index.html?embedded=1';
-  $('settingsLayer').classList.remove('hidden');
+  const layer = $('appLayer');
+  let f = layer.querySelector(`iframe[data-app="${id}"]`);
+  if (id === 'settings' && f) { f.remove(); f = null; }               // Settings: fresh every time
+  if (!f) {
+    f = document.createElement('iframe'); f.dataset.app = id; f.title = id; f.src = APPS[id];
+    layer.appendChild(f);
+  }
+  if (id === 'settings') settingsLang = state.settings?.language;
+  layer.querySelectorAll('iframe').forEach(x => { x.hidden = x !== f; });
+  layer.classList.remove('hidden'); currentApp = id; railOn(id);
+  logEvent('app_open', { app: id, from: 'map' });
 }
-async function closeSettings() {
-  if ($('settingsLayer').classList.contains('hidden')) return;
-  $('settingsLayer').classList.add('hidden'); $('settingsFrame').src = 'about:blank';
-  const s = await getSettings().catch(() => null); if (!s) return;
-  if (s.language !== state.settings?.language) { location.reload(); return; }   // new language: redraw everything
+async function showMap() {
+  const wasSettings = currentApp === 'settings';
+  $('appLayer').classList.add('hidden'); currentApp = 'map'; railOn('map');
+  const sf = $('appLayer').querySelector('iframe[data-app="settings"]'); if (sf) sf.remove();
+  state.map?.resize();
+  if (!wasSettings) return;
+  const s = await getSettings().catch(() => null); if (!s) return;     // pick up what changed in Settings
+  if (s.language !== settingsLang) { location.reload(); return; }      // new language: redraw everything
   state.settings = s; state.units = s.units || 'imperial';
   $('speedUnit').textContent = state.units === 'imperial' ? 'mph' : 'km/h';
   if (s.theme && s.theme !== state.theme?.id) await setTheme(s.theme, false); else applyNight();
   if (state.route) guide();
-  logEvent('settings_closed');
 }
-window.addEventListener('message', (e) => { if (e.origin === location.origin && e.data?.type === 'hu-close-settings') closeSettings(); });
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSettings(); });
+function setupRail() {
+  document.querySelectorAll('[data-app-btn]').forEach(b => {
+    b.querySelector('.ico').innerHTML = RAIL_ICONS[b.dataset.appBtn];
+    b.onclick = () => openApp(b.dataset.appBtn);
+  });
+}
+const openSettings = () => openApp('settings');
+const PALETTE_ICON = '<svg class="icon" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.2 0 1.8-.8 1.8-1.7 0-1.2-1-1.5-1-2.6 0-.9.7-1.5 1.7-1.5H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3z"/><circle cx="7.5" cy="11" r="1.2"/><circle cx="10" cy="7" r="1.2"/><circle cx="14.5" cy="7" r="1.2"/></svg>';   // map skin (the gear is Settings)
+window.addEventListener('message', (e) => { if (e.origin === location.origin && e.data?.type === 'hu-close-settings') showMap(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && currentApp !== 'map') showMap(); });
 
 // ------------------------------------------------------------------ boot
 // ------------------------------------------------------------------ from the phone (CarPlay / Android Auto via Hudiy)
@@ -484,7 +515,7 @@ async function main() {
     if (st.theme && st.theme !== state.theme?.id && !PREVIEW && !params.get('theme')) setTheme(st.theme, false);   // day/night skins: sunrise/sunset
   }, 10000);
 
-  $('searchBtn').innerHTML = icons.search; $('favBtn').innerHTML = icons.star; $('centerBtn').innerHTML = icons.center; $('themeBtn').innerHTML = icons.gear;
+  $('searchBtn').innerHTML = icons.search; $('favBtn').innerHTML = icons.star; $('centerBtn').innerHTML = icons.center; $('themeBtn').innerHTML = PALETTE_ICON;
   $('destFav').innerHTML = icons.star; document.querySelectorAll('.closeBtn').forEach(b => { b.innerHTML = icons.close; b.onclick = closeSheets; });
   $('searchBtn').onclick = () => { buildKeyboard(); $('searchPanel').classList.remove('hidden'); };
   $('favBtn').onclick = openFavorites;
@@ -496,6 +527,7 @@ async function main() {
   $('destGo').onclick = () => routeTo(state.pending);
   $('destFav').onclick = () => saveFavorite(state.pending);
   setupLongPress();
+  setupRail();
   setupPhone();
   startGps();
   onHudiy('onActivatedChanged', () => { if (window.hudiy?.activated) state.map?.resize(); });

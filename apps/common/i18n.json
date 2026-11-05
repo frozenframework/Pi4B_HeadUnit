@@ -166,7 +166,11 @@
   "set.day_skin": "Day skin",
   "set.night_skin": "Night skin",
   "set.back_map": "Back to map",
-  "set.exit": "Exit"
+  "set.exit": "Exit",
+  "nav.app_map": "Map",
+  "nav.app_music": "iPod & USB",
+  "nav.app_radio": "AM/FM Radio",
+  "nav.app_settings": "Head Unit Settings"
  },
  "es": {
   "common.back": "Atrás",
@@ -334,7 +338,11 @@
   "set.day_skin": "Estilo de día",
   "set.night_skin": "Estilo de noche",
   "set.back_map": "Volver al mapa",
-  "set.exit": "Salir"
+  "set.exit": "Salir",
+  "nav.app_map": "Mapa",
+  "nav.app_music": "iPod y USB",
+  "nav.app_radio": "Radio AM/FM",
+  "nav.app_settings": "Ajustes del equipo"
  },
  "zh": {
   "common.back": "返回",
@@ -523,7 +531,11 @@
   "set.day_skin": "白天样式",
   "set.night_skin": "夜间样式",
   "set.back_map": "返回地图",
-  "set.exit": "退出"
+  "set.exit": "退出",
+  "nav.app_map": "地图",
+  "nav.app_music": "iPod 和 USB",
+  "nav.app_radio": "AM/FM 收音机",
+  "nav.app_settings": "主机设置"
  },
  "tl": {
   "common.back": "Bumalik",
@@ -712,7 +724,11 @@
   "set.day_skin": "Skin pang-araw",
   "set.night_skin": "Skin pang-gabi",
   "set.back_map": "Bumalik sa mapa",
-  "set.exit": "Lumabas"
+  "set.exit": "Lumabas",
+  "nav.app_map": "Mapa",
+  "nav.app_music": "iPod at USB",
+  "nav.app_radio": "AM/FM Radyo",
+  "nav.app_settings": "Settings ng Head Unit"
  },
  "vi": {
   "common.back": "Quay lại",
@@ -880,7 +896,11 @@
   "set.day_skin": "Giao diện ban ngày",
   "set.night_skin": "Giao diện ban đêm",
   "set.back_map": "Quay lại bản đồ",
-  "set.exit": "Thoát"
+  "set.exit": "Thoát",
+  "nav.app_map": "Bản đồ",
+  "nav.app_music": "iPod và USB",
+  "nav.app_radio": "Radio AM/FM",
+  "nav.app_settings": "Cài đặt đầu máy"
  },
  "ar": {
   "common.back": "رجوع",
@@ -1048,7 +1068,11 @@
   "set.day_skin": "مظهر النهار",
   "set.night_skin": "مظهر الليل",
   "set.back_map": "العودة إلى الخريطة",
-  "set.exit": "خروج"
+  "set.exit": "خروج",
+  "nav.app_map": "الخريطة",
+  "nav.app_music": "iPod وUSB",
+  "nav.app_radio": "راديو AM/FM",
+  "nav.app_settings": "إعدادات الجهاز"
  },
  "fr": {
   "common.back": "Retour",
@@ -1216,7 +1240,11 @@
   "set.day_skin": "Style de jour",
   "set.night_skin": "Style de nuit",
   "set.back_map": "Retour à la carte",
-  "set.exit": "Quitter"
+  "set.exit": "Quitter",
+  "nav.app_map": "Carte",
+  "nav.app_music": "iPod et USB",
+  "nav.app_radio": "Radio AM/FM",
+  "nav.app_settings": "Réglages de l'autoradio"
  },
  "ko": {
   "common.back": "뒤로",
@@ -1384,7 +1412,11 @@
   "set.day_skin": "주간 스킨",
   "set.night_skin": "야간 스킨",
   "set.back_map": "지도로 돌아가기",
-  "set.exit": "나가기"
+  "set.exit": "나가기",
+  "nav.app_map": "지도",
+  "nav.app_music": "iPod 및 USB",
+  "nav.app_radio": "AM/FM 라디오",
+  "nav.app_settings": "헤드 유닛 설정"
  },
  "pt": {
   "common.back": "Voltar",
@@ -1552,7 +1584,11 @@
   "set.day_skin": "Estilo de dia",
   "set.night_skin": "Estilo de noite",
   "set.back_map": "Voltar ao mapa",
-  "set.exit": "Sair"
+  "set.exit": "Sair",
+  "nav.app_map": "Mapa",
+  "nav.app_music": "iPod e USB",
+  "nav.app_radio": "Rádio AM/FM",
+  "nav.app_settings": "Ajustes da central"
  },
  "hi": {
   "common.back": "वापस",
@@ -1720,6 +1756,10 @@
   "set.day_skin": "दिन की स्किन",
   "set.night_skin": "रात की स्किन",
   "set.back_map": "मैप पर वापस",
-  "set.exit": "बाहर निकलें"
+  "set.exit": "बाहर निकलें",
+  "nav.app_map": "मैप",
+  "nav.app_music": "iPod और USB",
+  "nav.app_radio": "AM/FM रेडियो",
+  "nav.app_settings": "हेड यूनिट सेटिंग्स"
  }
 }

@@ -16,8 +16,8 @@ function render() {
   for (let i = 0; i < 6; i++) {
     const p = presets[band]?.[i]; const b = document.createElement('button');
     b.textContent = p ? fmt(band, p) : t('ra.preset', { n: i + 1 }); if (!p) b.className = 'empty';
-    let t; b.onpointerdown = () => { t = setTimeout(() => { t = null; savePreset(i); }, 900); };
-    b.onpointerup = () => { if (t) { clearTimeout(t); if (p) { freq[band] = p; tune(); } } };
+    let hold; b.onpointerdown = () => { hold = setTimeout(() => { hold = null; savePreset(i); }, 900); };   // long press saves
+    b.onpointerup = () => { if (hold) { clearTimeout(hold); if (p) { freq[band] = p; tune(); } } };
     grid.appendChild(b);
   }
 }

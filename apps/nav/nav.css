@@ -87,7 +87,20 @@ body.np #street { bottom: 84px; }
 #phoneBtn svg { width: 40px; height: 40px; }
 .clean #phoneTurn, .clean #nowPlaying, .clean #callChip { display: none !important; }
 
-/* Head Unit Settings opened from the map: full screen on top, closed with its "Back to map" button */
-#settingsLayer { position: absolute; inset: 0; z-index: 40; background: var(--bg); }
-#settingsLayer iframe { width: 100%; height: 100%; border: 0; display: block; background: var(--bg); }
+/* app rail (left edge): the map screen and its overlays sit to the right of it */
+:root { --rail: 96px; }
+body[data-app="nav"] { position: fixed; inset: 0 0 0 var(--rail); height: auto; }
+#rail { position: fixed; left: 0; top: 0; bottom: 0; width: var(--rail); z-index: 50; border-radius: 0; padding: 8px 8px;
+  display: flex; flex-direction: column; gap: 8px; box-sizing: border-box; }
+#rail button { flex: 1 1 0; min-height: 0; padding: 4px 2px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+#rail .ico svg { width: 34px; height: 34px; }
+#rail .lbl { font-size: 13px; line-height: 1.1; text-align: center; font-weight: 600; }
+#rail button.on { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--panel));
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 40%, transparent); }
+@media (max-height: 420px) { #rail .ico svg { width: 26px; height: 26px; } #rail .lbl { font-size: 12px; } }
+#appLayer { position: absolute; inset: 0; z-index: 40; background: var(--bg); }
+#appLayer iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: var(--bg); }
+#appLayer iframe[hidden] { display: none; }
+.clean #rail, html.norail #rail { display: none; }
+.clean body[data-app="nav"], html.norail body[data-app="nav"] { left: 0; }
 #moreSettings { margin-inline-start: auto; color: var(--accent); font-size: 20px; min-height: 52px; }
