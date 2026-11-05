@@ -1,4 +1,4 @@
-// iPod Nano / USB music browser. The library is read by MPD from song tags,
+// iPod Nano / USB music browser, plus what CarPlay / Android Auto is playing. The library is read by MPD from song tags,
 // so the iPod's scrambled file names (F00/ABCD.m4a) never show up here.
 import { api, getSettings, applyUiTheme, followTheme, logEvent, icons, toast } from '../common/hu.js';
 import { initI18n, t } from '../common/i18n.js';
@@ -44,8 +44,34 @@ async function play(tracks, start) {
 }
 const ctl = (action) => api('/api/music/control', { json: { action } }).then(poll);
 
+// Which player the left panel shows: the iPod / USB player, or what the phone plays through CarPlay /
+// Android Auto (Hudiy reports title, artist, album, cover and position; the buttons go to the phone).
+let srcChoice = null;           // null = automatic: the phone while it plays and the iPod / USB doesn't
+let showing = 'usb', phoneName = 'CarPlay', coverV = -1;
+const secs = (l) => (l || '').split(':').reduce((a, x) => a * 60 + (+x || 0), 0);
 async function poll() {
-  const s = await api('/api/music/status').catch(() => null);
+  const [s, p] = await Promise.all([api('/api/music/status').catch(() => null), api('/api/phone').catch(() => null)]);
+  const pm = p?.media || {}, phoneHas = !!(p && !p.error && (pm.source === 'carplay' || pm.source === 'android_auto') && (pm.title || pm.artist));
+  phoneName = pm.source === 'android_auto' ? 'Android Auto' : 'CarPlay';
+  $('srcPhone').textContent = phoneName; $('srcTabs').classList.toggle('hidden', !phoneHas);
+  const usbPlaying = s && !s.error && s.state === 'play';
+  showing = phoneHas && (srcChoice === 'phone' || (srcChoice === null && (pm.playing || !usbPlaying))) ? 'phone' : 'usb';
+  document.querySelectorAll('[data-src]').forEach(b => b.classList.toggle('on', b.dataset.src === showing));
+  document.body.classList.toggle('phone', showing === 'phone');
+  $('openPhone').classList.toggle('hidden', showing !== 'phone');
+  if (showing === 'phone') {
+    $('openPhone').textContent = t('mu.open_phone', { name: phoneName });
+    $('src').textContent = t('mu.from_phone', { name: phoneName });
+    $('title').textContent = pm.title || t('mu.nothing');
+    $('artist').textContent = [pm.artist, pm.album].filter(Boolean).join(' — ');
+    $('toggle').innerHTML = pm.playing ? icons.pause : icons.play;
+    if (pm.v !== coverV) { coverV = pm.v; const c = $('cover'); if (pm.has_cover) { c.src = `/api/phone/cover?v=${pm.v}`; c.hidden = false; } else c.hidden = true; }
+    const el = secs(pm.position), du = secs(pm.duration);
+    $('fill').style.width = du ? `${Math.min(100, (el / du) * 100)}%` : '0';
+    $('el').textContent = pm.position || '0:00'; $('du').textContent = pm.duration || '';
+    return;
+  }
+  $('cover').hidden = true; coverV = -1;
   if (!s || s.error) { $('src').textContent = t('mu.offline'); return; }
   const ipod = s.sources?.find(x => x.ipod);
   const scan = s.updating ? ' · ' + t('mu.scanning') : '';
@@ -58,13 +84,19 @@ async function poll() {
   $('fill').style.width = d ? `${Math.min(100, (s.elapsed / d) * 100)}%` : '0';
   $('el').textContent = mmss(s.elapsed || 0); $('du').textContent = mmss(d);
 }
+// buttons go to whichever player is showing
+const phoneKey = (k) => api('/api/phone/' + k, { json: {} }).then(poll);
+const press = (usbAction, phoneAction) => () => (showing === 'phone' ? phoneKey(phoneAction) : ctl(usbAction));
 
 (async () => {
   const st = await getSettings().catch(() => ({})); await applyUiTheme(st.theme); await initI18n(st.language); followTheme();
   $('prev').innerHTML = icons.prev; $('next').innerHTML = icons.next; $('toggle').innerHTML = icons.play; $('shuffle').innerHTML = icons.shuffle; $('back').innerHTML = icons.back;
-  $('prev').onclick = () => ctl('prev'); $('next').onclick = () => ctl('next'); $('toggle').onclick = () => ctl('toggle'); $('shuffle').onclick = () => ctl('shuffle');
+  $('prev').onclick = press('prev', 'previous'); $('next').onclick = press('next', 'next'); $('toggle').onclick = press('toggle', 'toggle');
+  $('shuffle').onclick = () => ctl('shuffle');
+  document.querySelectorAll('[data-src]').forEach(b => b.onclick = () => { srcChoice = b.dataset.src; logEvent('music_source', { src: srcChoice }); poll(); });
+  $('openPhone').onclick = () => api('/api/phone/show', { json: {} }).catch(() => {});
   $('back').onclick = () => { if (stack.length > 1) { stack.pop(); show(stack.at(-1)); } };
   document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => reset(b.dataset.tab));
-  $('bar').onclick = async (e) => { const s = await api('/api/music/status'); const d = s.duration || 0; if (d) api('/api/music/control', { json: { action: 'seek', pos: d * e.offsetX / e.currentTarget.clientWidth } }); };
+  $('bar').onclick = async (e) => { if (showing === 'phone') return; const s = await api('/api/music/status'); const d = s.duration || 0; if (d) api('/api/music/control', { json: { action: 'seek', pos: d * e.offsetX / e.currentTarget.clientWidth } }); };
   reset('artists'); poll(); setInterval(poll, 1000);
 })();
