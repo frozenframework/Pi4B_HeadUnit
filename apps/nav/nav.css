@@ -104,3 +104,25 @@ body[data-app="nav"] { position: fixed; inset: 0 0 0 var(--rail); height: auto; 
 .clean #rail, html.norail #rail { display: none; }
 .clean body[data-app="nav"], html.norail body[data-app="nav"] { left: 0; }
 #moreSettings { margin-inline-start: auto; color: var(--accent); font-size: 20px; min-height: 52px; }
+
+/* Places: Home / Work / Gym / School tiles, then saved, often-visited and recent places */
+#favPanel .sheetHead #clearHist { margin-inline-start: auto; font-size: 16px; min-height: 48px; }
+.tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 10px 0 6px; }
+.tile { position: relative; min-height: 96px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px;
+  padding: 8px 14px; text-align: start; }
+.tile .ti { display: flex; align-items: center; gap: 8px; font-size: 21px; font-weight: 700; }
+.tile .ti svg { width: 28px; height: 28px; stroke: var(--accent); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.tile .ts { font-size: 15px; color: var(--muted); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile.unset { border-style: dashed; }
+.tile.unset .ti { color: var(--muted); }
+.tile .edit { position: absolute; top: 4px; inset-inline-end: 4px; width: 40px; height: 40px; min-height: 0; padding: 0; font-size: 22px; line-height: 1;
+  background: transparent; border: none; color: var(--muted); }
+#favList .sect { min-height: 0; padding: 12px 16px 4px; font-size: 14px; text-transform: uppercase; letter-spacing: .08em; color: var(--accent); border: none; }
+#favList .item button { flex: none; min-height: 48px; font-size: 16px; }
+#favList .item .grow { flex: 1; min-width: 0; }
+#chooser { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 30; width: min(620px, calc(100% - 40px)); padding: 12px 16px 16px; }
+.chooseGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; margin-top: 10px; }
+.chooseGrid button { min-height: 72px; font-size: 20px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+.chooseGrid button svg { width: 26px; height: 26px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.chooseGrid button.danger { border-color: var(--warn); color: var(--warn); }
+@media (max-height: 460px) { .tiles { margin: 6px 0 2px; } .tile { min-height: 70px; } .tile .ti { font-size: 18px; } }

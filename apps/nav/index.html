@@ -44,7 +44,7 @@
 <!-- right-side buttons -->
 <nav id="fabs">
   <button id="searchBtn" data-log="open_search" aria-label="Search" data-i18n-aria="nav.search"></button>
-  <button id="favBtn" data-log="open_favorites" aria-label="Favorites" data-i18n-aria="nav.favorites"></button>
+  <button id="favBtn" data-log="open_favorites" aria-label="Places" data-i18n-aria="nav.places"></button>
   <button id="centerBtn" data-log="recenter" aria-label="Recenter" data-i18n-aria="nav.recenter"></button>
   <button id="themeBtn" data-log="open_theme" aria-label="Map skin" data-i18n-aria="nav.skin"></button>
   <button id="phoneBtn" class="hidden" data-log="phone_show" aria-label="CarPlay" data-i18n-aria="nav.phone_screen"></button>
@@ -54,7 +54,7 @@
 <section id="destSheet" class="panel hidden">
   <div><div id="destName"></div><div id="destSub" class="muted"></div></div>
   <div class="row">
-    <button id="destFav" class="ghost" data-log="dest_fav" aria-label="Save favorite" data-i18n-aria="nav.save_fav"></button>
+    <button id="destFav" class="ghost" data-log="dest_fav" aria-label="Save place" data-i18n-aria="nav.save_place"></button>
     <button id="destCancel" class="ghost" data-log="dest_cancel" data-i18n="common.cancel">Cancel</button>
     <button id="destGo" class="primary" data-log="dest_go" data-i18n="nav.go">Go</button>
   </div>
@@ -74,8 +74,15 @@
 
 <!-- favorites -->
 <section id="favPanel" class="sheet panel hidden">
-  <div class="sheetHead row"><button class="ghost closeBtn" data-log="close_fav" aria-label="Close" data-i18n-aria="common.close"></button><h2 data-i18n="nav.favorites">Favorites</h2></div>
+  <div class="sheetHead row"><button class="ghost closeBtn" data-log="close_fav" aria-label="Close" data-i18n-aria="common.close"></button><h2 data-i18n="nav.places">Places</h2>
+    <button id="clearHist" class="ghost" data-log="places_clear_history" data-i18n="nav.clear_history">Clear history</button></div>
+  <div id="placeTiles" class="tiles"></div>
   <div id="favList" class="list"></div>
+</section>
+<!-- small chooser (Save as Home / Work / ..., Set Home: where I am / search) -->
+<section id="chooser" class="panel hidden">
+  <div class="sheetHead row"><button id="chooseClose" class="ghost closeBtn" aria-label="Close" data-i18n-aria="common.close"></button><h2 id="chooseTitle"></h2></div>
+  <div id="chooseList" class="chooseGrid"></div>
 </section>
 
 <!-- skin picker -->

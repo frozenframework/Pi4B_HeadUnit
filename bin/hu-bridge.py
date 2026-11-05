@@ -597,6 +597,37 @@ async def day_night_watch():
 async def sun_api(request):
     return web.json_response(await asyncio.get_running_loop().run_in_executor(None, sun_info))
 
+# ---------------------------------------------------------------- Places (address book; bin/hu_places.py)
+from hu_places import Places
+places = Places(USER_DIR)
+
+async def places_api(request):
+    if request.method == "GET":
+        return web.json_response(places.summary())
+    b = await request.json(); op = b.get("op")
+    try:
+        if op == "save":
+            p = places.save(b.get("label", "favorite"), b.get("name", ""), b.get("lnglat"), b.get("sub", ""))
+            usage("place_saved", label=p["label"])
+        elif op == "remove": places.remove(str(b.get("id", "")))
+        elif op == "rename": places.rename(str(b.get("id", "")), str(b.get("name", "")))
+        elif op in ("route", "arrive"): places.record(op, b.get("lnglat"), b.get("name", ""))
+        elif op == "clear_history": places.clear_history(); usage("place_history_cleared")
+        else: return web.json_response({"ok": False, "error": "unknown op"}, status=400)
+    except ValueError as e:
+        return web.json_response({"ok": False, "error": str(e)}, status=400)
+    return web.json_response({"ok": True, **places.summary()})
+
+async def parked_watch():
+    """Where the car starts from = where it was parked: remembered so places you stop at often (even
+    without using the map to get there) are offered for saving. One record per start."""
+    end = time.time() + 600
+    while time.time() < end:
+        f = gps.fix
+        if f.get("mode", 0) >= 2 and f.get("lat") is not None and (f.get("speed") or 0) < 2:
+            places.record("parked", [f["lon"], f["lat"]]); return
+        await asyncio.sleep(5)
+
 async def favorites_api(request):
     p = USER_DIR / "favorites.json"
     if request.method == "GET":
@@ -860,6 +891,7 @@ async def on_start(app):
     app["export"] = asyncio.create_task(export_watch(app))
     app["daynight"] = asyncio.create_task(day_night_watch())
     app["voices"] = asyncio.create_task(voice_watch())
+    app["parked"] = asyncio.create_task(parked_watch())
     usage("bridge_start", vehicle=C("VEHICLE_ID", ""))
     asyncio.get_running_loop().run_in_executor(None, hudiy_hotspot_guard)
     if C("PHONE_LINK", "1") == "1":
@@ -939,6 +971,7 @@ def make_app():
     app.router.add_post("/api/say", say)
     app.router.add_route("*", "/api/settings", settings_api)
     app.router.add_route("*", "/api/favorites", favorites_api)
+    app.router.add_route("*", "/api/places", places_api)
     app.router.add_post("/api/log", log_api)
     app.router.add_post("/api/maps/update", maps_update)
     app.router.add_get("/api/maps/update-status", maps_update_status)

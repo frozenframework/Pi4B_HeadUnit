@@ -193,6 +193,10 @@ async function routeTo(dest, reason = 'new') {
   document.body.classList.add('navigating'); $('guide').classList.remove('hidden'); $('destSheet').classList.add('hidden');
   logEvent('route_ok', { reason, ms: Math.round(performance.now() - t0), miles: +(r.summary.length).toFixed(1) });
   if (reason === 'new') {
+    if (!PREVIEW && !SIM && dest.name) {                // remembered for Places: recent + often-visited
+      state.lastDest = { name: dest.name, lnglat: dest.lnglat };
+      placesApi({ op: 'route', name: dest.name, lnglat: dest.lnglat }).catch(() => {});
+    }
     const b = r.shape.reduce((bb, c) => bb.extend(c), new maplibregl.LngLatBounds(r.shape[0], r.shape[0]));
     state.map.fitBounds(b, { padding: { left: 360, right: 110, top: 40, bottom: 40 }, duration: 800, pitch: 0, bearing: 0 });
     state.follow = false; setTimeout(() => { state.follow = true; if (state.pos) camera(); }, 3500);
@@ -208,7 +212,7 @@ function endRoute(arrived = false) {
   state.route = null; state.dest = null; state.destMarker?.remove(); state.destMarker = null;
   refreshRoute(); clearInterval(state.simTimer);
   document.body.classList.remove('navigating'); $('guide').classList.add('hidden');
-  if (arrived) { say(t('nav.arrived'), 'arrived'); toast(t('nav.arrived')); }
+  if (arrived) { say(t('nav.arrived'), 'arrived'); toast(t('nav.arrived')); if (state.lastDest) placesApi({ op: 'arrive', ...state.lastDest }).catch(() => {}); }
   if (state.pos) camera();
 }
 
@@ -319,32 +323,124 @@ async function runSearch() {
     const el = document.createElement('div'); el.className = 'item';
     const dist = fmtDist(hav(near, [r.lon, r.lat]), state.units);
     el.innerHTML = `<div><div>${esc(r.name)}</div><div class="sub">${esc([r.kind, r.detail].filter(Boolean).join(' · '))} · ${dist}</div></div>`;
-    el.onclick = () => { closeSheets(); state.map.flyTo({ center: [r.lon, r.lat], zoom: 15.5, pitch: 0 }); state.follow = false; showDest({ name: r.name, sub: t('nav.away', { dist }), lnglat: [r.lon, r.lat] }); logEvent('search_pick'); };
+    el.onclick = async () => {
+      if (state.assign) {                            // finding Home / Work / ... from the Places panel
+        const label = state.assign; state.assign = null; closeSheets();
+        if (await savePlace(label, { name: r.name, sub: r.detail || '', lnglat: [r.lon, r.lat] })) openFavorites();
+        return;
+      }
+      closeSheets(); state.map.flyTo({ center: [r.lon, r.lat], zoom: 15.5, pitch: 0 }); state.follow = false; showDest({ name: r.name, sub: t('nav.away', { dist }), lnglat: [r.lon, r.lat] }); logEvent('search_pick');
+    };
     list.appendChild(el);
   }
 }
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-// ------------------------------------------------------------------ favorites
-async function openFavorites() {
-  state.favorites = await api('/api/favorites');
-  const list = $('favList'); list.innerHTML = '';
-  if (!state.favorites.length) list.innerHTML = `<div class="item muted">${esc(t('nav.fav_empty'))}</div>`;
-  state.favorites.forEach((f, i) => {
-    const el = document.createElement('div'); el.className = 'item';
-    el.innerHTML = `<div style="flex:1"><div>${esc(f.name)}</div><div class="sub">${state.pos ? fmtDist(hav(state.pos, f.lnglat), state.units) : ''}</div></div><button class="ghost" data-i="${i}">${esc(t('common.remove'))}</button>`;
-    el.onclick = (e) => {
-      if (e.target.dataset.i) { state.favorites.splice(i, 1); api('/api/favorites', { json: state.favorites }); openFavorites(); return; }
-      closeSheets(); routeTo({ name: f.name, lnglat: f.lnglat });
-    };
-    list.appendChild(el);
+// ------------------------------------------------------------------ Places (address book; bin/hu_places.py)
+// Home / Work / Gym / School tiles, your saved places, places you go often (learned on the head unit
+// from where you arrive and where the car was parked) and recent destinations.
+const PLACE_LABELS = ['home', 'work', 'gym', 'school'];
+const PLACE_ICONS = {
+  home: '<svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>',
+  work: '<svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5h6v2M3 13h18"/></svg>',
+  gym: '<svg viewBox="0 0 24 24"><path d="M6 8v8M18 8v8M3 10v4M21 10v4M6 12h12"/></svg>',
+  school: '<svg viewBox="0 0 24 24"><path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c3 2 9 2 12 0v-5"/></svg>',
+  favorite: '<svg viewBox="0 0 24 24"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg>',
+  here: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>',
+  search: '<svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.6-4.6"/></svg>',
+};
+const labelName = (l) => ({ home: t('nav.home'), work: t('nav.work'), gym: t('nav.gym'), school: t('nav.school'), favorite: t('nav.favorite') })[l] || l;
+let PLACES = { places: [], frequent: [], recent: [] };
+const placesApi = (body) => api('/api/places', { json: body }).then(r => { if (r && r.places) PLACES = r; return r; });
+
+// a small chooser over the map: resolves with the picked value, or null
+function choose(title, options) {
+  return new Promise((resolve) => {
+    $('chooseTitle').textContent = title;
+    const box = $('chooseList'); box.innerHTML = '';
+    const done = (v) => { $('chooser').classList.add('hidden'); resolve(v); };
+    for (const o of options) {
+      const b = document.createElement('button'); b.className = o.danger ? 'danger' : (o.primary ? 'primary' : '');
+      b.innerHTML = (o.icon ? PLACE_ICONS[o.icon] || '' : '') + `<span>${esc(o.label)}</span>`;
+      b.onclick = () => done(o.value); box.appendChild(b);
+    }
+    $('chooseClose').onclick = () => done(null);
+    $('chooser').classList.remove('hidden');
   });
+}
+const saveAsOptions = () => [...PLACE_LABELS.map(l => ({ value: l, label: labelName(l), icon: l })), { value: 'favorite', label: t('nav.favorite'), icon: 'favorite' }];
+
+async function savePlace(label, d) {
+  const r = await placesApi({ op: 'save', label, name: label === 'favorite' ? d.name : (d.name || labelName(label)), lnglat: d.lnglat, sub: d.sub || '' });
+  if (r?.ok) { toast(t('nav.saved_as', { label: label === 'favorite' ? t('nav.favorite') : labelName(label) })); logEvent('place_saved', { label }); }
+  return r?.ok;
+}
+async function saveFavorite(d) {                      // the star on the destination sheet
+  const label = await choose(t('nav.save_as'), saveAsOptions());
+  if (label) await savePlace(label, d);
+}
+function goPlace(p) { closeSheets(); routeTo({ name: p.name, lnglat: p.lnglat }); }
+
+// Home / Work / ...: set it to where the car is, or find it with search
+async function setLabel(label, existing) {
+  const opts = [{ value: 'here', label: t('nav.here_now'), icon: 'here' }, { value: 'search', label: t('nav.search_it'), icon: 'search' }];
+  if (existing) opts.push({ value: 'remove', label: t('common.remove'), danger: true });
+  const how = await choose(existing ? labelName(label) : t('nav.set_place', { label: labelName(label) }), opts);
+  if (how === 'here') {
+    if (!state.pos) { toast(t('nav.waiting_gps')); return; }
+    if (await savePlace(label, { name: labelName(label), lnglat: state.pos })) openFavorites();
+  } else if (how === 'search') {
+    state.assign = label; closeSheets(); buildKeyboard();
+    $('searchPanel').classList.remove('hidden'); toast(t('nav.search_for', { label: labelName(label) }), 3500);
+  } else if (how === 'remove') {
+    await placesApi({ op: 'remove', id: existing.id }); openFavorites();
+  }
+}
+
+async function openFavorites() {
+  const r = await api('/api/places').catch(() => null); if (r) PLACES = r;
+  const dist = (ll) => state.pos ? fmtDist(hav(state.pos, ll), state.units) : '';
+  // tiles
+  const tiles = $('placeTiles'); tiles.innerHTML = '';
+  for (const l of PLACE_LABELS) {
+    const p = PLACES.places.find(x => x.label === l);
+    const b = document.createElement('button'); b.className = 'tile' + (p ? '' : ' unset');
+    b.innerHTML = `<span class="ti">${PLACE_ICONS[l]}${esc(labelName(l))}</span><span class="ts">${esc(p ? dist(p.lnglat) || p.name : t('nav.tap_to_set'))}</span>` +
+      (p ? `<span class="edit" role="button" aria-label="${esc(t('nav.change'))}">⋯</span>` : '');
+    b.onclick = (e) => { if (!p || e.target.classList.contains('edit')) setLabel(l, p); else goPlace(p); };
+    tiles.appendChild(b);
+  }
+  // lists
+  const list = $('favList'); list.innerHTML = '';
+  const sect = (txt) => { const d = document.createElement('div'); d.className = 'item sect'; d.textContent = txt; list.appendChild(d); };
+  const row = (title, sub, onGo, btnLabel, onBtn) => {
+    const el = document.createElement('div'); el.className = 'item';
+    el.innerHTML = `<div class="grow"><div>${esc(title)}</div><div class="sub">${esc(sub)}</div></div>` + (btnLabel ? `<button class="ghost">${esc(btnLabel)}</button>` : '');
+    el.onclick = (e) => { if (e.target.tagName === 'BUTTON') { e.stopPropagation(); onBtn(); } else onGo(); };
+    list.appendChild(el);
+  };
+  const saved = PLACES.places.filter(p => !PLACE_LABELS.includes(p.label));
+  sect(t('nav.saved_places'));
+  if (!saved.length) { const d = document.createElement('div'); d.className = 'item muted'; d.textContent = t('nav.places_empty'); list.appendChild(d); }
+  for (const p of saved) row(p.name, [p.sub, dist(p.lnglat)].filter(Boolean).join(' · '), () => goPlace(p), t('common.remove'),
+    async () => { await placesApi({ op: 'remove', id: p.id }); openFavorites(); });
+  if (PLACES.frequent.length) {
+    sect(t('nav.often'));
+    for (const f of PLACES.frequent) row(f.name || t('nav.often_here'), [t('nav.visits', { n: f.visits }), dist(f.lnglat)].filter(Boolean).join(' · '),
+      () => goPlace({ name: f.name || t('nav.often_here'), lnglat: f.lnglat }), t('nav.save_as'),
+      async () => { const l = await choose(t('nav.save_as'), saveAsOptions()); if (l && await savePlace(l, { name: f.name || t('nav.often_here'), lnglat: f.lnglat })) openFavorites(); });
+  }
+  if (PLACES.recent.length) {
+    sect(t('nav.recent'));
+    for (const rc of PLACES.recent) row(rc.name, dist(rc.lnglat), () => goPlace(rc), '★',
+      async () => { const l = await choose(t('nav.save_as'), saveAsOptions()); if (l && await savePlace(l, rc)) openFavorites(); });
+  }
   $('favPanel').classList.remove('hidden');
 }
-async function saveFavorite(d) {
-  const favs = await api('/api/favorites');
-  favs.unshift({ name: d.name, lnglat: d.lnglat });
-  await api('/api/favorites', { json: favs }); toast(t('nav.saved_fav'));
+async function clearHistory() {
+  const ok = await choose(t('nav.clear_history_q'), [{ value: 'yes', label: t('nav.clear_history'), danger: true }, { value: null, label: t('common.cancel') }]);
+  if (!ok) return;
+  await placesApi({ op: 'clear_history' }); toast(t('nav.history_cleared')); openFavorites();
 }
 
 // ------------------------------------------------------------------ skin picker
@@ -358,7 +454,7 @@ async function openThemes() {
   }
   $('themePanel').classList.remove('hidden');
 }
-function closeSheets() { document.querySelectorAll('.sheet').forEach(s => s.classList.add('hidden')); }
+function closeSheets() { document.querySelectorAll('.sheet, #chooser').forEach(s => s.classList.add('hidden')); }
 
 // ------------------------------------------------------------------ apps from the map screen (left rail)
 // iPod & USB, AM/FM Radio and Head Unit Settings open in a layer over the map; the map (and any route)
@@ -522,6 +618,7 @@ async function main() {
   $('destFav').innerHTML = icons.star; document.querySelectorAll('.closeBtn').forEach(b => { b.innerHTML = icons.close; b.onclick = closeSheets; });
   $('searchBtn').onclick = () => { buildKeyboard(); $('searchPanel').classList.remove('hidden'); };
   $('favBtn').onclick = openFavorites;
+  $('clearHist').onclick = clearHistory;
   $('themeBtn').onclick = openThemes;
   $('moreSettings').onclick = openSettings;
   $('centerBtn').onclick = () => { state.follow = true; if (state.pos) camera(); else toast(t('nav.waiting_gps')); };
