@@ -116,6 +116,11 @@ To change settings later: edit `/etc/headunit/headunit.conf`, then re-run `sudo 
 
 ---
 
+**Day and night skins:** *Settings → Map skin → Day and night skins* picks one skin for daylight and one
+for after dark. The head unit works out sunrise and sunset itself from the GPS position and the clock
+(no internet needed) and switches the map, the head-unit screens and Hudiy (and with it CarPlay /
+Android Auto's day or night look) at those times.
+
 ## 2. Maps (whole US or Texas + neighbors; update any time)
 
 There are two kinds of map data:

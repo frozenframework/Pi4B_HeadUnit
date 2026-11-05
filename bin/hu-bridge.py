@@ -82,6 +82,7 @@ def system_language():
 DEFAULT_SETTINGS = {"theme": C("DEFAULT_THEME", "neon-overdrive"), "units": "imperial", "voice": True,
                     "language": system_language(), "lastPos": None,
                     "syncHudiyColors": True, "nightAuto": True, "startOnMap": True, "phoneScreen": "map",
+                    "dayNight": False, "dayTheme": "sunset-junction", "nightTheme": C("DEFAULT_THEME", "neon-overdrive"),
                     "display": {"level": 100, "auto": True, "day": 100, "night": 45, "method": "auto"}, "radio": {"band": "FM", "FM": 101100, "AM": 740,
                     "presets": {"FM": [], "AM": []}}}
 
@@ -469,6 +470,9 @@ async def settings_api(request):
         return web.json_response(settings())
     body = await request.json()
     s = settings(); old_theme = s.get("theme"); old_start = s.get("startOnMap")
+    if "theme" in body and not ({"dayTheme", "nightTheme"} & set(body)) and {**s, **body}.get("dayNight"):
+        # a skin picked while day/night skins are on becomes the skin for the part of the day it is now
+        body = {**body, ("nightTheme" if sun_info()["night"] else "dayTheme"): body["theme"]}
     for k, v in body.items():
         if k not in DEFAULT_SETTINGS: continue
         if isinstance(v, dict) and isinstance(s.get(k), dict):
@@ -477,16 +481,75 @@ async def settings_api(request):
             s[k] = v
     if "display" in body:
         usage("display", **{k: s["display"].get(k) for k in ("level", "auto", "day", "night")})
+    if s.get("dayNight") and {"dayNight", "dayTheme", "nightTheme"} & set(body):
+        s["theme"] = day_night_theme(s)                       # switch right away to the skin for now
     write_json(USER_DIR / "settings.json", s)
     if s.get("startOnMap") != old_start:   # Hudiy's first screen: offline map or its own dashboard
         subprocess.Popen([sys.executable, "/opt/headunit/bin/hu-hudiy-start.py", "--config"],
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     if s.get("theme") != old_theme:
-        usage("theme_change", theme=s["theme"], prev=old_theme)
-        if s.get("syncHudiyColors"):   # skin Hudiy too: colors right away, backgrounds at its next start
-            subprocess.Popen([sys.executable, "/opt/headunit/bin/hu-hudiy-theme.py", s["theme"], "--live"],
-                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        theme_changed(s, old_theme, "settings")
     return web.json_response(s)
+
+def theme_changed(s, old_theme, why):
+    usage("theme_change", theme=s["theme"], prev=old_theme, why=why)
+    if s.get("syncHudiyColors"):   # skin Hudiy too: colors right away, backgrounds at its next start
+        subprocess.Popen([sys.executable, "/opt/headunit/bin/hu-hudiy-theme.py", s["theme"], "--live"],
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+# ---------------------------------------------------------------- day / night skins (sunrise and sunset)
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import hu_sun
+_last_pos = {"pos": None}
+
+def sun_position():
+    """Where to work out sunrise/sunset: GPS now, else the last GPS position, else the map region's middle."""
+    f = gps.fix
+    if f.get("mode", 0) >= 2 and f.get("lat") is not None and f.get("lon") is not None:
+        _last_pos["pos"] = (f["lat"], f["lon"]); return f["lat"], f["lon"], "gps"
+    if _last_pos["pos"]: return (*_last_pos["pos"], "gps")
+    lp = settings().get("lastPos")
+    if lp: return lp[1], lp[0], "last"
+    try:
+        region = C("MAP_REGION", "texas-plus")
+        w, so, e, n = json.loads((APP_DIR.parent / "maps" / "regions.json").read_text())[region]["bbox"]
+        return (so + n) / 2, (w + e) / 2, "region"
+    except Exception:
+        return 41.88, -87.63, "default"
+
+def sun_info(t=None):
+    t = time.time() if t is None else t
+    lat, lon, src = sun_position()
+    rise, sett = hu_sun.rise_set(lat, lon, hu_sun.local_midnight(t))
+    night = hu_sun.is_night(lat, lon, t)
+    nxt = None
+    for x in sorted(v for v in (rise, sett) if v):
+        if x > t: nxt = x; break
+    if nxt is None:                                          # after today's sunset: tomorrow's sunrise
+        nxt = hu_sun.rise_set(lat, lon, hu_sun.local_midnight(t) + 86400 + 3600)[0]
+    return {"night": night, "sunrise": rise, "sunset": sett, "next": nxt, "source": src}
+
+def day_night_theme(s):
+    return s.get("nightTheme") if sun_info()["night"] else s.get("dayTheme")
+
+async def day_night_watch():
+    """With day/night skins on, switch the skin at sunrise and sunset (checked every 30 s)."""
+    while True:
+        try:
+            s = settings()
+            if s.get("dayNight"):
+                want = await asyncio.get_running_loop().run_in_executor(None, day_night_theme, s)
+                if want and want != s.get("theme"):
+                    old = s.get("theme"); s["theme"] = want
+                    write_json(USER_DIR / "settings.json", s)
+                    log.info("day/night skins: %s -> %s", old, want)
+                    theme_changed(s, old, "sun")
+        except Exception as e:
+            log.warning("day/night skins: %s", e)
+        await asyncio.sleep(30)
+
+async def sun_api(request):
+    return web.json_response(await asyncio.get_running_loop().run_in_executor(None, sun_info))
 
 async def favorites_api(request):
     p = USER_DIR / "favorites.json"
@@ -510,7 +573,8 @@ async def status(request):
     return web.json_response({
         "maps": {"basemap": (MAPS_DIR / "basemap.pmtiles").exists(), "routing": ROUTING_TAR.exists(), "search": SEARCH_DB.exists(), **man},
         "gps": gps.fix, "power": st, "radio": radio.status(), "sources": sources(), "theme": settings().get("theme"),
-        "vehicle": C("VEHICLE_NAME", ""), "night": st.get("illum", False), "version": VERSION})
+        "vehicle": C("VEHICLE_NAME", ""), "night": st.get("illum", False), "version": VERSION,
+        "dayNight": settings().get("dayNight", False)})
 
 
 # ---------------------------------------------------------------- maps update + log summary
@@ -700,6 +764,7 @@ async def on_start(app):
     app["gps"] = asyncio.create_task(gps.run())
     app["media"] = asyncio.create_task(media_watch(app))
     app["export"] = asyncio.create_task(export_watch(app))
+    app["daynight"] = asyncio.create_task(day_night_watch())
     usage("bridge_start", vehicle=C("VEHICLE_ID", ""))
     asyncio.get_running_loop().run_in_executor(None, hudiy_hotspot_guard)
     if C("PHONE_LINK", "1") == "1":
@@ -746,6 +811,7 @@ def make_app():
     app.router.add_get("/", index)
     app.router.add_get("/api/status", status)
     app.router.add_get("/api/phone", phone_api)
+    app.router.add_get("/api/sun", sun_api)
     app.router.add_route("*", "/api/phone/{what}", phone_api)
     app.router.add_get("/api/gps/stream", gps_stream)
     app.router.add_post("/api/route", route)

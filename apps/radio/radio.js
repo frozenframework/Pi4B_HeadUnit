@@ -1,5 +1,5 @@
 // AM/FM radio through the RTL-SDR Blog V4. (Hudiy's own FM player adds RDS station names.)
-import { api, getSettings, applyUiTheme, logEvent, toast } from '../common/hu.js';
+import { api, getSettings, applyUiTheme, followTheme, logEvent, toast } from '../common/hu.js';
 import { initI18n, t } from '../common/i18n.js';
 const $ = (id) => document.getElementById(id);
 const BANDS = { FM: { min: 87900, max: 107900, step: 200, big: 1000, unit: 'MHz' }, AM: { min: 530, max: 1700, step: 10, big: 100, unit: 'kHz' } };
@@ -42,7 +42,7 @@ async function status() {
   render();
 }
 (async () => {
-  const st = await getSettings().catch(() => ({})); await applyUiTheme(st.theme); await initI18n(st.language);
+  const st = await getSettings().catch(() => ({})); await applyUiTheme(st.theme); await initI18n(st.language); followTheme();
   if (st.radio) { band = st.radio.band || band; freq.FM = st.radio.FM || freq.FM; freq.AM = st.radio.AM || freq.AM; presets = st.radio.presets || presets; }
   document.querySelectorAll('[data-band]').forEach(b => b.onclick = () => { band = b.dataset.band; render(); if (playing) tune(); });
   $('dn').onclick = () => step(-BANDS[band].step); $('up').onclick = () => step(BANDS[band].step);

@@ -1,5 +1,5 @@
 // Head-unit settings: map skin, display, driving, region & language, maps, updates, developer, test logs.
-import { api, getSettings, saveSettings, loadThemes, applyUiTheme, logEvent, toast, icons } from '../common/hu.js';
+import { api, getSettings, saveSettings, loadThemes, applyUiTheme, followTheme, logEvent, toast, icons } from '../common/hu.js';
 import { initI18n, t, LANGS, lang, langTag } from '../common/i18n.js';
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -10,14 +10,41 @@ function page(id) {
   document.querySelectorAll('[data-page]').forEach(b => b.classList.toggle('on', b.dataset.page === id));
   ({ maps, about, display, updates, region, dev })[id]?.();
 }
+// Day and night skins: with the switch on, the cards pick the skin for the selected slot (day or night);
+// the bridge changes skins at sunrise and sunset (bin/hu_sun.py), using the GPS position.
+let slot = null;
+const clock = (x) => x ? new Date(x * 1000).toLocaleTimeString(langTag(), { hour: 'numeric', minute: '2-digit' }) : '–';
 async function cards() {
   const themes = await loadThemes(); const box = $('cards'); box.innerHTML = '';
+  const dn = !!S.dayNight, name = (id) => themes.find(x => x.id === id)?.name || id;
+  const sun = dn ? await api('/api/sun').catch(() => null) : null;
+  if (dn && !slot) slot = sun?.night ? 'night' : 'day';
+  $('dayNight').textContent = onOff(dn); $('dayNight').classList.toggle('on', dn);
+  $('slots').classList.toggle('hidden', !dn);
+  $('sunNow').textContent = dn && sun
+    ? t('set.daynight_on_sub', { rise: clock(sun.sunrise), set: clock(sun.sunset), now: sun.night ? t('set.night') : t('set.day') })
+    : t('set.daynight_off_sub');
+  $('slotDay').innerHTML = `<span class="lbl">${esc(t('set.day_skin'))}</span><b>${esc(name(S.dayTheme))}</b>`;
+  $('slotNight').innerHTML = `<span class="lbl">${esc(t('set.night_skin'))}</span><b>${esc(name(S.nightTheme))}</b>`;
+  $('slotDay').classList.toggle('on', slot === 'day'); $('slotNight').classList.toggle('on', slot === 'night');
   for (const th of themes) {
-    const c = document.createElement('div'); c.className = 'tcard' + (th.id === S.theme ? ' on' : '');
-    c.innerHTML = `<img src="previews/${th.id}.png" alt=""><div class="tname" style="font-family:'${th.font}'">${esc(th.name)}</div><div class="tsub">${esc(th.inspiredBy)}</div>`;
-    c.onclick = async () => { S = await saveSettings({ theme: th.id }); await applyUiTheme(th.id); logEvent('skin_pick', { theme: th.id, from: 'settings' }); cards(); toast(t('set.applied', { name: th.name })); };
+    const picked = dn ? th.id === (slot === 'night' ? S.nightTheme : S.dayTheme) : th.id === S.theme;
+    const c = document.createElement('div'); c.className = 'tcard' + (picked ? ' on' : '');
+    const tags = dn ? [th.id === S.dayTheme ? t('set.day') : '', th.id === S.nightTheme ? t('set.night') : ''].filter(Boolean) : [];
+    c.innerHTML = `<img src="previews/${th.id}.png" alt=""><div class="tname" style="font-family:'${th.font}'">${esc(th.name)}</div><div class="tsub">${esc(th.inspiredBy)}</div>` +
+      (tags.length ? `<div class="ttags">${tags.map(x => `<span>${esc(x)}</span>`).join('')}</div>` : '');
+    c.onclick = async () => {
+      S = await saveSettings(dn ? { [slot === 'night' ? 'nightTheme' : 'dayTheme']: th.id } : { theme: th.id });
+      await applyUiTheme(S.theme); logEvent('skin_pick', { theme: th.id, from: 'settings', slot: dn ? slot : null }); cards();
+      toast(t('set.applied', { name: th.name }));
+    };
     box.appendChild(c);
   }
+}
+function wireSkins() {
+  $('dayNight').onclick = async () => { S = await saveSettings({ dayNight: !S.dayNight }); slot = null; await applyUiTheme(S.theme); logEvent('setting', { k: 'dayNight', v: S.dayNight }); cards(); };
+  $('slotDay').onclick = () => { slot = 'day'; cards(); };
+  $('slotNight').onclick = () => { slot = 'night'; cards(); };
 }
 const onOff = (v) => v ? t('common.on') : t('common.off');
 function switches() {
@@ -191,7 +218,7 @@ async function updates() {
   document.querySelectorAll('[data-page]').forEach(b => b.onclick = () => page(b.dataset.page));
   $('update').onclick = async () => { const r = await api('/api/maps/update', { json: {} }); toast(r.message || ''); setTimeout(mapProgress, 1500); };
   $('updCheck').onclick = async () => { const r = await api('/api/update/check', { json: {} }); toast(r.message || ''); setTimeout(updates, 2000); };
-  cards(); switches(); wireDisplay(); wireRegion(); wireDev(); page(new URLSearchParams(location.search).get('page') || 'skins');
+  wireSkins(); cards(); switches(); wireDisplay(); followTheme((s) => { S = s; cards(); }); wireRegion(); wireDev(); page(new URLSearchParams(location.search).get('page') || 'skins');
   setInterval(() => { if (!$('maps').classList.contains('hidden')) mapProgress(); }, 2000);
   setInterval(() => { if (!$('maps').classList.contains('hidden')) maps(); }, 15000);
   setInterval(() => { if (!$('display').classList.contains('hidden')) display(); }, 2000);

@@ -13,7 +13,13 @@
   <button data-page="about" data-log="pg_about" data-i18n="set.test_data">Test data</button>
 </nav>
 <main class="panel">
-  <section id="skins" class="page"><div id="cards"></div></section>
+  <section id="skins" class="page">
+    <div class="opt dn"><div><b data-i18n="set.daynight">Day and night skins</b><div id="sunNow" class="sub"></div></div><button id="dayNight" class="sw" data-log="day_night"></button></div>
+    <div id="slots" class="slots hidden">
+      <button id="slotDay" class="slot" data-log="slot_day"></button><button id="slotNight" class="slot" data-log="slot_night"></button>
+    </div>
+    <div id="cards"></div>
+  </section>
   <section id="display" class="page hidden">
     <div class="opt"><div><b data-i18n="set.dim_auto">Auto-dim with headlights</b><div class="sub" data-i18n="set.dim_auto_sub">Uses the dash-light wire: night level when the lights are on</div></div><button id="dimAuto" class="sw" data-log="dim_auto"></button></div>
     <div id="manualRow" class="srow"><div class="slab"><b data-i18n="set.brightness">Brightness</b><span id="levelVal" class="accent"></span></div>

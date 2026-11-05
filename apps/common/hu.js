@@ -19,6 +19,14 @@ export async function loadThemes() {
   return themesCache;
 }
 
+// Day and night skins: the bridge switches the skin at sunrise / sunset; open screens follow along.
+export function followTheme(onChange, every = 20000) {
+  setInterval(async () => {
+    const s = await api('/api/settings').catch(() => null);
+    if (s?.theme && s.theme !== document.documentElement.dataset.theme) { await applyUiTheme(s.theme); onChange?.(s); }
+  }, every);
+}
+
 export async function applyUiTheme(id) {
   const themes = await loadThemes();
   const t = themes.find(x => x.id === id) || themes[0];

@@ -456,7 +456,11 @@ async function main() {
   let frames = 0; state.map.on('render', () => frames++);
   setInterval(() => { if (frames) logEvent('fps', { fps: Math.round(frames / 30), theme: state.theme.id, nav: !!state.route }); frames = 0; }, 30000);
   setInterval(() => { if (state.pos && !SIM) saveSettings({ lastPos: state.pos }).catch(() => {}); }, 120000);
-  setInterval(async () => { const st = await api('/api/status').catch(() => null); if (st) { state.night = !!st.night; applyNight(); } }, 15000);
+  setInterval(async () => {
+    const st = await api('/api/status').catch(() => null); if (!st) return;
+    state.night = !!st.night; applyNight();
+    if (st.theme && st.theme !== state.theme?.id && !PREVIEW && !params.get('theme')) setTheme(st.theme, false);   // day/night skins: sunrise/sunset
+  }, 10000);
 
   $('searchBtn').innerHTML = icons.search; $('favBtn').innerHTML = icons.star; $('centerBtn').innerHTML = icons.center; $('themeBtn').innerHTML = icons.gear;
   $('destFav').innerHTML = icons.star; document.querySelectorAll('.closeBtn').forEach(b => { b.innerHTML = icons.close; b.onclick = closeSheets; });

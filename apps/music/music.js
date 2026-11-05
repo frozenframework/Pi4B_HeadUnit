@@ -1,6 +1,6 @@
 // iPod Nano / USB music browser. The library is read by MPD from song tags,
 // so the iPod's scrambled file names (F00/ABCD.m4a) never show up here.
-import { api, getSettings, applyUiTheme, logEvent, icons, toast } from '../common/hu.js';
+import { api, getSettings, applyUiTheme, followTheme, logEvent, icons, toast } from '../common/hu.js';
 import { initI18n, t } from '../common/i18n.js';
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -60,7 +60,7 @@ async function poll() {
 }
 
 (async () => {
-  const st = await getSettings().catch(() => ({})); await applyUiTheme(st.theme); await initI18n(st.language);
+  const st = await getSettings().catch(() => ({})); await applyUiTheme(st.theme); await initI18n(st.language); followTheme();
   $('prev').innerHTML = icons.prev; $('next').innerHTML = icons.next; $('toggle').innerHTML = icons.play; $('shuffle').innerHTML = icons.shuffle; $('back').innerHTML = icons.back;
   $('prev').onclick = () => ctl('prev'); $('next').onclick = () => ctl('next'); $('toggle').onclick = () => ctl('toggle'); $('shuffle').onclick = () => ctl('shuffle');
   $('back').onclick = () => { if (stack.length > 1) { stack.pop(); show(stack.at(-1)); } };
