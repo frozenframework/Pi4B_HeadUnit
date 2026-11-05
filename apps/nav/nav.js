@@ -357,6 +357,28 @@ async function openThemes() {
 }
 function closeSheets() { document.querySelectorAll('.sheet').forEach(s => s.classList.add('hidden')); }
 
+// ------------------------------------------------------------------ Head Unit Settings over the map
+// Opened in a layer on top (not by leaving the map page, which had no way back and dropped the route);
+// its "Back to map" button closes the layer, then the map picks up any changed settings.
+function openSettings() {
+  closeSheets();
+  $('settingsFrame').src = '../theme/index.html?embedded=1';
+  $('settingsLayer').classList.remove('hidden');
+}
+async function closeSettings() {
+  if ($('settingsLayer').classList.contains('hidden')) return;
+  $('settingsLayer').classList.add('hidden'); $('settingsFrame').src = 'about:blank';
+  const s = await getSettings().catch(() => null); if (!s) return;
+  if (s.language !== state.settings?.language) { location.reload(); return; }   // new language: redraw everything
+  state.settings = s; state.units = s.units || 'imperial';
+  $('speedUnit').textContent = state.units === 'imperial' ? 'mph' : 'km/h';
+  if (s.theme && s.theme !== state.theme?.id) await setTheme(s.theme, false); else applyNight();
+  if (state.route) guide();
+  logEvent('settings_closed');
+}
+window.addEventListener('message', (e) => { if (e.origin === location.origin && e.data?.type === 'hu-close-settings') closeSettings(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSettings(); });
+
 // ------------------------------------------------------------------ boot
 // ------------------------------------------------------------------ from the phone (CarPlay / Android Auto via Hudiy)
 // Its next turn while Apple Maps / Google Maps / Waze guides on the phone, now playing, calls; the phone
@@ -467,6 +489,7 @@ async function main() {
   $('searchBtn').onclick = () => { buildKeyboard(); $('searchPanel').classList.remove('hidden'); };
   $('favBtn').onclick = openFavorites;
   $('themeBtn').onclick = openThemes;
+  $('moreSettings').onclick = openSettings;
   $('centerBtn').onclick = () => { state.follow = true; if (state.pos) camera(); else toast(t('nav.waiting_gps')); };
   $('endBtn').onclick = () => endRoute(false);
   $('destCancel').onclick = () => $('destSheet').classList.add('hidden');

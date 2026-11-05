@@ -164,7 +164,9 @@
   "set.daynight_off_sub": "Use one skin in daylight and another after dark. It switches at sunrise and sunset.",
   "set.daynight_on_sub": "Sunrise {rise} · sunset {set} · now: {now}",
   "set.day_skin": "Day skin",
-  "set.night_skin": "Night skin"
+  "set.night_skin": "Night skin",
+  "set.back_map": "Back to map",
+  "set.exit": "Exit"
  },
  "es": {
   "common.back": "Atrás",
@@ -330,7 +332,9 @@
   "set.daynight_off_sub": "Usa un estilo de día y otro de noche. Cambia al amanecer y al atardecer.",
   "set.daynight_on_sub": "Amanecer {rise} · atardecer {set} · ahora: {now}",
   "set.day_skin": "Estilo de día",
-  "set.night_skin": "Estilo de noche"
+  "set.night_skin": "Estilo de noche",
+  "set.back_map": "Volver al mapa",
+  "set.exit": "Salir"
  },
  "zh": {
   "common.back": "返回",
@@ -517,7 +521,9 @@
   "set.daynight_off_sub": "白天用一种样式，天黑后用另一种。在日出和日落时切换。",
   "set.daynight_on_sub": "日出 {rise} · 日落 {set} · 现在：{now}",
   "set.day_skin": "白天样式",
-  "set.night_skin": "夜间样式"
+  "set.night_skin": "夜间样式",
+  "set.back_map": "返回地图",
+  "set.exit": "退出"
  },
  "tl": {
   "common.back": "Bumalik",
@@ -704,7 +710,9 @@
   "set.daynight_off_sub": "Isang skin sa araw at iba pagdilim. Nagpapalit ito sa pagsikat at paglubog ng araw.",
   "set.daynight_on_sub": "Pagsikat {rise} · paglubog {set} · ngayon: {now}",
   "set.day_skin": "Skin pang-araw",
-  "set.night_skin": "Skin pang-gabi"
+  "set.night_skin": "Skin pang-gabi",
+  "set.back_map": "Bumalik sa mapa",
+  "set.exit": "Lumabas"
  },
  "vi": {
   "common.back": "Quay lại",
@@ -870,7 +878,9 @@
   "set.daynight_off_sub": "Dùng một giao diện ban ngày và một giao diện khi trời tối. Tự đổi lúc mặt trời mọc và lặn.",
   "set.daynight_on_sub": "Mặt trời mọc {rise} · lặn {set} · hiện tại: {now}",
   "set.day_skin": "Giao diện ban ngày",
-  "set.night_skin": "Giao diện ban đêm"
+  "set.night_skin": "Giao diện ban đêm",
+  "set.back_map": "Quay lại bản đồ",
+  "set.exit": "Thoát"
  },
  "ar": {
   "common.back": "رجوع",
@@ -1036,7 +1046,9 @@
   "set.daynight_off_sub": "استخدم مظهرًا في النهار وآخر بعد حلول الظلام. يتبدّل عند الشروق والغروب.",
   "set.daynight_on_sub": "الشروق {rise} · الغروب {set} · الآن: {now}",
   "set.day_skin": "مظهر النهار",
-  "set.night_skin": "مظهر الليل"
+  "set.night_skin": "مظهر الليل",
+  "set.back_map": "العودة إلى الخريطة",
+  "set.exit": "خروج"
  },
  "fr": {
   "common.back": "Retour",
@@ -1202,7 +1214,9 @@
   "set.daynight_off_sub": "Un style le jour, un autre la nuit. Le changement se fait au lever et au coucher du soleil.",
   "set.daynight_on_sub": "Lever {rise} · coucher {set} · maintenant : {now}",
   "set.day_skin": "Style de jour",
-  "set.night_skin": "Style de nuit"
+  "set.night_skin": "Style de nuit",
+  "set.back_map": "Retour à la carte",
+  "set.exit": "Quitter"
  },
  "ko": {
   "common.back": "뒤로",
@@ -1368,7 +1382,9 @@
   "set.daynight_off_sub": "낮에는 한 스킨, 어두워지면 다른 스킨을 사용합니다. 일출과 일몰에 바뀝니다.",
   "set.daynight_on_sub": "일출 {rise} · 일몰 {set} · 지금: {now}",
   "set.day_skin": "주간 스킨",
-  "set.night_skin": "야간 스킨"
+  "set.night_skin": "야간 스킨",
+  "set.back_map": "지도로 돌아가기",
+  "set.exit": "나가기"
  },
  "pt": {
   "common.back": "Voltar",
@@ -1534,7 +1550,9 @@
   "set.daynight_off_sub": "Um estilo durante o dia e outro à noite. Troca no nascer e no pôr do sol.",
   "set.daynight_on_sub": "Nascer do sol {rise} · pôr do sol {set} · agora: {now}",
   "set.day_skin": "Estilo de dia",
-  "set.night_skin": "Estilo de noite"
+  "set.night_skin": "Estilo de noite",
+  "set.back_map": "Voltar ao mapa",
+  "set.exit": "Sair"
  },
  "hi": {
   "common.back": "वापस",
@@ -1700,6 +1718,8 @@
   "set.daynight_off_sub": "दिन में एक स्किन और अँधेरा होने पर दूसरी। सूर्योदय और सूर्यास्त पर बदलती है।",
   "set.daynight_on_sub": "सूर्योदय {rise} · सूर्यास्त {set} · अभी: {now}",
   "set.day_skin": "दिन की स्किन",
-  "set.night_skin": "रात की स्किन"
+  "set.night_skin": "रात की स्किन",
+  "set.back_map": "मैप पर वापस",
+  "set.exit": "बाहर निकलें"
  }
 }

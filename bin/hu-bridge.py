@@ -773,6 +773,7 @@ async def on_start(app):
 
 # ---------------------------------------------------------------- phone (CarPlay / Android Auto through Hudiy)
 phone = None
+phone_link_up = lambda: False
 def start_phone_link():
     """Listen to Hudiy for the phone's next turn, now playing and calls, and keep the offline map in front
     when a phone connects (Settings > Driving > When a phone connects). See bin/hu_phone.py."""
@@ -783,6 +784,8 @@ def start_phone_link():
     link = None
     def dispatch(action):
         if link: link.action(action)
+    global phone_link_up
+    phone_link_up = lambda: link is not None and link.sock is not None
     phone = PhoneState(dispatch, lambda: "carplay" if settings().get("phoneScreen") == "carplay" else "map", log=log)
     link = H.HudiyLink("headunit-phone", port=H.api_port(), on_message=phone.handle,
                        subscriptions=[H.SUB_PROJECTION, H.SUB_MEDIA, H.SUB_NAVIGATION, H.SUB_PHONE, H.SUB_CURRENT_MENU_ACTION])
@@ -803,6 +806,22 @@ async def phone_api(request):
         return web.json_response({"ok": phone.media_key(what)})
     raise web.HTTPNotFound()
 
+HUDIY_ACTIONS = {"go_home", "go_back", "hu_navigation"}
+async def hudiy_action_api(request):
+    """Settings' Back to map / Exit: ask Hudiy to go home (the map when Start on the map is on)."""
+    action = (await request.json()).get("action")
+    if action not in HUDIY_ACTIONS:
+        raise web.HTTPBadRequest(text="unknown action")
+    if phone is not None and phone_link_up():
+        phone.dispatch(action); ok = True
+    else:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        import hu_hudiy_api as H
+        ok = await asyncio.get_running_loop().run_in_executor(
+            None, lambda: H.send_once("headunit-settings", [(H.DISPATCH_ACTION, H.dispatch_action(action))], port=H.api_port()))
+    usage("hudiy_action", action=action, ok=ok)
+    return web.json_response({"ok": bool(ok)})
+
 async def on_stop(app):
     await radio.stop()
 
@@ -812,6 +831,7 @@ def make_app():
     app.router.add_get("/api/status", status)
     app.router.add_get("/api/phone", phone_api)
     app.router.add_get("/api/sun", sun_api)
+    app.router.add_post("/api/hudiy/action", hudiy_action_api)
     app.router.add_route("*", "/api/phone/{what}", phone_api)
     app.router.add_get("/api/gps/stream", gps_stream)
     app.router.add_post("/api/route", route)

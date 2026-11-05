@@ -74,7 +74,7 @@
 <!-- skin picker -->
 <section id="themePanel" class="sheet panel hidden">
   <div class="sheetHead row"><button class="ghost closeBtn" data-log="close_theme" aria-label="Close" data-i18n-aria="common.close"></button><h2 data-i18n="nav.skin">Map skin</h2>
-    <a id="moreSettings" href="../theme/index.html" data-log="more_settings" data-i18n="nav.more_settings">More settings</a></div>
+    <button id="moreSettings" class="ghost" data-log="more_settings" data-i18n="nav.more_settings">More settings</button></div>
   <div id="themeCards"></div>
 </section>
 
@@ -92,6 +92,9 @@
   <button id="npPlay" class="ghost" data-log="phone_play" aria-label="Play or pause"></button>
   <button id="npNext" class="ghost" data-log="phone_next" aria-label="Next"></button>
 </div>
+
+<!-- Head Unit Settings on top of the map (the map and any route keep running underneath) -->
+<section id="settingsLayer" class="hidden"><iframe id="settingsFrame" title="Settings"></iframe></section>
 
 <div id="nomaps" class="panel hidden">
   <h2 data-i18n="nav.nomaps_title">Offline maps aren't installed yet</h2>

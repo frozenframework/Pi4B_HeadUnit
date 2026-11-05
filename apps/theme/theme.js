@@ -5,6 +5,15 @@ const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 let S = {};
 
+// "Back to map": opened from the map (embedded) -> close the layer; opened from Hudiy's menu -> Hudiy's
+// home screen, which is the map when Start on the map is on (else Hudiy's dashboard).
+const EMBEDDED = new URLSearchParams(location.search).has('embedded') && window.parent !== window;
+async function exitSettings() {
+  if (EMBEDDED) { window.parent.postMessage({ type: 'hu-close-settings' }, location.origin); return; }
+  const r = await api('/api/hudiy/action', { json: { action: 'go_home' } }).catch(() => null);
+  if (!r?.ok) location.href = '../nav/index.html';               // Hudiy not reachable: at least show the map
+}
+
 function page(id) {
   document.querySelectorAll('.page').forEach(p => p.classList.toggle('hidden', p.id !== id));
   document.querySelectorAll('[data-page]').forEach(b => b.classList.toggle('on', b.dataset.page === id));
@@ -218,6 +227,8 @@ async function updates() {
   document.querySelectorAll('[data-page]').forEach(b => b.onclick = () => page(b.dataset.page));
   $('update').onclick = async () => { const r = await api('/api/maps/update', { json: {} }); toast(r.message || ''); setTimeout(mapProgress, 1500); };
   $('updCheck').onclick = async () => { const r = await api('/api/update/check', { json: {} }); toast(r.message || ''); setTimeout(updates, 2000); };
+  $('exitBtn').onclick = exitSettings;
+  if (!EMBEDDED && S.startOnMap === false) $('exitBtn').textContent = t('set.exit');
   wireSkins(); cards(); switches(); wireDisplay(); followTheme((s) => { S = s; cards(); }); wireRegion(); wireDev(); page(new URLSearchParams(location.search).get('page') || 'skins');
   setInterval(() => { if (!$('maps').classList.contains('hidden')) mapProgress(); }, 2000);
   setInterval(() => { if (!$('maps').classList.contains('hidden')) maps(); }, 15000);
