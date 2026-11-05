@@ -25,8 +25,13 @@ if [ "$(conf_get UPDATES 1)" = 1 ]; then
 else
   systemctl disable headunit-update-check.timer >/dev/null 2>&1 || true
 fi
-# Settings > Updates may start a check now - nothing else.
-echo "$U ALL=(root) NOPASSWD: /usr/bin/systemctl start --no-block headunit-update-now.service" > /etc/sudoers.d/headunit-update
+# Settings > Updates may start a check now, or go back to an earlier version - nothing else.
+install -m 644 "$HU_ROOT/systemd/headunit-update-goback@.service" /etc/systemd/system/
+systemctl daemon-reload 2>/dev/null || true
+cat > /etc/sudoers.d/headunit-update <<S
+$U ALL=(root) NOPASSWD: /usr/bin/systemctl start --no-block headunit-update-now.service
+$U ALL=(root) NOPASSWD: /usr/bin/systemctl start --no-block headunit-update-goback@[0-9]*.service
+S
 chmod 440 /etc/sudoers.d/headunit-update
 visudo -cf /etc/sudoers.d/headunit-update >/dev/null
 say "updates: $( [ "$(conf_get UPDATES 1)" = 1 ] && echo on || echo off ), from $(conf_get UPDATE_REPO https://github.com/frozenframework/Pi4B_HeadUnit.git), version $(cat "$HU_ROOT/VERSION")"

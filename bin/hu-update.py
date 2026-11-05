@@ -6,6 +6,8 @@ Head-unit software updates from GitHub, signed by you.
   hu-update.py apply             (at startup, before the screen) switch to a staged release
   hu-update.py verify            (after the desktop starts) confirm it runs, otherwise roll back
   hu-update.py status            print the current state
+  hu-update.py go-back X.Y.Z     (Settings > Updates) switch back to an earlier version that's still on
+                                 the head unit, skip the version you left from now on, and restart
 
 How a release is trusted
   A release is a git tag "vX.Y.Z" in the GitHub repo. It is installed only if the tag is signed by a
@@ -322,16 +324,50 @@ def verify():
         subprocess.run(["systemctl", "reboot"])
     return 0
 
+# ------------------------------------------------------------------ go back to an earlier version (by hand)
+def older_versions():
+    """Earlier versions still kept on the head unit (complete folders only), newest first."""
+    cur = current(); out = []
+    for p in RELEASES.iterdir() if RELEASES.exists() else []:
+        if p.is_dir() and re.match(r"^\d+\.\d+\.\d+$", p.name) and vtuple(p.name) < vtuple(cur):
+            try:
+                if (p / "VERSION").read_text().strip() == p.name and all((p / n).exists() for n in NEEDED): out.append(p.name)
+            except OSError:
+                pass
+    return sorted(out, key=vtuple, reverse=True)
+
+def go_back(v):
+    cur, prev_dir = current(), LINK.resolve()
+    if v not in older_versions():
+        status("error", f"Version {v} isn't on this head unit any more"); return 1
+    log(f"GO BACK {cur} -> {v} (asked for in Settings)")
+    status("installing", f"Going back to version {v}…")
+    STATE.unlink(missing_ok=True)                         # drop a downloaded-but-not-installed update too
+    switch(RELEASES / v)
+    if not run_setup():
+        log("setup of", v, "reported errors; staying on", cur)
+        switch(prev_dir); run_setup()
+        status("error", f"Couldn't go back to {v}; still on {cur}. Log: /var/log/headunit-update.log"); return 1
+    mark_bad(cur, f"you went back to {v}")                # never re-installed; newer versions still are
+    status("went_back", f"Went back to version {v}. Version {cur} won't be installed again; newer versions will.",
+           available=None)
+    history({"event": "went_back", "version": v, "from": cur})
+    if E("HU_NO_REBOOT") != "1":
+        subprocess.run(["systemctl", "reboot"])
+    return 0
+
 def main():
     cmd = sys.argv[1] if len(sys.argv) > 1 else "status"
     if cmd == "status":
-        print(json.dumps({"current": current(), "state": rj(STATE, {}), "status": rj(STATUS, {}), "rejected": rj(BAD, {})}, indent=1)); return 0
+        print(json.dumps({"current": current(), "state": rj(STATE, {}), "status": rj(STATUS, {}), "rejected": rj(BAD, {}),
+                          "older": older_versions()}, indent=1)); return 0
     STATE_DIR.mkdir(parents=True, exist_ok=True); os.chmod(STATE_DIR, 0o755)
     with open(STATE_DIR / ".lock", "w") as lk:
         fcntl.flock(lk, fcntl.LOCK_EX)
         if cmd == "check": return check(force="--force" in sys.argv)
         if cmd == "apply": return apply()
         if cmd == "verify": return verify()
+        if cmd == "go-back" and len(sys.argv) > 2 and re.match(r"^\d+\.\d+\.\d+$", sys.argv[2]): return go_back(sys.argv[2])
     print(__doc__); return 2
 
 if __name__ == "__main__":

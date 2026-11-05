@@ -15,7 +15,11 @@ def _port():
     except OSError:
         pass
     return "8765"
-APP_URL = "http://127.0.0.1:%s/apps/{}/index.html" % _port()
+def _version():
+    try: return (Path(__file__).resolve().parent.parent / "VERSION").read_text().strip()
+    except OSError: return "0"
+# ?v=<version>: a new address after every update, so Hudiy never shows a cached page from the old version
+APP_URL = "http://127.0.0.1:%s/apps/{}/index.html?v=%s" % (_port(), _version())
 APPS = [
     {"action": "hu_navigation", "label": "Navigation", "icon": "map", "page": "nav", "bg": True},
     {"action": "hu_music", "label": "iPod & USB", "icon": "library_music", "page": "music", "bg": False},

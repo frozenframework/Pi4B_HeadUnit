@@ -1,0 +1,8 @@
+[Unit]
+Description=Head unit: go back to software version %i (Settings > Updates)
+
+[Service]
+Type=oneshot
+# The running version's updater does it (the known-good copy may predate this command).
+ExecStart=/usr/bin/python3 /opt/headunit/bin/hu-update.py go-back %i
+TimeoutStartSec=45min

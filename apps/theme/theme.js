@@ -219,7 +219,29 @@ async function updates() {
     `${esc(t('set.auto_updates'))}: <b>${esc(onOff(u.enabled !== false))}</b> · ${esc(t('set.last_check'))}: <b>${esc(when(u.last_check))}</b><br>` +
     (u.pending ? `${esc(t('set.ready_install'))}: <b class="accent">${esc(u.pending)}</b> (${esc(t('set.next_key_on'))})` : '');
   $('updMsg').textContent = u.message || '';
-  $('updCheck').disabled = ['checking', 'downloading'].includes(u.state);
+  $('updCheck').disabled = ['checking', 'downloading', 'installing'].includes(u.state);
+  // go back to an earlier version still kept on the head unit
+  const older = u.older || [], box = $('goBackBtns');
+  $('goBack').classList.toggle('hidden', !older.length);
+  if (box.dataset.list !== older.join(',')) {
+    box.dataset.list = older.join(','); box.innerHTML = '';
+    for (const v of older.slice(0, 2)) {
+      const b = document.createElement('button'); b.className = 'ghost'; b.textContent = t('set.go_back_to', { v });
+      b.onclick = () => askGoBack(v, u.version); box.appendChild(b);
+    }
+  }
+}
+function askGoBack(v, cur) {
+  $('goBackQ').textContent = t('set.go_back_ask', { v, cur });
+  $('goBackYes').textContent = t('set.go_back_to', { v });
+  $('goBackAsk').classList.remove('hidden');
+  $('goBackNo').onclick = () => $('goBackAsk').classList.add('hidden');
+  $('goBackYes').onclick = async () => {
+    $('goBackYes').disabled = true;
+    const r = await api('/api/update/goback', { json: { version: v } }).catch(() => ({ ok: false, message: '?' }));
+    toast(r.ok ? t('set.going_back', { v }) : (r.message || '?'), 6000);
+    $('goBackAsk').classList.add('hidden'); $('goBackYes').disabled = false; updates();
+  };
 }
 
 (async () => {

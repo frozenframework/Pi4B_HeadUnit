@@ -308,6 +308,15 @@ when you choose), and maps (Settings → Maps).
 
 ---
 
+### Going back to an earlier version
+- **One head unit:** *Settings → Updates → Go back to X.Y.Z* (the version it ran before is kept). It
+  restarts on that version, and the version you left is never installed again; newer ones still are.
+- **Every head unit:** `tools/rerelease.sh 1.2.7 1.2.9` publishes v1.2.7's files as version 1.2.9
+  (head units only install newer numbers). The later work stays in git history.
+- After any update or going back, Hudiy's built-in browser drops its cached copies of the apps at the
+  next start (`bin/hu-clear-webcache.sh`), and the bridge tells it not to cache them, so the screens
+  always match the installed version.
+
 ## 7. Security notes
 - The bridge listens on **127.0.0.1 only**, so nothing on Wi-Fi can reach it.
 - Software updates install only if they are signed by your release key. The updater and the key list

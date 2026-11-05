@@ -170,7 +170,12 @@
   "nav.app_map": "Map",
   "nav.app_music": "iPod & USB",
   "nav.app_radio": "AM/FM Radio",
-  "nav.app_settings": "Head Unit Settings"
+  "nav.app_settings": "Head Unit Settings",
+  "set.go_back": "Go back to an earlier version",
+  "set.go_back_sub": "If the latest version causes trouble. The head unit restarts, and the version you leave won't be installed again (newer ones will).",
+  "set.go_back_to": "Go back to {v}",
+  "set.go_back_ask": "Go back to version {v}? The head unit restarts in a minute or two, and version {cur} won't be installed again.",
+  "set.going_back": "Going back to version {v}. The head unit restarts in a minute or two."
  },
  "es": {
   "common.back": "Atrás",
@@ -342,7 +347,12 @@
   "nav.app_map": "Mapa",
   "nav.app_music": "iPod y USB",
   "nav.app_radio": "Radio AM/FM",
-  "nav.app_settings": "Ajustes del equipo"
+  "nav.app_settings": "Ajustes del equipo",
+  "set.go_back": "Volver a una versión anterior",
+  "set.go_back_sub": "Si la última versión da problemas. El equipo se reinicia y la versión que dejas no se vuelve a instalar (las más nuevas sí).",
+  "set.go_back_to": "Volver a {v}",
+  "set.go_back_ask": "¿Volver a la versión {v}? El equipo se reinicia en uno o dos minutos y la versión {cur} no se volverá a instalar.",
+  "set.going_back": "Volviendo a la versión {v}. El equipo se reinicia en uno o dos minutos."
  },
  "zh": {
   "common.back": "返回",
@@ -535,7 +545,12 @@
   "nav.app_map": "地图",
   "nav.app_music": "iPod 和 USB",
   "nav.app_radio": "AM/FM 收音机",
-  "nav.app_settings": "主机设置"
+  "nav.app_settings": "主机设置",
+  "set.go_back": "返回早期版本",
+  "set.go_back_sub": "如果最新版本有问题。主机会重启，离开的版本不会再安装（更新的版本仍会安装）。",
+  "set.go_back_to": "返回 {v}",
+  "set.go_back_ask": "返回版本 {v}？主机将在一两分钟内重启，版本 {cur} 不会再安装。",
+  "set.going_back": "正在返回版本 {v}。主机将在一两分钟内重启。"
  },
  "tl": {
   "common.back": "Bumalik",
@@ -728,7 +743,12 @@
   "nav.app_map": "Mapa",
   "nav.app_music": "iPod at USB",
   "nav.app_radio": "AM/FM Radyo",
-  "nav.app_settings": "Settings ng Head Unit"
+  "nav.app_settings": "Settings ng Head Unit",
+  "set.go_back": "Bumalik sa naunang bersyon",
+  "set.go_back_sub": "Kung may problema ang pinakabagong bersyon. Magre-restart ang head unit, at hindi na muling ii-install ang bersyong iniwan mo (ang mas bago, oo).",
+  "set.go_back_to": "Bumalik sa {v}",
+  "set.go_back_ask": "Bumalik sa bersyon {v}? Magre-restart ang head unit sa loob ng isa o dalawang minuto, at hindi na muling ii-install ang bersyon {cur}.",
+  "set.going_back": "Bumabalik sa bersyon {v}. Magre-restart ang head unit sa loob ng isa o dalawang minuto."
  },
  "vi": {
   "common.back": "Quay lại",
@@ -900,7 +920,12 @@
   "nav.app_map": "Bản đồ",
   "nav.app_music": "iPod và USB",
   "nav.app_radio": "Radio AM/FM",
-  "nav.app_settings": "Cài đặt đầu máy"
+  "nav.app_settings": "Cài đặt đầu máy",
+  "set.go_back": "Quay lại phiên bản trước",
+  "set.go_back_sub": "Nếu phiên bản mới nhất gặp sự cố. Đầu máy sẽ khởi động lại và phiên bản bạn rời khỏi sẽ không được cài lại (phiên bản mới hơn thì có).",
+  "set.go_back_to": "Quay lại {v}",
+  "set.go_back_ask": "Quay lại phiên bản {v}? Đầu máy sẽ khởi động lại sau một hai phút và phiên bản {cur} sẽ không được cài lại.",
+  "set.going_back": "Đang quay lại phiên bản {v}. Đầu máy sẽ khởi động lại sau một hai phút."
  },
  "ar": {
   "common.back": "رجوع",
@@ -1072,7 +1097,12 @@
   "nav.app_map": "الخريطة",
   "nav.app_music": "iPod وUSB",
   "nav.app_radio": "راديو AM/FM",
-  "nav.app_settings": "إعدادات الجهاز"
+  "nav.app_settings": "إعدادات الجهاز",
+  "set.go_back": "العودة إلى إصدار سابق",
+  "set.go_back_sub": "إذا سبّب أحدث إصدار مشكلات. يُعاد تشغيل الجهاز، ولن يُثبَّت الإصدار الذي تتركه مرة أخرى (أما الأحدث فسيُثبَّت).",
+  "set.go_back_to": "العودة إلى {v}",
+  "set.go_back_ask": "العودة إلى الإصدار {v}؟ سيُعاد تشغيل الجهاز خلال دقيقة أو دقيقتين، ولن يُثبَّت الإصدار {cur} مرة أخرى.",
+  "set.going_back": "جارٍ العودة إلى الإصدار {v}. سيُعاد تشغيل الجهاز خلال دقيقة أو دقيقتين."
  },
  "fr": {
   "common.back": "Retour",
@@ -1244,7 +1274,12 @@
   "nav.app_map": "Carte",
   "nav.app_music": "iPod et USB",
   "nav.app_radio": "Radio AM/FM",
-  "nav.app_settings": "Réglages de l'autoradio"
+  "nav.app_settings": "Réglages de l'autoradio",
+  "set.go_back": "Revenir à une version précédente",
+  "set.go_back_sub": "Si la dernière version pose problème. L'autoradio redémarre et la version quittée ne sera plus installée (les plus récentes, si).",
+  "set.go_back_to": "Revenir à {v}",
+  "set.go_back_ask": "Revenir à la version {v} ? L'autoradio redémarre dans une ou deux minutes et la version {cur} ne sera plus installée.",
+  "set.going_back": "Retour à la version {v}. L'autoradio redémarre dans une ou deux minutes."
  },
  "ko": {
   "common.back": "뒤로",
@@ -1416,7 +1451,12 @@
   "nav.app_map": "지도",
   "nav.app_music": "iPod 및 USB",
   "nav.app_radio": "AM/FM 라디오",
-  "nav.app_settings": "헤드 유닛 설정"
+  "nav.app_settings": "헤드 유닛 설정",
+  "set.go_back": "이전 버전으로 돌아가기",
+  "set.go_back_sub": "최신 버전에 문제가 있을 때. 헤드 유닛이 다시 시작되며, 떠난 버전은 다시 설치되지 않습니다(더 새 버전은 설치됨).",
+  "set.go_back_to": "{v}(으)로 돌아가기",
+  "set.go_back_ask": "버전 {v}(으)로 돌아갈까요? 1~2분 안에 다시 시작되며 버전 {cur}은(는) 다시 설치되지 않습니다.",
+  "set.going_back": "버전 {v}(으)로 돌아가는 중입니다. 1~2분 안에 다시 시작됩니다."
  },
  "pt": {
   "common.back": "Voltar",
@@ -1588,7 +1628,12 @@
   "nav.app_map": "Mapa",
   "nav.app_music": "iPod e USB",
   "nav.app_radio": "Rádio AM/FM",
-  "nav.app_settings": "Ajustes da central"
+  "nav.app_settings": "Ajustes da central",
+  "set.go_back": "Voltar a uma versão anterior",
+  "set.go_back_sub": "Se a versão mais recente der problema. A central reinicia, e a versão que você deixar não será instalada de novo (as mais novas, sim).",
+  "set.go_back_to": "Voltar para {v}",
+  "set.go_back_ask": "Voltar para a versão {v}? A central reinicia em um ou dois minutos, e a versão {cur} não será instalada de novo.",
+  "set.going_back": "Voltando para a versão {v}. A central reinicia em um ou dois minutos."
  },
  "hi": {
   "common.back": "वापस",
@@ -1760,6 +1805,11 @@
   "nav.app_map": "मैप",
   "nav.app_music": "iPod और USB",
   "nav.app_radio": "AM/FM रेडियो",
-  "nav.app_settings": "हेड यूनिट सेटिंग्स"
+  "nav.app_settings": "हेड यूनिट सेटिंग्स",
+  "set.go_back": "पिछले संस्करण पर वापस जाएँ",
+  "set.go_back_sub": "अगर नया संस्करण दिक्कत करे। हेड यूनिट फिर से शुरू होगी, और छोड़ा गया संस्करण दोबारा इंस्टॉल नहीं होगा (नए होंगे)।",
+  "set.go_back_to": "{v} पर वापस जाएँ",
+  "set.go_back_ask": "संस्करण {v} पर वापस जाएँ? हेड यूनिट एक-दो मिनट में फिर से शुरू होगी, और संस्करण {cur} दोबारा इंस्टॉल नहीं होगा।",
+  "set.going_back": "संस्करण {v} पर वापस जा रहे हैं। हेड यूनिट एक-दो मिनट में फिर से शुरू होगी।"
  }
 }

@@ -692,7 +692,30 @@ async def update_status(request):
     st["version"] = VERSION
     st["pending"] = read_json(UPDATE_DIR / "state.json", {}).get("pending")
     st["enabled"] = C("UPDATES", "1") != "0"
+    st["older"] = older_versions()
     return web.json_response(st)
+
+RELEASES_DIR = Path("/opt/headunit-releases")
+VER_RE = re.compile(r"^\d+\.\d+\.\d+$")
+def older_versions():
+    """Earlier versions still kept on the head unit, which Settings > Updates can go back to."""
+    vt = lambda v: tuple(int(x) for x in v.split("."))
+    if not VER_RE.match(VERSION): return []
+    out = []
+    for p in RELEASES_DIR.iterdir() if RELEASES_DIR.exists() else []:
+        if p.is_dir() and VER_RE.match(p.name) and vt(p.name) < vt(VERSION) and (p / "VERSION").exists() and (p / "setup.sh").exists():
+            out.append(p.name)
+    return sorted(out, key=vt, reverse=True)
+
+async def update_goback(request):
+    v = (await request.json()).get("version", "")
+    if v not in older_versions():
+        return web.json_response({"ok": False, "message": f"Version {v} isn't on this head unit"}, status=400)
+    r = subprocess.run(["sudo", "-n", "systemctl", "start", "--no-block", f"headunit-update-goback@{v}.service"], capture_output=True, text=True)
+    usage("update_goback", version=v, ok=r.returncode == 0)
+    if r.returncode != 0:
+        return web.json_response({"ok": False, "message": "Couldn't start: " + (r.stderr.strip()[-160:] or "unknown error")})
+    return web.json_response({"ok": True, "message": f"Going back to version {v}. The head unit restarts in a minute or two."})
 
 async def update_check(request):
     r = subprocess.run(["sudo", "-n", "systemctl", "start", "--no-block", "headunit-update-now.service"], capture_output=True, text=True)
@@ -738,8 +761,8 @@ async def export_watch(app):
 @web.middleware
 async def nocache(request, handler):
     resp = await handler(request)
-    if request.path.startswith("/api/"):
-        resp.headers["Cache-Control"] = "no-store"
+    if request.path.startswith(("/api/", "/apps/")):   # /apps too: after an update (or going back) the
+        resp.headers["Cache-Control"] = "no-store"         # web view must not mix in cached old files
     return resp
 
 async def index(request):
@@ -851,6 +874,7 @@ def make_app():
     app.router.add_route("*", "/api/system", system_api)
     app.router.add_post("/api/dev/{action}", dev_api)
     app.router.add_post("/api/update/check", update_check)
+    app.router.add_post("/api/update/goback", update_goback)
     app.router.add_static("/apps", APP_DIR, follow_symlinks=False)
     MAPS_DIR.mkdir(parents=True, exist_ok=True)
     app.router.add_static("/maps", MAPS_DIR, follow_symlinks=True)

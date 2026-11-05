@@ -69,3 +69,9 @@ input[type=range]::-moz-range-thumb { width: 40px; height: 40px; border-radius: 
 
 /* way out of Settings: back to the map (closes the layer over the map, or Hudiy's home screen) */
 #side button.exit { flex: 0 0 auto; min-height: 56px; background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 700; }
+
+/* Updates: go back to an earlier version */
+#goBackBtns { flex-shrink: 0; gap: 10px; }
+.ask { margin: 10px 0; padding: 12px 14px; border: 2px solid var(--warn); border-radius: var(--radius); display: flex; gap: 14px;
+  align-items: center; justify-content: space-between; font-size: 19px; }
+.ask .row { flex-shrink: 0; }

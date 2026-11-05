@@ -58,6 +58,12 @@
   <section id="updates" class="page hidden">
     <div id="updInfo" class="info"></div>
     <div class="row"><button id="updCheck" class="primary" data-log="update_check" data-i18n="set.check_updates">Check for updates now</button><span id="updMsg" class="muted"></span></div>
+    <div id="goBack" class="hidden">
+      <div class="opt"><div><b data-i18n="set.go_back">Go back to an earlier version</b><div class="sub" data-i18n="set.go_back_sub">If the latest version causes trouble. The head unit restarts, and the version you leave won't be installed again (newer ones will).</div></div>
+        <div id="goBackBtns" class="row"></div></div>
+      <div id="goBackAsk" class="ask hidden"><span id="goBackQ"></span>
+        <div class="row"><button id="goBackNo" class="ghost" data-i18n="common.cancel">Cancel</button><button id="goBackYes" class="primary" data-log="update_goback"></button></div></div>
+    </div>
     <p class="muted small" data-i18n="set.updates_help">Updates download in the background whenever the head unit is on Wi-Fi (your home network or your phone's hotspot). Only updates signed with your release key are accepted. A downloaded update installs at the next key-on, before the screen starts; if it doesn't start properly, the head unit goes back to the previous version by itself.</p>
   </section>
   <section id="dev" class="page hidden">
