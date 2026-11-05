@@ -125,7 +125,12 @@ def main():
     folder = Path(a.folder)
     man = folder / "manifest.json"
     if not man.exists():
-        sys.exit(f"{folder} has no manifest.json: point this at the HEADUNIT_MAPS folder made by maps/build-routing.py")
+        if folder.is_dir():
+            have = ", ".join(sorted(f.name for f in folder.iterdir())) or "nothing yet"
+            sys.exit(f"{folder} isn't finished: maps/build-routing.py writes manifest.json last, when it prints "
+                     f"'done: ... GB'. Let the build finish (or run it again), then push. In the folder now: {have}")
+        sys.exit(f"There's no {folder} folder here. Run this from the folder where you ran maps/build-routing.py, "
+                 "or give the full path to HEADUNIT_MAPS.")
     m = json.loads(man.read_text())
     files = [folder / n for n in FILES if (folder / n).exists()]
     total = sum(f.stat().st_size for f in files)
