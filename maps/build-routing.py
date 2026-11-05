@@ -81,8 +81,9 @@ def build_routing(pbfs, work, out):
             t.add(f, arcname=str(f.relative_to(tiles)).replace(os.sep, "/"))
     return tar_path
 
+BIG_PBF = 2 * 2**30      # above this much OpenStreetMap data, node positions go to a file on disk
 KIND_KEYS = ("amenity", "shop", "tourism", "leisure", "aeroway", "railway", "office", "healthcare", "craft", "historic")
-def build_search(pbfs, out, addresses):
+def build_search(pbfs, out, addresses, work=Path(".")):
     import osmium
     db_path = out / "search.sqlite"
     if db_path.exists(): db_path.unlink()
@@ -122,9 +123,16 @@ def build_search(pbfs, out, addresses):
                     seen_streets.add(key); rows.append((t["name"], "street", t.get("ref", ""), lon, lat))
             else:
                 self.place(t, lon, lat, True)
+    # Node positions: kept in memory for a state or two; for big regions (the whole US is ~10 GB of
+    # OpenStreetMap data) in a file on disk instead, so it runs on a 16 GB computer.
+    big = sum(Path(p).stat().st_size for p in pbfs) > BIG_PBF
+    idx_file = work / "node-locations.idx"
+    idx = f"sparse_file_array,{idx_file}" if big else "flex_mem"
     for p in pbfs:
-        log("indexing", Path(p).name)
-        H().apply_file(str(p), locations=True, idx="flex_mem")
+        log("indexing", Path(p).name, "(node positions on disk)" if big else "")
+        idx_file.unlink(missing_ok=True)
+        H().apply_file(str(p), locations=True, idx=idx)
+    idx_file.unlink(missing_ok=True)
     flush(); con.execute("INSERT INTO places(places) VALUES('optimize')"); con.commit()
     n = con.execute("SELECT count(*) FROM places").fetchone()[0]; con.close()
     log(f"search index: {n:,} entries")
@@ -149,12 +157,12 @@ def main():
     if not a.skip_routing:
         files["routing"] = build_routing(pbfs, work, out).name
     if not a.skip_search:
-        files["search"] = build_search(pbfs, out, addresses=not a.no_addresses).name
+        files["search"] = build_search(pbfs, out, addresses=not a.no_addresses, work=work).name
     manifest = {"region": a.region, "name": reg["name"], "bbox": reg["bbox"], "built": time.strftime("%Y-%m-%dT%H:%M:%S"),
                 "sources": [p.name for p in pbfs], "files": files, "format": 1}
     (out / "manifest.json").write_text(json.dumps(manifest, indent=1))
     size = sum(f.stat().st_size for f in out.iterdir()) / 2**30
-    log(f"done: {out.resolve()}  ({size:.2f} GB). Copy this folder to a USB stick and plug it into the head unit.")
+    log(f"done: {out.resolve()}  ({size:.2f} GB). Send it to the head unit with tools/push-maps.py (or a USB stick).")
 
 if __name__ == "__main__":
     main()

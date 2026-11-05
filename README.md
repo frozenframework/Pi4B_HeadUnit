@@ -145,7 +145,12 @@ python3 tools/push-maps.py HEADUNIT_MAPS --host miata-headunit.local   # f250-he
 ```
 It shows percent, speed and time left, continues where it stopped if Wi-Fi drops (or if you run it
 again later), and installs the files when they're all there; routing and search work right away.
-Windows: same commands with `python` (uses the ssh built into Windows 10/11).
+Windows: same commands with `python` (uses the ssh built into Windows 10/11; Python 3.12 or newer).
+To build on the Windows PC while the project stays on the Mac: turn on File Sharing on the Mac (share the
+project folder over SMB), map it on Windows (e.g. `net use Z: \\<mac-name>.local\Pi4B_HeadUnit`), and run
+`python Z:\maps\build-routing.py ...` and `python Z:\tools\push-maps.py ...` from a folder on the PC's
+own drive (the build is much faster on a local disk); copy the finished folder back with
+`robocopy HEADUNIT_MAPS Z:\HEADUNIT_MAPS /E /Z`.
 Or copy the folder onto any USB stick and plug it into the head unit: it imports by itself. Sizes (estimates): texas-plus is about 3–6 GB in total, and the whole US is about
 30–45 GB (the 256 GB card in tier 3). Regions are defined in `maps/regions.json`.
 
