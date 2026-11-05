@@ -73,7 +73,8 @@ def apply_config(t):
                 o["sourceColor"] = t["hudiyColor"]
                 o["colorOverwrite"] = {**(o.get("colorOverwrite") or {}), **r}
                 if bg: o["defaultBackground"] = bg
-            if parent in ("androidAuto", "autobox") and "dayNightMode" in o: o["dayNightMode"] = "common"
+            if parent in ("androidAuto", "autobox") and "dayNightMode" in o:   # same spelling as Hudiy's own file
+                o["dayNightMode"] = "COMMON" if str(o["dayNightMode"]).isupper() else "common"
             for k, v in o.items(): walk(v, k)
         elif isinstance(o, list):
             for v in o: walk(v, parent)

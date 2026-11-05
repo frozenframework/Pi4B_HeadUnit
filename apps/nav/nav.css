@@ -61,3 +61,29 @@ body.navigating #speedo { left: 352px; }
 .hu-dest { width: 34px; height: 34px; }
 
 .clean #speedo, .clean #fabs, .clean .maplibregl-ctrl-attrib, .clean #guide { display: none !important; }
+
+/* from the phone: next turn (top), now playing (bottom right), call chip, phone button */
+#phoneTurn { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 6; width: min(560px, calc(100% - 220px));
+  padding: 10px 16px; display: flex; gap: 14px; align-items: center; }
+body.navigating #phoneTurn { left: calc(342px + (100% - 342px - 96px) / 2); width: min(480px, calc(100% - 460px)); }
+#ptIcon { width: 72px; height: 72px; flex: none; display: grid; place-items: center; }
+#ptIcon img { max-width: 72px; max-height: 72px; }
+#ptIcon svg { width: 72px; height: 72px; stroke: var(--accent); fill: none; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.ptBody { flex: 1; min-width: 0; }
+#ptDist { font-size: 38px; font-weight: 700; line-height: 1.05; color: var(--accent); }
+#ptText { font-size: 21px; line-height: 1.15; max-height: 50px; overflow: hidden; }
+#ptSrc { align-self: flex-start; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; white-space: nowrap; }
+#callChip { position: absolute; top: 12px; right: 100px; z-index: 7; padding: 8px 16px; font-size: 20px; font-weight: 700;
+  border: 2px solid var(--accent2); }
+#nowPlaying { position: absolute; right: 100px; bottom: 12px; z-index: 4; padding: 6px 8px 6px 6px; display: flex; align-items: center; gap: 8px;
+  max-width: 440px; }
+#nowPlaying img { width: 56px; height: 56px; border-radius: 8px; object-fit: cover; flex: none; }
+#nowPlaying img[hidden] { display: none; }
+.npText { min-width: 0; flex: 1; max-width: 230px; }
+#npTitle { font-size: 19px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#npArtist { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#nowPlaying button { width: 52px; height: 52px; min-height: 0; padding: 0; display: grid; place-items: center; flex: none; }
+#destSheet:not(.hidden) ~ #nowPlaying { display: none; }
+body.np #street { bottom: 84px; }
+#phoneBtn svg { width: 40px; height: 40px; }
+.clean #phoneTurn, .clean #nowPlaying, .clean #callChip { display: none !important; }

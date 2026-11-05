@@ -9,7 +9,7 @@ cfg = cfgdir / "main_configuration.json"
 base = {"theme": {"darkThemeEnabled": False, "availableColors": ["#ff0000"],
                   "dark": {"sourceColor": "#123456", "contrastLevel": 0.0, "colorOverwrite": {"surfaceTint": "#010101"}},
                   "light": {"sourceColor": "#654321", "contrastLevel": 0.0}},
-        "androidAuto": {"dayNightMode": "day", "dpi": 140}, "autobox": {"dayNightMode": "night", "productId": 5409},
+        "androidAuto": {"dayNightMode": "day", "dpi": 140}, "autobox": {"dayNightMode": "NIGHT", "productId": 5409},
         "api": {"tcpEndpointPort": 0}, "appearance": {"showClock": True}}
 
 # fake Hudiy API: record message ids and payloads
@@ -37,7 +37,7 @@ for sec in ("dark", "light"):
     assert s["sourceColor"] == "#00E5FF" and s["colorOverwrite"]["primary"] == "#00f0ff" and s["colorOverwrite"]["surface"] == "#07060d"
     assert s["defaultBackground"].endswith("neon-overdrive.jpg") and Path(s["defaultBackground"]).exists()
 assert d["theme"]["dark"]["colorOverwrite"]["surfaceTint"] == "#010101", "existing overwrite kept"
-assert d["androidAuto"]["dayNightMode"] == "common" and d["autobox"]["dayNightMode"] == "common"
+assert d["androidAuto"]["dayNightMode"] == "common" and d["autobox"]["dayNightMode"] == "COMMON"   # keeps Hudiy's spelling
 assert d["androidAuto"]["dpi"] == 140 and d["autobox"]["productId"] == 5409 and d["appearance"]["showClock"] is True
 assert (cfgdir / "main_configuration.json.hu-orig").exists()
 import time; time.sleep(0.6)

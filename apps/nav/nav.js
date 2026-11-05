@@ -358,6 +358,67 @@ async function openThemes() {
 function closeSheets() { document.querySelectorAll('.sheet').forEach(s => s.classList.add('hidden')); }
 
 // ------------------------------------------------------------------ boot
+// ------------------------------------------------------------------ from the phone (CarPlay / Android Auto via Hudiy)
+// Its next turn while Apple Maps / Google Maps / Waze guides on the phone, now playing, calls; the phone
+// button brings CarPlay to the front. The phone speaks its own directions, so nothing is spoken here.
+const PHONE_TURN = { turn: 10, slight_turn: 9, sharp_turn: 11, u_turn: 12, straight: 8, name_change: 8, depart: 1,
+  destination: 4, roundabout_enter: 26, roundabout: 26, roundabout_exit: 27, merge: 25, on_ramp: 17, off_ramp: 20, fork: 23 };
+const LEFT_OF = { 10: 15, 9: 16, 11: 14, 12: 13, 17: 19, 20: 21, 23: 24 };
+function phoneArrow(n) {
+  let type = PHONE_TURN[n.type] ?? 8;
+  if (n.side === 'left' && LEFT_OF[type]) type = LEFT_OF[type];
+  return manIcon({ type });
+}
+const PHONE_ICON = '<svg class="icon" viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2.2"/><path d="M10.5 18.5h3"/></svg>';
+const phoneSeen = { navV: -1, coverV: -1, src: null };
+async function phoneTick() {
+  const p = await api('/api/phone').catch(() => null);
+  if (!p || p.error) return;
+  const srcName = p.source === 'android_auto' ? 'Android Auto' : 'CarPlay';
+  // phone button
+  const btn = $('phoneBtn'); btn.classList.toggle('hidden', !p.connected);
+  if (phoneSeen.src !== srcName) { btn.setAttribute('aria-label', srcName); phoneSeen.src = srcName; }
+  // next turn
+  const n = p.nav, showTurn = n.active && (n.text || n.distance);
+  $('phoneTurn').classList.toggle('hidden', !showTurn);
+  if (showTurn) {
+    if (n.v !== phoneSeen.navV) {
+      phoneSeen.navV = n.v;
+      $('ptIcon').innerHTML = n.has_icon ? `<img src="/api/phone/icon?v=${n.v}" alt="">` : phoneArrow(n);
+      $('ptText').textContent = n.text || '';
+      $('ptSrc').textContent = (n.source === 'android_auto' ? 'Android Auto' : 'CarPlay');
+      logEvent('phone_turn', { type: n.type, src: n.source });
+    }
+    $('ptDist').textContent = n.distance || '';
+  }
+  // call
+  const c = p.call || {};
+  $('callChip').classList.toggle('hidden', !c.state);
+  const CALL = { incoming: t('nav.call_incoming', { name: c.name || c.number || '' }), ringing: t('nav.call_ringing', { name: c.name || c.number || '' }),
+    active: t('nav.call_active', { name: c.name || c.number || '' }) };
+  if (c.state) $('callChip').textContent = CALL[c.state] || '';
+  // now playing from the phone
+  const m = p.media, showMusic = (m.source === 'carplay' || m.source === 'android_auto') && (m.title || m.artist);
+  $('nowPlaying').classList.toggle('hidden', !showMusic); document.body.classList.toggle('np', !!showMusic);
+  if (showMusic) {
+    $('npTitle').textContent = m.title || ''; $('npArtist').textContent = [m.artist, m.album].filter(Boolean).join(' · ');
+    if (m.v !== phoneSeen.coverV) {
+      phoneSeen.coverV = m.v; const img = $('npCover');
+      if (m.has_cover) { img.src = `/api/phone/cover?v=${m.v}`; img.hidden = false; } else img.hidden = true;
+    }
+    $('npPlay').innerHTML = m.playing ? icons.pause : icons.play;
+  }
+}
+function setupPhone() {
+  $('phoneBtn').innerHTML = PHONE_ICON; $('npPrev').innerHTML = icons.prev; $('npNext').innerHTML = icons.next; $('npPlay').innerHTML = icons.play;
+  $('phoneBtn').onclick = () => api('/api/phone/show', { json: {} }).catch(() => {});
+  $('nowPlaying').querySelector('.npText').onclick = () => api('/api/phone/show', { json: {} }).catch(() => {});
+  $('npPlay').onclick = () => api('/api/phone/toggle', { json: {} }).then(phoneTick).catch(() => {});
+  $('npPrev').onclick = () => api('/api/phone/previous', { json: {} }).catch(() => {});
+  $('npNext').onclick = () => api('/api/phone/next', { json: {} }).catch(() => {});
+  if (!PREVIEW) { phoneTick(); setInterval(phoneTick, 1000); }
+}
+
 async function main() {
   state.settings = await getSettings().catch(() => ({ theme: 'neon-overdrive', units: 'imperial', voice: false }));
   state.units = state.settings.units || 'imperial';
@@ -408,6 +469,7 @@ async function main() {
   $('destGo').onclick = () => routeTo(state.pending);
   $('destFav').onclick = () => saveFavorite(state.pending);
   setupLongPress();
+  setupPhone();
   startGps();
   onHudiy('onActivatedChanged', () => { if (window.hudiy?.activated) state.map?.resize(); });
 }

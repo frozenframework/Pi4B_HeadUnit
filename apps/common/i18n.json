@@ -151,7 +151,15 @@
   "set.map_lt1": "less than a minute",
   "set.map_done": "Map display data updated",
   "set.start_map": "Start on the map",
-  "set.start_map_sub": "Show the offline map when the head unit starts. CarPlay and Android Auto still open when a phone connects."
+  "set.start_map_sub": "Show the offline map when the head unit starts. CarPlay and Android Auto still open when a phone connects.",
+  "set.phone_connect": "When a phone connects",
+  "set.phone_connect_sub": "CarPlay or Android Auto keeps running behind the map (music, calls, its directions). The phone button on the map shows it.",
+  "set.phone_map": "Stay on the map",
+  "set.phone_carplay": "Show CarPlay",
+  "nav.phone_screen": "Show CarPlay / Android Auto",
+  "nav.call_incoming": "Incoming call: {name}",
+  "nav.call_ringing": "Calling {name}",
+  "nav.call_active": "On a call: {name}"
  },
  "es": {
   "common.back": "Atrás",
@@ -304,7 +312,15 @@
   "set.map_lt1": "menos de un minuto",
   "set.map_done": "Mapa actualizado",
   "set.start_map": "Iniciar en el mapa",
-  "set.start_map_sub": "Muestra el mapa sin conexión al encender. CarPlay y Android Auto se abren igual al conectar un teléfono."
+  "set.start_map_sub": "Muestra el mapa sin conexión al encender. CarPlay y Android Auto se abren igual al conectar un teléfono.",
+  "set.phone_connect": "Al conectar un teléfono",
+  "set.phone_connect_sub": "CarPlay o Android Auto sigue funcionando detrás del mapa (música, llamadas, sus indicaciones). El botón del teléfono en el mapa lo muestra.",
+  "set.phone_map": "Quedarse en el mapa",
+  "set.phone_carplay": "Mostrar CarPlay",
+  "nav.phone_screen": "Mostrar CarPlay / Android Auto",
+  "nav.call_incoming": "Llamada entrante: {name}",
+  "nav.call_ringing": "Llamando a {name}",
+  "nav.call_active": "En llamada: {name}"
  },
  "zh": {
   "common.back": "返回",
@@ -478,7 +494,15 @@
   "set.map_lt1": "不到一分钟",
   "set.map_done": "地图已更新",
   "set.start_map": "启动时显示地图",
-  "set.start_map_sub": "主机启动时显示离线地图。连接手机时仍会打开 CarPlay 和 Android Auto。"
+  "set.start_map_sub": "主机启动时显示离线地图。连接手机时仍会打开 CarPlay 和 Android Auto。",
+  "set.phone_connect": "手机连接时",
+  "set.phone_connect_sub": "CarPlay 或 Android Auto 在地图后面继续运行（音乐、通话、导航语音）。点地图上的手机按钮即可显示。",
+  "set.phone_map": "保持地图",
+  "set.phone_carplay": "显示 CarPlay",
+  "nav.phone_screen": "显示 CarPlay / Android Auto",
+  "nav.call_incoming": "来电：{name}",
+  "nav.call_ringing": "正在呼叫 {name}",
+  "nav.call_active": "通话中：{name}"
  },
  "tl": {
   "common.back": "Bumalik",
@@ -652,7 +676,15 @@
   "set.map_lt1": "wala pang isang minuto",
   "set.map_done": "Na-update na ang mapa",
   "set.start_map": "Magsimula sa mapa",
-  "set.start_map_sub": "Ipakita ang offline na mapa pag-start ng head unit. Bubukas pa rin ang CarPlay at Android Auto kapag may kumonektang telepono."
+  "set.start_map_sub": "Ipakita ang offline na mapa pag-start ng head unit. Bubukas pa rin ang CarPlay at Android Auto kapag may kumonektang telepono.",
+  "set.phone_connect": "Kapag may kumonektang telepono",
+  "set.phone_connect_sub": "Tuloy ang CarPlay o Android Auto sa likod ng mapa (musika, tawag, mga direksyon nito). Ipinapakita ito ng button ng telepono sa mapa.",
+  "set.phone_map": "Manatili sa mapa",
+  "set.phone_carplay": "Ipakita ang CarPlay",
+  "nav.phone_screen": "Ipakita ang CarPlay / Android Auto",
+  "nav.call_incoming": "Papasok na tawag: {name}",
+  "nav.call_ringing": "Tinatawagan si {name}",
+  "nav.call_active": "Nasa tawag: {name}"
  },
  "vi": {
   "common.back": "Quay lại",
@@ -805,7 +837,15 @@
   "set.map_lt1": "chưa đến một phút",
   "set.map_done": "Đã cập nhật bản đồ",
   "set.start_map": "Mở bản đồ khi khởi động",
-  "set.start_map_sub": "Hiện bản đồ ngoại tuyến khi đầu máy khởi động. CarPlay và Android Auto vẫn mở khi kết nối điện thoại."
+  "set.start_map_sub": "Hiện bản đồ ngoại tuyến khi đầu máy khởi động. CarPlay và Android Auto vẫn mở khi kết nối điện thoại.",
+  "set.phone_connect": "Khi kết nối điện thoại",
+  "set.phone_connect_sub": "CarPlay hoặc Android Auto vẫn chạy phía sau bản đồ (nhạc, cuộc gọi, chỉ đường). Nút điện thoại trên bản đồ sẽ hiện nó.",
+  "set.phone_map": "Giữ bản đồ",
+  "set.phone_carplay": "Hiện CarPlay",
+  "nav.phone_screen": "Hiện CarPlay / Android Auto",
+  "nav.call_incoming": "Cuộc gọi đến: {name}",
+  "nav.call_ringing": "Đang gọi {name}",
+  "nav.call_active": "Đang gọi: {name}"
  },
  "ar": {
   "common.back": "رجوع",
@@ -958,7 +998,15 @@
   "set.map_lt1": "أقل من دقيقة",
   "set.map_done": "تم تحديث الخريطة",
   "set.start_map": "البدء على الخريطة",
-  "set.start_map_sub": "عرض الخريطة دون اتصال عند تشغيل الجهاز. يظل CarPlay وAndroid Auto يفتحان عند توصيل هاتف."
+  "set.start_map_sub": "عرض الخريطة دون اتصال عند تشغيل الجهاز. يظل CarPlay وAndroid Auto يفتحان عند توصيل هاتف.",
+  "set.phone_connect": "عند توصيل هاتف",
+  "set.phone_connect_sub": "يستمر CarPlay أو Android Auto في العمل خلف الخريطة (الموسيقى والمكالمات والإرشادات). يعرضه زر الهاتف على الخريطة.",
+  "set.phone_map": "البقاء على الخريطة",
+  "set.phone_carplay": "عرض CarPlay",
+  "nav.phone_screen": "عرض CarPlay / Android Auto",
+  "nav.call_incoming": "مكالمة واردة: {name}",
+  "nav.call_ringing": "جارٍ الاتصال بـ {name}",
+  "nav.call_active": "في مكالمة: {name}"
  },
  "fr": {
   "common.back": "Retour",
@@ -1111,7 +1159,15 @@
   "set.map_lt1": "moins d'une minute",
   "set.map_done": "Carte mise à jour",
   "set.start_map": "Démarrer sur la carte",
-  "set.start_map_sub": "Affiche la carte hors ligne au démarrage. CarPlay et Android Auto s'ouvrent toujours quand un téléphone se connecte."
+  "set.start_map_sub": "Affiche la carte hors ligne au démarrage. CarPlay et Android Auto s'ouvrent toujours quand un téléphone se connecte.",
+  "set.phone_connect": "Quand un téléphone se connecte",
+  "set.phone_connect_sub": "CarPlay ou Android Auto continue derrière la carte (musique, appels, ses indications). Le bouton téléphone sur la carte l'affiche.",
+  "set.phone_map": "Rester sur la carte",
+  "set.phone_carplay": "Afficher CarPlay",
+  "nav.phone_screen": "Afficher CarPlay / Android Auto",
+  "nav.call_incoming": "Appel entrant : {name}",
+  "nav.call_ringing": "Appel de {name}",
+  "nav.call_active": "En appel : {name}"
  },
  "ko": {
   "common.back": "뒤로",
@@ -1264,7 +1320,15 @@
   "set.map_lt1": "1분 미만",
   "set.map_done": "지도가 업데이트되었습니다",
   "set.start_map": "지도로 시작",
-  "set.start_map_sub": "헤드 유닛이 켜지면 오프라인 지도를 표시합니다. 휴대폰을 연결하면 CarPlay와 Android Auto는 그대로 열립니다."
+  "set.start_map_sub": "헤드 유닛이 켜지면 오프라인 지도를 표시합니다. 휴대폰을 연결하면 CarPlay와 Android Auto는 그대로 열립니다.",
+  "set.phone_connect": "휴대폰이 연결되면",
+  "set.phone_connect_sub": "CarPlay 또는 Android Auto는 지도 뒤에서 계속 실행됩니다(음악, 통화, 길 안내). 지도의 휴대폰 버튼으로 표시합니다.",
+  "set.phone_map": "지도 유지",
+  "set.phone_carplay": "CarPlay 표시",
+  "nav.phone_screen": "CarPlay / Android Auto 표시",
+  "nav.call_incoming": "수신 전화: {name}",
+  "nav.call_ringing": "{name}에게 거는 중",
+  "nav.call_active": "통화 중: {name}"
  },
  "pt": {
   "common.back": "Voltar",
@@ -1417,7 +1481,15 @@
   "set.map_lt1": "menos de um minuto",
   "set.map_done": "Mapa atualizado",
   "set.start_map": "Iniciar no mapa",
-  "set.start_map_sub": "Mostra o mapa offline ao ligar. CarPlay e Android Auto continuam abrindo quando um telefone se conecta."
+  "set.start_map_sub": "Mostra o mapa offline ao ligar. CarPlay e Android Auto continuam abrindo quando um telefone se conecta.",
+  "set.phone_connect": "Quando um telefone se conectar",
+  "set.phone_connect_sub": "O CarPlay ou Android Auto continua rodando atrás do mapa (música, chamadas, suas instruções). O botão do telefone no mapa o mostra.",
+  "set.phone_map": "Ficar no mapa",
+  "set.phone_carplay": "Mostrar CarPlay",
+  "nav.phone_screen": "Mostrar CarPlay / Android Auto",
+  "nav.call_incoming": "Chamada recebida: {name}",
+  "nav.call_ringing": "Ligando para {name}",
+  "nav.call_active": "Em chamada: {name}"
  },
  "hi": {
   "common.back": "वापस",
@@ -1570,6 +1642,14 @@
   "set.map_lt1": "एक मिनट से कम",
   "set.map_done": "मैप अपडेट हो गया",
   "set.start_map": "मैप से शुरू करें",
-  "set.start_map_sub": "हेड यूनिट चालू होने पर ऑफ़लाइन मैप दिखाएँ। फ़ोन जुड़ने पर CarPlay और Android Auto पहले की तरह खुलते हैं।"
+  "set.start_map_sub": "हेड यूनिट चालू होने पर ऑफ़लाइन मैप दिखाएँ। फ़ोन जुड़ने पर CarPlay और Android Auto पहले की तरह खुलते हैं।",
+  "set.phone_connect": "फ़ोन जुड़ने पर",
+  "set.phone_connect_sub": "CarPlay या Android Auto मैप के पीछे चलता रहता है (संगीत, कॉल, उसके निर्देश)। मैप पर फ़ोन बटन उसे दिखाता है।",
+  "set.phone_map": "मैप पर रहें",
+  "set.phone_carplay": "CarPlay दिखाएँ",
+  "nav.phone_screen": "CarPlay / Android Auto दिखाएँ",
+  "nav.call_incoming": "आने वाली कॉल: {name}",
+  "nav.call_ringing": "{name} को कॉल हो रही है",
+  "nav.call_active": "कॉल पर: {name}"
  }
 }

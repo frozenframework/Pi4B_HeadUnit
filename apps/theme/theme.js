@@ -25,6 +25,9 @@ function switches() {
     const b = $(k); b.textContent = onOff(S[k]); b.classList.toggle('on', !!S[k]);
     b.onclick = async () => { S = await saveSettings({ [k]: !S[k] }); logEvent('setting', { k, v: S[k] }); switches(); };
   }
+  const ps = $('phoneScreen'), onMap = S.phoneScreen !== 'carplay';
+  ps.textContent = onMap ? t('set.phone_map') : t('set.phone_carplay'); ps.classList.toggle('on', onMap);
+  ps.onclick = async () => { S = await saveSettings({ phoneScreen: onMap ? 'carplay' : 'map' }); logEvent('setting', { k: 'phoneScreen', v: S.phoneScreen }); switches(); };
   const u = $('units'); u.textContent = S.units === 'imperial' ? t('set.miles') : t('set.kilometers'); u.classList.add('on');
   u.onclick = async () => { S = await saveSettings({ units: S.units === 'imperial' ? 'metric' : 'imperial' }); switches(); };
 }

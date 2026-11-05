@@ -9,7 +9,12 @@ so no generated code or protobuf package is needed.
 import socket, struct, threading, time, logging
 
 log = logging.getLogger("hudiy-api")
-HELLO_REQUEST, HELLO_RESPONSE, SET_REVERSE_CAMERA_STATUS = 1, 2, 4
+HELLO_REQUEST, HELLO_RESPONSE, SET_STATUS_SUBSCRIPTIONS, SET_REVERSE_CAMERA_STATUS = 1, 2, 3, 4
+PROJECTION_STATUS, MEDIA_STATUS, MEDIA_METADATA = 5, 6, 7
+NAVIGATION_STATUS, NAVIGATION_MANEUVER_DETAILS, NAVIGATION_MANEUVER_DISTANCE = 8, 9, 10
+PHONE_CONNECTION_STATUS, PHONE_VOICE_CALL_STATUS, CURRENT_MENU_ACTION = 33, 34, 52
+# SetStatusSubscriptions.Subscription
+SUB_PROJECTION, SUB_MEDIA, SUB_NAVIGATION, SUB_PHONE, SUB_CURRENT_MENU_ACTION = 1, 2, 3, 5, 7
 DISPATCH_ACTION, PING, PONG, BYEBYE = 43, 47, 48, 49
 API_MAJOR, API_MINOR = 1, 5
 
@@ -29,6 +34,31 @@ def _field_varint(num, v):
 def hello_request(name):
     version = _field_varint(1, API_MAJOR) + _field_varint(2, API_MINOR)
     return _field_bytes(1, name.encode()) + _field_bytes(2, version)
+
+def status_subscriptions(subs):
+    """SetStatusSubscriptions: the full list every time (repeated enum, field 1)."""
+    return b"".join(_field_varint(1, s) for s in subs)
+
+def decode(buf):
+    """Minimal protobuf decoder: {field number: [values]}; varints as int, length-delimited as bytes."""
+    out, i = {}, 0
+    def varint():
+        nonlocal i
+        shift = n = 0
+        while True:
+            b = buf[i]; i += 1
+            n |= (b & 0x7F) << shift; shift += 7
+            if not b & 0x80: return n
+    while i < len(buf):
+        key = varint(); num, wt = key >> 3, key & 7
+        if wt == 0: v = varint()
+        elif wt == 2:
+            n = varint(); v = bytes(buf[i:i + n]); i += n
+        elif wt == 1: v = buf[i:i + 8]; i += 8
+        elif wt == 5: v = buf[i:i + 4]; i += 4
+        else: raise ValueError("unsupported wire type %d" % wt)
+        out.setdefault(num, []).append(v)
+    return out
 
 def reverse_camera_status(visible):
     return _field_varint(1, 1 if visible else 0)
@@ -70,9 +100,11 @@ def frame(msg_id, payload=b""):
 
 class HudiyLink:
     """Keeps one connection open (Hudiy may start after us, or restart), answers pings, and
-    re-sends the last reverse-camera state after every reconnect."""
-    def __init__(self, name="headunit", host="127.0.0.1", port=44405):
+    re-sends the last reverse-camera state after every reconnect. With subscriptions + on_message it
+    also receives Hudiy's status messages (projection, media, navigation, phone ...)."""
+    def __init__(self, name="headunit", host="127.0.0.1", port=44405, subscriptions=(), on_message=None, on_connect=None):
         self.name, self.host, self.port = name, host, port
+        self.subscriptions, self.on_message, self.on_connect = list(subscriptions), on_message, on_connect
         self.sock = None; self.lock = threading.Lock(); self.reverse = None
         threading.Thread(target=self._loop, daemon=True).start()
 
@@ -114,13 +146,20 @@ class HudiyLink:
                 log.info("connected to Hudiy API")
                 if self.reverse is not None:
                     self.set_reverse(self.reverse)
+                if self.subscriptions:
+                    self._send(SET_STATUS_SUBSCRIPTIONS, status_subscriptions(self.subscriptions))
+                if self.on_connect:
+                    self.on_connect()
                 while True:
                     size, mid, _ = struct.unpack("<III", self._recv_exact(s, 12))
-                    self._recv_exact(s, size) if size else b""
+                    payload = self._recv_exact(s, size) if size else b""
                     if mid == PING:
                         self._send(PONG, b"")
                     elif mid == BYEBYE:
                         raise ConnectionError("bye")
+                    elif self.on_message:
+                        try: self.on_message(mid, payload)
+                        except Exception as e: log.warning("Hudiy message %d: %s", mid, e)
             except (OSError, ConnectionError, struct.error):
                 with self.lock: self._drop()
                 time.sleep(3)

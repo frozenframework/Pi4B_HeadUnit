@@ -40,6 +40,7 @@
   <button id="favBtn" data-log="open_favorites" aria-label="Favorites" data-i18n-aria="nav.favorites"></button>
   <button id="centerBtn" data-log="recenter" aria-label="Recenter" data-i18n-aria="nav.recenter"></button>
   <button id="themeBtn" data-log="open_theme" aria-label="Map skin" data-i18n-aria="nav.skin"></button>
+  <button id="phoneBtn" class="hidden" data-log="phone_show" aria-label="CarPlay" data-i18n-aria="nav.phone_screen"></button>
 </nav>
 
 <!-- destination sheet (after long-press) -->
@@ -76,6 +77,21 @@
     <a id="moreSettings" href="../theme/index.html" data-log="more_settings" data-i18n="nav.more_settings">More settings</a></div>
   <div id="themeCards"></div>
 </section>
+
+<!-- from the phone (CarPlay / Android Auto through Hudiy): its next turn, now playing, call -->
+<section id="phoneTurn" class="panel hidden">
+  <div id="ptIcon"></div>
+  <div class="ptBody"><div id="ptDist" class="glow"></div><div id="ptText"></div></div>
+  <div id="ptSrc" class="muted"></div>
+</section>
+<div id="callChip" class="panel hidden"></div>
+<div id="nowPlaying" class="panel hidden">
+  <img id="npCover" alt="">
+  <div class="npText"><div id="npTitle"></div><div id="npArtist" class="muted"></div></div>
+  <button id="npPrev" class="ghost" data-log="phone_prev" aria-label="Previous"></button>
+  <button id="npPlay" class="ghost" data-log="phone_play" aria-label="Play or pause"></button>
+  <button id="npNext" class="ghost" data-log="phone_next" aria-label="Next"></button>
+</div>
 
 <div id="nomaps" class="panel hidden">
   <h2 data-i18n="nav.nomaps_title">Offline maps aren't installed yet</h2>

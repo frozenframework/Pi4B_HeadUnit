@@ -71,7 +71,7 @@ if main is not None:
         if isinstance(o, dict):
             for k, v in o.items():
                 if k == "gpsDataSource" and parent == "androidAuto": o[k] = "GPSD"
-                elif k == "navigationUnits": o[k] = "imperial"
+                elif k == "navigationUnits": o[k] = "IMPERIAL" if str(v).isupper() else "imperial"   # Hudiy ships "METRIC"
                 else: walk(v, k)
     walk(main)
     if HC.get("CAMERA") == "1":

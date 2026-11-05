@@ -81,7 +81,7 @@ def system_language():
 
 DEFAULT_SETTINGS = {"theme": C("DEFAULT_THEME", "neon-overdrive"), "units": "imperial", "voice": True,
                     "language": system_language(), "lastPos": None,
-                    "syncHudiyColors": True, "nightAuto": True, "startOnMap": True,
+                    "syncHudiyColors": True, "nightAuto": True, "startOnMap": True, "phoneScreen": "map",
                     "display": {"level": 100, "auto": True, "day": 100, "night": 45, "method": "auto"}, "radio": {"band": "FM", "FM": 101100, "AM": 740,
                     "presets": {"FM": [], "AM": []}}}
 
@@ -702,6 +702,41 @@ async def on_start(app):
     app["export"] = asyncio.create_task(export_watch(app))
     usage("bridge_start", vehicle=C("VEHICLE_ID", ""))
     asyncio.get_running_loop().run_in_executor(None, hudiy_hotspot_guard)
+    if C("PHONE_LINK", "1") == "1":
+        try: start_phone_link()
+        except Exception as e: log.warning("phone link off: %s", e)
+
+# ---------------------------------------------------------------- phone (CarPlay / Android Auto through Hudiy)
+phone = None
+def start_phone_link():
+    """Listen to Hudiy for the phone's next turn, now playing and calls, and keep the offline map in front
+    when a phone connects (Settings > Driving > When a phone connects). See bin/hu_phone.py."""
+    global phone
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import hu_hudiy_api as H
+    from hu_phone import PhoneState
+    link = None
+    def dispatch(action):
+        if link: link.action(action)
+    phone = PhoneState(dispatch, lambda: "carplay" if settings().get("phoneScreen") == "carplay" else "map", log=log)
+    link = H.HudiyLink("headunit-phone", port=H.api_port(), on_message=phone.handle,
+                       subscriptions=[H.SUB_PROJECTION, H.SUB_MEDIA, H.SUB_NAVIGATION, H.SUB_PHONE, H.SUB_CURRENT_MENU_ACTION])
+
+async def phone_api(request):
+    what = request.match_info.get("what", "")
+    if phone is None:
+        return web.json_response({"connected": False, "error": "hudiy_link_off"})
+    if request.method == "GET":
+        if what in ("icon", "cover"):
+            data, typ = phone.image(what)
+            if not data: raise web.HTTPNotFound()
+            return web.Response(body=data, content_type=typ, headers={"Cache-Control": "max-age=3600"})
+        return web.json_response(phone.status())
+    if what == "show":
+        usage("phone_show", source=phone.show_phone()); return web.json_response({"ok": True})
+    if what in ("toggle", "next", "previous"):
+        return web.json_response({"ok": phone.media_key(what)})
+    raise web.HTTPNotFound()
 
 async def on_stop(app):
     await radio.stop()
@@ -710,6 +745,8 @@ def make_app():
     app = web.Application(middlewares=[nocache], client_max_size=2 * 1024 * 1024)
     app.router.add_get("/", index)
     app.router.add_get("/api/status", status)
+    app.router.add_get("/api/phone", phone_api)
+    app.router.add_route("*", "/api/phone/{what}", phone_api)
     app.router.add_get("/api/gps/stream", gps_stream)
     app.router.add_post("/api/route", route)
     app.router.add_get("/api/search", search)
