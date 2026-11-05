@@ -14,6 +14,16 @@ NEW=${1:-}; NOTES=${2:-"Head unit $NEW"}
 KEY=${HU_RELEASE_KEY:-$HOME/.ssh/headunit_release}
 [[ "$NEW" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "usage: tools/release.sh X.Y.Z \"what changed\""; exit 1; }
 OLD=$(cat VERSION)
+# The same version again: if its release push didn't reach GitHub (e.g. "fatal error in commit_refs"),
+# just send it now; nothing is made twice.
+if [ "$NEW" = "$OLD" ] && git rev-parse -q --verify "refs/tags/v$NEW" >/dev/null; then
+  if git ls-remote --exit-code --tags origin "refs/tags/v$NEW" >/dev/null 2>&1; then
+    echo "$NEW is already released (its tag is on GitHub). For new changes use a higher version."; exit 1
+  fi
+  echo "$NEW was made but didn't reach GitHub; sending it now"
+  git push origin HEAD "v$NEW"
+  echo "released $NEW. Head units on Wi-Fi download it within ~30 min and install it at the next key-on."; exit 0
+fi
 newer=$(printf '%s\n%s\n' "$OLD" "$NEW" | sort -t. -k1,1n -k2,2n -k3,3n | tail -1)
 [ "$NEW" != "$OLD" ] && [ "$newer" = "$NEW" ] || { echo "version $NEW must be higher than the current $OLD"; exit 1; }
 [ -f "$KEY" ] && [ -f "$KEY.pub" ] || { echo "release key $KEY not found (see the top of this file)"; exit 1; }
@@ -31,5 +41,6 @@ git "${SIGN[@]}" tag -s "v$NEW" -m "$NOTES"
 # Check it exactly like the head unit will before anything leaves this Mac.
 signers=$(mktemp); grep -v '^#' config/release-signers > "$signers"
 git -c gpg.format=ssh -c "gpg.ssh.allowedSignersFile=$signers" verify-tag "v$NEW"; rm -f "$signers"
-git push origin HEAD "v$NEW"
+git push origin HEAD "v$NEW" || { echo; echo "The push didn't go through (often a temporary GitHub error). Nothing is lost:"
+  echo "run the same command again (tools/release.sh $NEW ...) and it sends the release that's ready."; exit 1; }
 echo "released $NEW. Head units on Wi-Fi download it within ~30 min and install it at the next key-on."
