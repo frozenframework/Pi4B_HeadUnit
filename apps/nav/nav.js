@@ -195,7 +195,7 @@ async function routeTo(dest, reason = 'new') {
     const b = r.shape.reduce((bb, c) => bb.extend(c), new maplibregl.LngLatBounds(r.shape[0], r.shape[0]));
     state.map.fitBounds(b, { padding: { left: 360, right: 110, top: 40, bottom: 40 }, duration: 800, pitch: 0, bearing: 0 });
     state.follow = false; setTimeout(() => { state.follow = true; if (state.pos) camera(); }, 3500);
-    say(spoken(r.maneuvers[0]) || t('nav.route_started'));
+    { const first = spoken(r.maneuvers[0]); say(first || t('nav.route_started'), 'route_started', first ? { then: first } : {}); }
   }
   guide();
   if (SIM) startSim();
@@ -207,7 +207,7 @@ function endRoute(arrived = false) {
   state.route = null; state.dest = null; state.destMarker?.remove(); state.destMarker = null;
   refreshRoute(); clearInterval(state.simTimer);
   document.body.classList.remove('navigating'); $('guide').classList.add('hidden');
-  if (arrived) { say(t('nav.arrived')); toast(t('nav.arrived')); }
+  if (arrived) { say(t('nav.arrived'), 'arrived'); toast(t('nav.arrived')); }
   if (state.pos) camera();
 }
 
@@ -228,7 +228,7 @@ function guide() {
   if (best.d > 45 && state.speed > 2) state.offCount++; else state.offCount = 0;
   if (state.offCount >= 3 && Date.now() - state.lastReroute > 12000) {
     state.lastReroute = Date.now(); state.offCount = 0;
-    toast(t('nav.rerouting')); say(t('nav.rerouting')); routeTo(state.dest, 'reroute'); return;
+    toast(t('nav.rerouting')); say(t('nav.rerouting'), 'rerouting'); routeTo(state.dest, 'reroute'); return;
   }
   if (remaining < 25) { endRoute(true); return; }
   const idx = rt.maneuvers.findIndex((m, k) => k > 0 && rt.cum[m.begin] > along + 3);
@@ -246,12 +246,13 @@ function guide() {
   // voice prompts: about half a mile out (highway) or 1000 ft (city), then right before the turn
   const far = state.speed > 20 ? 800 : 300;
   const key = `${idx}`;
-  if (toNext < far && toNext > 120 && !state.spoken.has(key + 'f')) { state.spoken.add(key + 'f'); say(t('nav.in_dist', { dist: sayDist(toNext), text: spoken(next) })); }
-  if (toNext <= 60 + state.speed * 3 && !state.spoken.has(key + 'n')) { state.spoken.add(key + 'n'); say(spoken(next)); }
+  if (toNext < far && toNext > 120 && !state.spoken.has(key + 'f')) { state.spoken.add(key + 'f'); say(t('nav.in_dist', { dist: sayDist(toNext), text: spoken(next) }), 'in_dist', { dist: sayDist(toNext), text: spoken(next) }); }
+  if (toNext <= 60 + state.speed * 3 && !state.spoken.has(key + 'n')) { state.spoken.add(key + 'n'); say(spoken(next), 'turn'); }
   if (best.i % 5 === 0) refreshRoute();
 }
 
-function say(text) { if (state.settings?.voice) api('/api/say', { json: { text } }).catch(() => {}); }
+// key lets the chosen voice pack use its own line (Settings > Driving > Voice); text is the plain wording
+function say(text, key = '', vars = {}) { if (state.settings?.voice) api('/api/say', { json: { text, key, vars } }).catch(() => {}); }
 
 // Bench-test driver: moves the car along the route at ~35 mph.
 function startSim() {
@@ -502,7 +503,7 @@ async function main() {
         state.pos = p; state.heading = bearing(state.route.shape[i], state.route.shape[i + 1]); state.progress = i; guide(); refreshRoute(); resetMarkers();
         state.map.jumpTo({ center: p, bearing: state.heading, pitch: 55, zoom: +(params.get('zoom') || 16), padding: { left: 340, top: 60, right: 80, bottom: 0 } }); }
     }
-    state.map.once('idle', () => { document.body.dataset.ready = '1'; });
+    state.map.once('idle', () => { document.body.dataset.ready = '1'; if (!PREVIEW && !SIM) say('', 'greet'); });
   });
   state.map.on('error', (e) => logEvent('map_error', { msg: String(e.error?.message || e.error).slice(0, 160) }));
   // frame-rate sampling, so test drives show whether the Pi keeps up with a given skin

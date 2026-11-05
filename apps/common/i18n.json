@@ -179,7 +179,16 @@
   "mu.src_usb": "iPod & USB",
   "mu.from_phone": "Playing from {name}",
   "mu.open_phone": "Open {name}",
-  "mu.phone_idle": "Nothing playing from {name} yet. Connect your iPhone and play something."
+  "mu.phone_idle": "Nothing playing from {name} yet. Connect your iPhone and play something.",
+  "set.voice_pack": "Voice",
+  "set.voice_pack_sub": "Who speaks the directions",
+  "set.voice_sample": "Play sample",
+  "set.voice_ready": "Ready",
+  "set.voice_downloading": "Downloading {pct}%",
+  "set.voice_waiting": "Downloads on Wi-Fi (uses the plain voice until then)",
+  "set.voice_yours": "Your pack",
+  "set.voice_lang_note": "Voice packs speak English; in this language the Standard voice speaks.",
+  "set.voice_sample_text": "This is {name}. In half a mile, turn left."
  },
  "es": {
   "common.back": "Atrás",
@@ -360,7 +369,16 @@
   "mu.src_usb": "iPod y USB",
   "mu.from_phone": "Sonando desde {name}",
   "mu.open_phone": "Abrir {name}",
-  "mu.phone_idle": "Nada sonando desde {name} todavía. Conecta tu iPhone y reproduce algo."
+  "mu.phone_idle": "Nada sonando desde {name} todavía. Conecta tu iPhone y reproduce algo.",
+  "set.voice_pack": "Voz",
+  "set.voice_pack_sub": "Quién dice las indicaciones",
+  "set.voice_sample": "Escuchar muestra",
+  "set.voice_ready": "Lista",
+  "set.voice_downloading": "Descargando {pct}%",
+  "set.voice_waiting": "Se descarga con Wi-Fi (mientras tanto, voz básica)",
+  "set.voice_yours": "Tu paquete",
+  "set.voice_lang_note": "Los paquetes de voz hablan inglés; en este idioma habla la voz estándar.",
+  "set.voice_sample_text": "Esta es {name}. En media milla, gira a la izquierda."
  },
  "zh": {
   "common.back": "返回",
@@ -562,7 +580,16 @@
   "mu.src_usb": "iPod 和 USB",
   "mu.from_phone": "正在从 {name} 播放",
   "mu.open_phone": "打开 {name}",
-  "mu.phone_idle": "{name} 还没有播放内容。连接 iPhone 并播放音乐。"
+  "mu.phone_idle": "{name} 还没有播放内容。连接 iPhone 并播放音乐。",
+  "set.voice_pack": "语音",
+  "set.voice_pack_sub": "谁来播报路线",
+  "set.voice_sample": "试听",
+  "set.voice_ready": "就绪",
+  "set.voice_downloading": "正在下载 {pct}%",
+  "set.voice_waiting": "连接 Wi-Fi 时下载（在此之前使用普通语音）",
+  "set.voice_yours": "你的语音包",
+  "set.voice_lang_note": "语音包使用英语；在此语言下使用标准语音。",
+  "set.voice_sample_text": "这是 {name}。半英里后左转。"
  },
  "tl": {
   "common.back": "Bumalik",
@@ -764,7 +791,16 @@
   "mu.src_usb": "iPod at USB",
   "mu.from_phone": "Tumutugtog mula sa {name}",
   "mu.open_phone": "Buksan ang {name}",
-  "mu.phone_idle": "Wala pang tumutugtog mula sa {name}. Ikonekta ang iyong iPhone at magpatugtog."
+  "mu.phone_idle": "Wala pang tumutugtog mula sa {name}. Ikonekta ang iyong iPhone at magpatugtog.",
+  "set.voice_pack": "Boses",
+  "set.voice_pack_sub": "Sino ang nagsasabi ng direksyon",
+  "set.voice_sample": "I-play ang sample",
+  "set.voice_ready": "Handa na",
+  "set.voice_downloading": "Dina-download {pct}%",
+  "set.voice_waiting": "Dina-download kapag naka-Wi-Fi (simpleng boses muna)",
+  "set.voice_yours": "Iyong pack",
+  "set.voice_lang_note": "Ingles ang mga voice pack; sa wikang ito, Standard na boses ang nagsasalita.",
+  "set.voice_sample_text": "Ito si {name}. Sa kalahating milya, kumaliwa."
  },
  "vi": {
   "common.back": "Quay lại",
@@ -945,7 +981,16 @@
   "mu.src_usb": "iPod và USB",
   "mu.from_phone": "Đang phát từ {name}",
   "mu.open_phone": "Mở {name}",
-  "mu.phone_idle": "Chưa có gì phát từ {name}. Hãy kết nối iPhone và phát nhạc."
+  "mu.phone_idle": "Chưa có gì phát từ {name}. Hãy kết nối iPhone và phát nhạc.",
+  "set.voice_pack": "Giọng nói",
+  "set.voice_pack_sub": "Ai đọc chỉ đường",
+  "set.voice_sample": "Nghe thử",
+  "set.voice_ready": "Sẵn sàng",
+  "set.voice_downloading": "Đang tải {pct}%",
+  "set.voice_waiting": "Tải khi có Wi-Fi (tạm dùng giọng thường)",
+  "set.voice_yours": "Gói của bạn",
+  "set.voice_lang_note": "Gói giọng nói nói tiếng Anh; với ngôn ngữ này, giọng Tiêu chuẩn sẽ đọc.",
+  "set.voice_sample_text": "Đây là {name}. Nửa dặm nữa, rẽ trái."
  },
  "ar": {
   "common.back": "رجوع",
@@ -1126,7 +1171,16 @@
   "mu.src_usb": "iPod وUSB",
   "mu.from_phone": "يُشغَّل من {name}",
   "mu.open_phone": "فتح {name}",
-  "mu.phone_idle": "لا يُشغَّل شيء من {name} بعد. وصّل iPhone وشغّل شيئًا."
+  "mu.phone_idle": "لا يُشغَّل شيء من {name} بعد. وصّل iPhone وشغّل شيئًا.",
+  "set.voice_pack": "الصوت",
+  "set.voice_pack_sub": "من يقرأ الاتجاهات",
+  "set.voice_sample": "تشغيل عينة",
+  "set.voice_ready": "جاهز",
+  "set.voice_downloading": "جارٍ التنزيل {pct}%",
+  "set.voice_waiting": "يُنزَّل عند الاتصال بـ Wi-Fi (يُستخدم الصوت العادي حتى ذلك الحين)",
+  "set.voice_yours": "حزمتك",
+  "set.voice_lang_note": "حزم الأصوات تتحدث الإنجليزية؛ بهذه اللغة يتحدث الصوت القياسي.",
+  "set.voice_sample_text": "هذا {name}. بعد نصف ميل، انعطف يسارًا."
  },
  "fr": {
   "common.back": "Retour",
@@ -1307,7 +1361,16 @@
   "mu.src_usb": "iPod et USB",
   "mu.from_phone": "Lecture depuis {name}",
   "mu.open_phone": "Ouvrir {name}",
-  "mu.phone_idle": "Rien en lecture depuis {name} pour l'instant. Connectez votre iPhone et lancez de la musique."
+  "mu.phone_idle": "Rien en lecture depuis {name} pour l'instant. Connectez votre iPhone et lancez de la musique.",
+  "set.voice_pack": "Voix",
+  "set.voice_pack_sub": "Qui annonce les directions",
+  "set.voice_sample": "Écouter un extrait",
+  "set.voice_ready": "Prête",
+  "set.voice_downloading": "Téléchargement {pct} %",
+  "set.voice_waiting": "Se télécharge en Wi-Fi (voix simple en attendant)",
+  "set.voice_yours": "Votre pack",
+  "set.voice_lang_note": "Les packs de voix parlent anglais ; dans cette langue, la voix Standard parle.",
+  "set.voice_sample_text": "Ici {name}. Dans un demi-mille, tournez à gauche."
  },
  "ko": {
   "common.back": "뒤로",
@@ -1488,7 +1551,16 @@
   "mu.src_usb": "iPod 및 USB",
   "mu.from_phone": "{name}에서 재생 중",
   "mu.open_phone": "{name} 열기",
-  "mu.phone_idle": "아직 {name}에서 재생 중인 것이 없습니다. iPhone을 연결하고 재생하세요."
+  "mu.phone_idle": "아직 {name}에서 재생 중인 것이 없습니다. iPhone을 연결하고 재생하세요.",
+  "set.voice_pack": "음성",
+  "set.voice_pack_sub": "길 안내를 말하는 목소리",
+  "set.voice_sample": "샘플 듣기",
+  "set.voice_ready": "준비됨",
+  "set.voice_downloading": "다운로드 중 {pct}%",
+  "set.voice_waiting": "Wi-Fi에서 다운로드 (그전까지 기본 음성)",
+  "set.voice_yours": "내 음성 팩",
+  "set.voice_lang_note": "음성 팩은 영어로 말합니다. 이 언어에서는 표준 음성이 말합니다.",
+  "set.voice_sample_text": "{name}입니다. 0.5마일 후 좌회전하세요."
  },
  "pt": {
   "common.back": "Voltar",
@@ -1669,7 +1741,16 @@
   "mu.src_usb": "iPod e USB",
   "mu.from_phone": "Tocando pelo {name}",
   "mu.open_phone": "Abrir {name}",
-  "mu.phone_idle": "Nada tocando pelo {name} ainda. Conecte seu iPhone e toque algo."
+  "mu.phone_idle": "Nada tocando pelo {name} ainda. Conecte seu iPhone e toque algo.",
+  "set.voice_pack": "Voz",
+  "set.voice_pack_sub": "Quem fala as instruções",
+  "set.voice_sample": "Ouvir amostra",
+  "set.voice_ready": "Pronta",
+  "set.voice_downloading": "Baixando {pct}%",
+  "set.voice_waiting": "Baixa no Wi-Fi (voz simples até lá)",
+  "set.voice_yours": "Seu pacote",
+  "set.voice_lang_note": "Os pacotes de voz falam inglês; neste idioma fala a voz Padrão.",
+  "set.voice_sample_text": "Aqui é {name}. Em meia milha, vire à esquerda."
  },
  "hi": {
   "common.back": "वापस",
@@ -1850,6 +1931,15 @@
   "mu.src_usb": "iPod और USB",
   "mu.from_phone": "{name} से चल रहा है",
   "mu.open_phone": "{name} खोलें",
-  "mu.phone_idle": "{name} से अभी कुछ नहीं चल रहा। अपना iPhone जोड़ें और कुछ चलाएँ।"
+  "mu.phone_idle": "{name} से अभी कुछ नहीं चल रहा। अपना iPhone जोड़ें और कुछ चलाएँ।",
+  "set.voice_pack": "आवाज़",
+  "set.voice_pack_sub": "दिशाएँ कौन बोले",
+  "set.voice_sample": "नमूना सुनें",
+  "set.voice_ready": "तैयार",
+  "set.voice_downloading": "डाउनलोड हो रहा है {pct}%",
+  "set.voice_waiting": "Wi-Fi पर डाउनलोड होगा (तब तक सामान्य आवाज़)",
+  "set.voice_yours": "आपका पैक",
+  "set.voice_lang_note": "वॉइस पैक अंग्रेज़ी बोलते हैं; इस भाषा में स्टैंडर्ड आवाज़ बोलती है।",
+  "set.voice_sample_text": "यह {name} है। आधे मील बाद बाएँ मुड़ें।"
  }
 }

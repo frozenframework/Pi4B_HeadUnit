@@ -1,0 +1,12 @@
+{
+ "format": 1,
+ "language": "*",
+ "name": "Standard",
+ "description": "The plain built-in voice, in every head-unit language",
+ "engine": "espeak",
+ "espeak": {
+  "speed": 165,
+  "pitch": 50
+ },
+ "lines": {}
+}

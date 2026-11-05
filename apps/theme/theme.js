@@ -64,6 +64,7 @@ function switches() {
   const ps = $('phoneScreen'), onMap = S.phoneScreen !== 'carplay';
   ps.textContent = onMap ? t('set.phone_map') : t('set.phone_carplay'); ps.classList.toggle('on', onMap);
   ps.onclick = async () => { S = await saveSettings({ phoneScreen: onMap ? 'carplay' : 'map' }); logEvent('setting', { k: 'phoneScreen', v: S.phoneScreen }); switches(); };
+  voiceRow();
   const u = $('units'); u.textContent = S.units === 'imperial' ? t('set.miles') : t('set.kilometers'); u.classList.add('on');
   u.onclick = async () => { S = await saveSettings({ units: S.units === 'imperial' ? 'metric' : 'imperial' }); switches(); };
 }
@@ -112,6 +113,27 @@ async function region() {
   $('tzBtn').textContent = SYS.timezone ? tzLabel(SYS.timezone) : '—';
   $('tzNow').textContent = SYS.timezone ? t('set.local_time', { time: tzTime(SYS.timezone) }) : '';
 }
+// ---- Voice packs (bin/hu_voice.py): name, what state its offline voice is in, a sample
+let VOICES = [];
+const voiceState = (v) => v.state === 'ready' ? t('set.voice_ready') : v.state === 'downloading' ? t('set.voice_downloading', { pct: v.pct ?? 0 })
+  : t('set.voice_waiting');
+async function voiceRow() {
+  const r = await api('/api/voices').catch(() => null); if (!r) return;
+  VOICES = r.packs || [];
+  const cur = VOICES.find(v => v.current) || VOICES[0];
+  $('voicePack').textContent = cur?.name || 'Standard'; $('voicePack').classList.add('on');
+  $('voiceSub').textContent = r.language !== 'en' && cur?.language === 'en' ? t('set.voice_lang_note')
+    : (cur && cur.state !== 'ready' ? `${cur.description} · ${voiceState(cur)}` : (cur?.description || t('set.voice_pack_sub')));
+  $('voicePack').onclick = () => pick(t('set.voice_pack'), VOICES.map(v => ({ value: v.id, label: v.name,
+      sub: [v.description, v.kind === 'yours' ? t('set.voice_yours') : '', v.engine === 'piper' ? voiceState(v) : ''].filter(Boolean).join(' · ') })),
+    cur?.id, async (id) => { S = await saveSettings({ voicePack: id }); logEvent('setting', { k: 'voicePack', v: id }); await voiceRow(); sample(id); });
+  $('voiceSample').onclick = () => sample(cur?.id);
+}
+function sample(id) {
+  const v = VOICES.find(x => x.id === id);
+  api('/api/say', { json: { key: 'sample', pack: id, text: t('set.voice_sample_text', { name: v?.name || '' }) } }).catch(() => {});
+}
+
 function pick(title, items, current, onPick) {
   $('pickTitle').textContent = title;
   const list = $('pickList'); list.innerHTML = '';
@@ -256,4 +278,5 @@ function askGoBack(v, cur) {
   setInterval(() => { if (!$('maps').classList.contains('hidden')) maps(); }, 15000);
   setInterval(() => { if (!$('display').classList.contains('hidden')) display(); }, 2000);
   setInterval(() => { if (!$('updates').classList.contains('hidden')) updates(); }, 3000);
+  setInterval(() => { if (!$('drive').classList.contains('hidden') && $('picker').classList.contains('hidden')) voiceRow(); }, 4000);
 })();

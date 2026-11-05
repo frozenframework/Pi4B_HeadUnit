@@ -1,0 +1,34 @@
+{
+ "format": 1,
+ "language": "en",
+ "name": "Cruise Control",
+ "description": "Laid-back co-driver, easy-going and unhurried",
+ "engine": "piper",
+ "model": "en_US-joe-medium",
+ "length_scale": 1.05,
+ "espeak": {
+  "voice": "en-us+m7",
+  "speed": 155,
+  "pitch": 45
+ },
+ "lines": {
+  "greet": [
+   "Hey, good to see you. Where are we cruising today?",
+   "All set. Take your time."
+  ],
+  "route_started": [
+   "Alright, we're rolling. Easy does it.",
+   "Route's ready. Just ride."
+  ],
+  "in_dist": "In about {dist}, {text}.",
+  "rerouting": [
+   "No worries, finding another way.",
+   "Missed it? All good. New route."
+  ],
+  "arrived": [
+   "And we're here. Smooth ride.",
+   "That's the spot. Enjoy."
+  ],
+  "sample": "Cruise Control here. In about half a mile, turn left onto Main Street."
+ }
+}

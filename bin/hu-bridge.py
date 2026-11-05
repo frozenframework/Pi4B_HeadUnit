@@ -82,6 +82,7 @@ def system_language():
 DEFAULT_SETTINGS = {"theme": C("DEFAULT_THEME", "neon-overdrive"), "units": "imperial", "voice": True,
                     "language": system_language(), "lastPos": None,
                     "syncHudiyColors": True, "nightAuto": True, "startOnMap": True, "phoneScreen": "map",
+                    "voicePack": "standard",
                     "dayNight": False, "dayTheme": "sunset-junction", "nightTheme": C("DEFAULT_THEME", "neon-overdrive"),
                     "display": {"level": 100, "auto": True, "day": 100, "night": 45, "method": "auto"}, "radio": {"band": "FM", "FM": 101100, "AM": 740,
                     "presets": {"FM": [], "AM": []}}}
@@ -367,8 +368,14 @@ async def media_watch(app):
         await asyncio.sleep(4)
 
 def import_map_pack():
-    """A USB drive with a HEADUNIT_MAPS folder (made by maps/build-routing.py) is copied in automatically."""
+    """A USB drive with a HEADUNIT_MAPS folder (made by maps/build-routing.py) is copied in automatically,
+    and so are voice packs in a HEADUNIT_VOICES folder."""
     for d in MEDIA_ROOT.iterdir() if MEDIA_ROOT.exists() else []:
+        try:
+            got = voices.import_from(d / "HEADUNIT_VOICES")
+            if got: usage("voice_import", packs=got); log.info("voice packs imported: %s", got)
+        except Exception as e:
+            log.warning("voice pack import: %s", e)
         pack = d / "HEADUNIT_MAPS"
         man = pack / "manifest.json"
         if not man.exists():
@@ -455,14 +462,51 @@ def voice_for(lang):
         if v in _voices: return v
     return "en-us"
 
+# Voice packs (bin/hu_voice.py, voices/README.md): who speaks, and with which lines.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from hu_voice import Voices
+voices = Voices(APP_DIR.parent / "voices", DATA_DIR / "voices")
+
 async def say(request):
+    """{text, key?, vars?, pack?}: key = greet | route_started | rerouting | arrived | in_dist | turn | sample.
+    pack (Settings' Play sample) speaks that pack even with voice directions off."""
     body = await request.json()
+    s = settings(); key = str(body.get("key", ""))[:30]
     text = str(body.get("text", ""))[:300]
-    if not settings().get("voice", True) or not text or not shutil.which("espeak-ng"):
+    vars = {k: str(v)[:200] for k, v in (body.get("vars") or {}).items() if isinstance(k, str)}
+    pack = str(body.get("pack") or s.get("voicePack", "standard"))
+    if not body.get("pack") and not s.get("voice", True):
         return web.json_response({"ok": False})
-    cmd = ["sh", "-c", 'espeak-ng -v "$2" -s 165 --stdout "$1" | pw-play -', "say", text, voice_for(settings().get("language", "en"))]
-    await asyncio.create_subprocess_exec(*cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if key == "greet":                                       # once per start, only if the pack has a greeting
+        if voices.greeted: return web.json_response({"ok": False})
+        voices.greeted = True
+    lang = s.get("language", "en")
+    asyncio.create_task(voices.say(pack, key, text, vars, lang, voice_for(lang)))
     return web.json_response({"ok": True})
+
+async def voices_api(request):
+    what = request.match_info.get("what", "")
+    if request.method == "POST" and what == "download":
+        start_voice_downloads(); return web.json_response({"ok": True})
+    return web.json_response({"packs": voices.status(settings().get("voicePack", "standard")), "language": settings().get("language", "en")})
+
+_voice_dl = {"task": None}
+def start_voice_downloads():
+    t = _voice_dl["task"]
+    if t and not t.done(): return
+    async def run():
+        from aiohttp import ClientSession, ClientTimeout
+        async with ClientSession(timeout=ClientTimeout(total=None, sock_connect=20, sock_read=60)) as cs:
+            await voices.download_models(cs, first=settings().get("voicePack"))
+    _voice_dl["task"] = asyncio.create_task(run())
+
+async def voice_watch():
+    """Fetch missing Piper voice models whenever there's internet (checked every 10 minutes)."""
+    await asyncio.sleep(60)
+    while True:
+        try: start_voice_downloads()
+        except Exception as e: log.warning("voice downloads: %s", e)
+        await asyncio.sleep(600)
 
 # ---------------------------------------------------------------- settings / favorites / theme sync
 async def settings_api(request):
@@ -484,6 +528,8 @@ async def settings_api(request):
     if s.get("dayNight") and {"dayNight", "dayTheme", "nightTheme"} & set(body):
         s["theme"] = day_night_theme(s)                       # switch right away to the skin for now
     write_json(USER_DIR / "settings.json", s)
+    if "voicePack" in body:
+        start_voice_downloads()                              # the chosen voice first
     if s.get("startOnMap") != old_start:   # Hudiy's first screen: offline map or its own dashboard
         subprocess.Popen([sys.executable, "/opt/headunit/bin/hu-hudiy-start.py", "--config"],
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -788,6 +834,7 @@ async def on_start(app):
     app["media"] = asyncio.create_task(media_watch(app))
     app["export"] = asyncio.create_task(export_watch(app))
     app["daynight"] = asyncio.create_task(day_night_watch())
+    app["voices"] = asyncio.create_task(voice_watch())
     usage("bridge_start", vehicle=C("VEHICLE_ID", ""))
     asyncio.get_running_loop().run_in_executor(None, hudiy_hotspot_guard)
     if C("PHONE_LINK", "1") == "1":
@@ -854,6 +901,8 @@ def make_app():
     app.router.add_get("/api/status", status)
     app.router.add_get("/api/phone", phone_api)
     app.router.add_get("/api/sun", sun_api)
+    app.router.add_route("*", "/api/voices", voices_api)
+    app.router.add_route("*", "/api/voices/{what}", voices_api)
     app.router.add_post("/api/hudiy/action", hudiy_action_api)
     app.router.add_route("*", "/api/phone/{what}", phone_api)
     app.router.add_get("/api/gps/stream", gps_stream)
