@@ -57,3 +57,6 @@ HOTSPOT_PSK=""
 # Hudiy before anything else (it wants a clean OS), then removes the installer and the order number
 # from this card. Without an order number, Hudiy is skipped and you can run its installer later.
 HUDIY_ORDER=""
+
+# Voice prompts lower the music / CarPlay audio while they speak (through Hudiy's audio focus). 0 = off.
+DUCK_AUDIO=1

@@ -11,6 +11,33 @@
   "speed": 185,
   "pitch": 58
  },
+ "noise_scale": 0.8,
+ "noise_w": 1.0,
+ "pause": 0.15,
+ "phrases": {
+  "Turn left": [
+   "Turn left",
+   "Hang a left",
+   "Swing left"
+  ],
+  "Turn right": [
+   "Turn right",
+   "Hang a right",
+   "Swing right"
+  ],
+  "Keep left": [
+   "Keep left",
+   "Stay left"
+  ],
+  "Keep right": [
+   "Keep right",
+   "Stay right"
+  ],
+  "Continue on": [
+   "Continue on",
+   "Stay on"
+  ]
+ },
  "lines": {
   "greet": [
    "Engines warm, let's get this show on the road!",

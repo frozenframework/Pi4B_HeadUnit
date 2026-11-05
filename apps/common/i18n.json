@@ -215,7 +215,8 @@
   "nav.visits": "{n} visits",
   "nav.recent": "Recent",
   "nav.clear_history_q": "Clear the list of recent and often-visited places? Saved places stay.",
-  "nav.history_cleared": "History cleared"
+  "nav.history_cleared": "History cleared",
+  "nav.then_say": "then {text}"
  },
  "es": {
   "common.back": "Atrás",
@@ -432,7 +433,8 @@
   "nav.visits": "{n} visitas",
   "nav.recent": "Recientes",
   "nav.clear_history_q": "¿Borrar la lista de lugares recientes y frecuentes? Los guardados se quedan.",
-  "nav.history_cleared": "Historial borrado"
+  "nav.history_cleared": "Historial borrado",
+  "nav.then_say": "y luego {text}"
  },
  "zh": {
   "common.back": "返回",
@@ -670,7 +672,8 @@
   "nav.visits": "{n} 次",
   "nav.recent": "最近",
   "nav.clear_history_q": "清除最近和常去地点的列表？已保存的地点会保留。",
-  "nav.history_cleared": "记录已清除"
+  "nav.history_cleared": "记录已清除",
+  "nav.then_say": "然后{text}"
  },
  "tl": {
   "common.back": "Bumalik",
@@ -908,7 +911,8 @@
   "nav.visits": "{n} pagbisita",
   "nav.recent": "Kamakailan",
   "nav.clear_history_q": "I-clear ang listahan ng kamakailan at madalas na lugar? Mananatili ang mga naka-save.",
-  "nav.history_cleared": "Na-clear ang history"
+  "nav.history_cleared": "Na-clear ang history",
+  "nav.then_say": "saka {text}"
  },
  "vi": {
   "common.back": "Quay lại",
@@ -1125,7 +1129,8 @@
   "nav.visits": "{n} lần",
   "nav.recent": "Gần đây",
   "nav.clear_history_q": "Xóa danh sách địa điểm gần đây và hay đến? Địa điểm đã lưu vẫn giữ.",
-  "nav.history_cleared": "Đã xóa lịch sử"
+  "nav.history_cleared": "Đã xóa lịch sử",
+  "nav.then_say": "rồi {text}"
  },
  "ar": {
   "common.back": "رجوع",
@@ -1342,7 +1347,8 @@
   "nav.visits": "{n} زيارات",
   "nav.recent": "الأخيرة",
   "nav.clear_history_q": "مسح قائمة الأماكن الأخيرة والمتكررة؟ تبقى الأماكن المحفوظة.",
-  "nav.history_cleared": "تم مسح السجل"
+  "nav.history_cleared": "تم مسح السجل",
+  "nav.then_say": "ثم {text}"
  },
  "fr": {
   "common.back": "Retour",
@@ -1559,7 +1565,8 @@
   "nav.visits": "{n} visites",
   "nav.recent": "Récents",
   "nav.clear_history_q": "Effacer la liste des lieux récents et fréquents ? Les lieux enregistrés restent.",
-  "nav.history_cleared": "Historique effacé"
+  "nav.history_cleared": "Historique effacé",
+  "nav.then_say": "puis {text}"
  },
  "ko": {
   "common.back": "뒤로",
@@ -1776,7 +1783,8 @@
   "nav.visits": "{n}회 방문",
   "nav.recent": "최근",
   "nav.clear_history_q": "최근 장소와 자주 가는 장소 목록을 지울까요? 저장된 장소는 유지됩니다.",
-  "nav.history_cleared": "기록을 지웠습니다"
+  "nav.history_cleared": "기록을 지웠습니다",
+  "nav.then_say": "그다음 {text}"
  },
  "pt": {
   "common.back": "Voltar",
@@ -1993,7 +2001,8 @@
   "nav.visits": "{n} visitas",
   "nav.recent": "Recentes",
   "nav.clear_history_q": "Limpar a lista de lugares recentes e frequentes? Os salvos ficam.",
-  "nav.history_cleared": "Histórico limpo"
+  "nav.history_cleared": "Histórico limpo",
+  "nav.then_say": "depois {text}"
  },
  "hi": {
   "common.back": "वापस",
@@ -2210,6 +2219,7 @@
   "nav.visits": "{n} बार",
   "nav.recent": "हाल की",
   "nav.clear_history_q": "हाल की और अक्सर जाने वाली जगहों की सूची मिटाएँ? सहेजी जगहें रहेंगी।",
-  "nav.history_cleared": "इतिहास मिटा दिया"
+  "nav.history_cleared": "इतिहास मिटा दिया",
+  "nav.then_say": "फिर {text}"
  }
 }

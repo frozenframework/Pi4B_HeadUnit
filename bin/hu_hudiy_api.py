@@ -13,6 +13,9 @@ HELLO_REQUEST, HELLO_RESPONSE, SET_STATUS_SUBSCRIPTIONS, SET_REVERSE_CAMERA_STAT
 PROJECTION_STATUS, MEDIA_STATUS, MEDIA_METADATA = 5, 6, 7
 NAVIGATION_STATUS, NAVIGATION_MANEUVER_DETAILS, NAVIGATION_MANEUVER_DISTANCE = 8, 9, 10
 PHONE_CONNECTION_STATUS, PHONE_VOICE_CALL_STATUS, CURRENT_MENU_ACTION = 33, 34, 52
+REGISTER_AUDIO_FOCUS_RECEIVER_REQUEST, REGISTER_AUDIO_FOCUS_RECEIVER_RESPONSE, AUDIO_FOCUS_CHANGE_REQUEST = 26, 27, 29
+FOCUS_DUCK, FOCUS_RELEASE = 3, 4                 # AudioFocusChangeRequest.AudioFocusType ("duck" = for navigation prompts)
+CATEGORY_COMMUNICATION = 2
 # SetStatusSubscriptions.Subscription
 SUB_PROJECTION, SUB_MEDIA, SUB_NAVIGATION, SUB_PHONE, SUB_CURRENT_MENU_ACTION = 1, 2, 3, 5, 7
 DISPATCH_ACTION, PING, PONG, BYEBYE = 43, 47, 48, 49
@@ -62,6 +65,12 @@ def decode(buf):
 
 def reverse_camera_status(visible):
     return _field_varint(1, 1 if visible else 0)
+
+def register_audio_focus(name, category=CATEGORY_COMMUNICATION, duck_priority=100):
+    return _field_bytes(1, name.encode()) + _field_varint(2, category) + _field_varint(3, duck_priority)
+
+def audio_focus_change(receiver_id, focus_type):
+    return _field_varint(1, receiver_id) + _field_varint(2, focus_type)
 
 def dispatch_action(action):
     return _field_bytes(1, action.encode())
@@ -130,8 +139,12 @@ class HudiyLink:
     """Keeps one connection open (Hudiy may start after us, or restart), answers pings, and
     re-sends the last reverse-camera state after every reconnect. With subscriptions + on_message it
     also receives Hudiy's status messages (projection, media, navigation, phone ...)."""
-    def __init__(self, name="headunit", host="127.0.0.1", port=44405, subscriptions=(), on_message=None, on_connect=None):
+    def __init__(self, name="headunit", host="127.0.0.1", port=44405, subscriptions=(), on_message=None, on_connect=None,
+                 audio_focus=None):
+        """audio_focus=(name, category, duck_priority): register as an audio source so duck()/release()
+        can lower other audio (music, CarPlay) while we speak."""
         self.name, self.host, self.port = name, host, port
+        self.audio_focus, self.focus_id = audio_focus, None
         self.subscriptions, self.on_message, self.on_connect = list(subscriptions), on_message, on_connect
         self.sock = None; self.ready = False; self.lock = threading.Lock(); self.reverse = None; self.pending = []
         threading.Thread(target=self._loop, daemon=True).start()
@@ -139,6 +152,13 @@ class HudiyLink:
     def set_reverse(self, visible):
         self.reverse = bool(visible)
         self._send(SET_REVERSE_CAMERA_STATUS, reverse_camera_status(self.reverse))
+
+    def duck(self):
+        """Ask Hudiy to lower other audio while a voice prompt plays (navigation-prompt focus)."""
+        return self.focus_id is not None and self._send(AUDIO_FOCUS_CHANGE_REQUEST, audio_focus_change(self.focus_id, FOCUS_DUCK))
+
+    def release(self):
+        return self.focus_id is not None and self._send(AUDIO_FOCUS_CHANGE_REQUEST, audio_focus_change(self.focus_id, FOCUS_RELEASE))
 
     def action(self, name):
         if not self.ready:                         # not connected yet: send it once Hudiy says hello back
@@ -186,12 +206,19 @@ class HudiyLink:
                             self.set_reverse(self.reverse)
                         if self.subscriptions:
                             self._send(SET_STATUS_SUBSCRIPTIONS, status_subscriptions(self.subscriptions))
+                        if self.audio_focus:
+                            self.focus_id = None
+                            self._send(REGISTER_AUDIO_FOCUS_RECEIVER_REQUEST, register_audio_focus(*self.audio_focus))
                         for a in self.pending: self._send(DISPATCH_ACTION, dispatch_action(a))
                         self.pending = []
                         if self.on_connect:
                             self.on_connect()
                     elif mid == PING:
                         self._send(PONG, b"", before_hello=True)
+                    elif mid == REGISTER_AUDIO_FOCUS_RECEIVER_RESPONSE:
+                        f = decode(payload)
+                        if f.get(1, [0])[0] == 1 and f.get(2): self.focus_id = f[2][0]
+                        else: log.info("Hudiy didn't give us an audio focus receiver; speech won't lower music")
                     elif mid == BYEBYE:
                         raise ConnectionError("bye")
                     elif self.on_message:

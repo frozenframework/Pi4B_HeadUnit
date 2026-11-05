@@ -914,8 +914,12 @@ def start_phone_link():
     global phone_link_up
     phone_link_up = lambda: link is not None and link.ready
     phone = PhoneState(dispatch, lambda: "carplay" if settings().get("phoneScreen") == "carplay" else "map", log=log)
+    duck = C("DUCK_AUDIO", "1") == "1"
     link = H.HudiyLink("headunit-phone", port=H.api_port(), on_message=phone.handle,
-                       subscriptions=[H.SUB_PROJECTION, H.SUB_MEDIA, H.SUB_NAVIGATION, H.SUB_PHONE, H.SUB_CURRENT_MENU_ACTION])
+                       subscriptions=[H.SUB_PROJECTION, H.SUB_MEDIA, H.SUB_NAVIGATION, H.SUB_PHONE, H.SUB_CURRENT_MENU_ACTION],
+                       audio_focus=("headunit-voice", H.CATEGORY_COMMUNICATION, 100) if duck else None)
+    if duck:                                     # voice prompts lower the music / CarPlay audio while they play
+        voices.on_speak_start, voices.on_speak_end = link.duck, link.release
 
 async def phone_api(request):
     what = request.match_info.get("what", "")

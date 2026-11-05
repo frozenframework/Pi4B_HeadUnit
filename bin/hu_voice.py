@@ -10,6 +10,7 @@ A pack's lines are English; in other head-unit languages the Standard voice spea
 While a pack's Piper model is still downloading, it speaks with its own espeak settings instead.
 """
 import asyncio, hashlib, io, json, logging, os, random, re, shutil, subprocess, threading, time, wave
+from hu_speech import humanize
 from pathlib import Path
 
 log = logging.getLogger("hu-voice")
@@ -24,6 +25,30 @@ def model_url(model, ext):
     fam, cc, name, q = m.groups()
     return MODEL_URL.format(fam=fam, code=f"{fam}_{cc}", name=name, q=q, model=model, ext=ext)
 
+def shape_speech(chunks, rate, pause=0.22, volume=1.0, lead=0.12, tail=0.08, fade=0.008, peak=0.86):
+    """Join sentence chunks (float32 arrays) into one natural-sounding line: soft edges, breaths between
+    sentences, a little lead-in silence, one overall loudness."""
+    import numpy as np
+    f = max(1, int(rate * fade)); ramp = np.linspace(0.0, 1.0, f, dtype=np.float32)
+    parts = [np.zeros(int(rate * lead), np.float32)]
+    for i, a in enumerate(chunks):
+        a = a.astype(np.float32).copy()
+        if a.size > 2 * f: a[:f] *= ramp; a[-f:] *= ramp[::-1]
+        parts.append(a)
+        if i < len(chunks) - 1: parts.append(np.zeros(int(rate * pause), np.float32))
+    parts.append(np.zeros(int(rate * tail), np.float32))
+    out = np.concatenate(parts); m = float(np.max(np.abs(out))) if out.size else 0.0
+    if m > 1e-6: out = out * (peak / m) * volume
+    return np.clip(out, -1.0, 1.0)
+
+def pcm_wav(audio, rate):
+    import numpy as np
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as w:
+        w.setnchannels(1); w.setsampwidth(2); w.setframerate(rate)
+        w.writeframes((audio * 32767.0).astype(np.int16).tobytes())
+    return buf.getvalue()
+
 class Voices:
     def __init__(self, builtin: Path, data: Path, play_cmd=("pw-play", "-"), espeak="espeak-ng"):
         self.builtin, self.data = Path(builtin), Path(data)
@@ -33,6 +58,7 @@ class Voices:
         self._piper = {}; self._piper_lock = threading.Lock()
         self.downloads = {}        # model -> {"state": "downloading"|"ready"|"waiting"|"error", "pct": n}
         self.greeted = False
+        self.on_speak_start = self.on_speak_end = None   # set by the bridge: duck other audio through Hudiy
 
     # ---------------------------------------------------------- packs
     def packs(self):
@@ -93,12 +119,20 @@ class Voices:
             return self._piper[model]
 
     def synth_piper(self, p, text):
+        """Natural delivery: a little more expressive rhythm than Piper's defaults, a short breath between
+        sentences, one loudness for the whole line (Piper evens out each sentence on its own, which
+        sounds jumpy), soft starts/ends instead of clicks, and a moment of silence up front so the
+        amplifier is awake before the first word."""
+        import numpy as np
         from piper import SynthesisConfig
-        cfg = SynthesisConfig(length_scale=p.get("length_scale"), noise_scale=p.get("noise_scale"), volume=float(p.get("volume", 1.0)))
-        buf = io.BytesIO()
-        with wave.open(buf, "wb") as w:
-            self._piper_voice(p["model"]).synthesize_wav(text, w, syn_config=cfg)
-        return buf.getvalue()
+        cfg = SynthesisConfig(length_scale=p.get("length_scale"), noise_scale=p.get("noise_scale", 0.72),
+                              noise_w_scale=p.get("noise_w", 0.9), normalize_audio=False, volume=1.0)
+        chunks, rate = [], 22050
+        for ch in self._piper_voice(p["model"]).synthesize(text, cfg):
+            rate = ch.sample_rate; a = np.asarray(ch.audio_float_array, dtype=np.float32).reshape(-1)
+            if a.size: chunks.append(a)
+        if not chunks: return b""
+        return pcm_wav(shape_speech(chunks, rate, pause=float(p.get("pause", 0.22)), volume=float(p.get("volume", 1.0))), rate)
 
     def synth_espeak(self, p, text, fallback_voice):
         e = p.get("espeak") or {}
@@ -108,7 +142,7 @@ class Voices:
     def wav_for(self, p, text, fallback_voice):
         """Spoken audio for text (cached on disk, so repeated lines start instantly)."""
         use_piper = p.get("engine") == "piper" and self.model_ready(p.get("model"))
-        how = f"piper:{p.get('model')}:{p.get('length_scale')}" if use_piper else f"espeak:{json.dumps(p.get('espeak'))}:{fallback_voice}"
+        how = f"piper2:{p.get('model')}:{p.get('length_scale')}:{p.get('noise_scale')}:{p.get('noise_w')}:{p.get('pause')}" if use_piper else f"espeak:{json.dumps(p.get('espeak'))}:{fallback_voice}"
         f = self.cache / p["id"] / (hashlib.sha1(f"{how}|{text}".encode()).hexdigest() + ".wav")
         if f.exists():
             return f.read_bytes()
@@ -129,12 +163,20 @@ class Voices:
         files = sorted(self.cache.rglob("*.wav"), key=lambda x: x.stat().st_atime)
         for x in files[:max(0, len(files) - CACHE_MAX)]: x.unlink(missing_ok=True)
 
+    async def _focus(self, which):
+        hook = self.on_speak_start if which == "start" else self.on_speak_end
+        if hook:
+            try: hook()
+            except Exception as e: log.debug("audio focus: %s", e)
+
     async def say(self, pack_id, key, text, vars, lang, fallback_voice):
         """Queue one utterance (they never talk over each other; a long backlog drops the extras)."""
         p = self.pack(pack_id)
         if lang != "en" and p.get("language", "en") not in ("*", lang):
             p = self.pack("standard")
         kind, what = self.compose(p, key, text, vars or {}, lang)
+        if kind == "text" and lang == "en":                     # read like a person would say it
+            what = humanize(what, p.get("phrases"))
         if not what: return False
         if self.waiting >= 3: return False                  # one speaking + two waiting at most
         self.waiting += 1
@@ -143,9 +185,13 @@ class Voices:
                 loop = asyncio.get_running_loop()
                 data = what.read_bytes() if kind == "clip" else await loop.run_in_executor(None, self.wav_for, p, what, fallback_voice)
                 if not data: return False
-                proc = await asyncio.create_subprocess_exec(*self.play_cmd, stdin=asyncio.subprocess.PIPE,
-                                                            stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
-                await proc.communicate(data)
+                await self._focus("start")                     # music / CarPlay audio dips while it speaks
+                try:
+                    proc = await asyncio.create_subprocess_exec(*self.play_cmd, stdin=asyncio.subprocess.PIPE,
+                                                                stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL)
+                    await proc.communicate(data)
+                finally:
+                    await self._focus("end")
                 return True
         finally:
             self.waiting -= 1

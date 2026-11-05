@@ -251,8 +251,17 @@ function guide() {
   // voice prompts: about half a mile out (highway) or 1000 ft (city), then right before the turn
   const far = state.speed > 20 ? 800 : 300;
   const key = `${idx}`;
-  if (toNext < far && toNext > 120 && !state.spoken.has(key + 'f')) { state.spoken.add(key + 'f'); say(t('nav.in_dist', { dist: sayDist(toNext), text: spoken(next) }), 'in_dist', { dist: sayDist(toNext), text: spoken(next) }); }
-  if (toNext <= 60 + state.speed * 3 && !state.spoken.has(key + 'n')) { state.spoken.add(key + 'n'); say(spoken(next), 'turn'); }
+  // two turns close together are said in one breath, like a person would: "turn left, then right onto Elm"
+  const quick = then && rt.cum[then.begin] - rt.cum[next.begin] < 160 && ![4, 5, 6].includes(next.type);
+  const both = (txt) => quick ? `${txt.replace(/[.!]\s*$/, '')}, ${t('nav.then_say', { text: spoken(then) })}` : txt;
+  if (toNext < far && toNext > 120 && !state.spoken.has(key + 'f')) {
+    state.spoken.add(key + 'f'); const txt = both(spoken(next));
+    say(t('nav.in_dist', { dist: sayDist(toNext), text: txt }), 'in_dist', { dist: sayDist(toNext), text: txt });
+  }
+  if (toNext <= 60 + state.speed * 3 && !state.spoken.has(key + 'n')) {
+    state.spoken.add(key + 'n'); say(both(spoken(next)), 'turn');
+    if (quick) state.spoken.add(`${idx + 1}f`);       // its own heads-up would come right after: skip it
+  }
   if (best.i % 5 === 0) refreshRoute();
 }
 

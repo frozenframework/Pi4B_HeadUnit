@@ -11,6 +11,23 @@
   "speed": 150,
   "pitch": 32
  },
+ "noise_scale": 0.66,
+ "noise_w": 0.85,
+ "pause": 0.32,
+ "phrases": {
+  "Turn left": [
+   "Turn left",
+   "Take the left"
+  ],
+  "Turn right": [
+   "Turn right",
+   "Take the right"
+  ],
+  "Continue on": [
+   "Continue on",
+   "Stay on"
+  ]
+ },
  "lines": {
   "greet": [
    "Another night, another drive. Where to?",

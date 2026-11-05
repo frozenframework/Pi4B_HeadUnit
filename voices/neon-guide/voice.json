@@ -11,6 +11,31 @@
   "speed": 160,
   "pitch": 62
  },
+ "noise_scale": 0.7,
+ "noise_w": 0.9,
+ "pause": 0.25,
+ "phrases": {
+  "Turn left": [
+   "Turn left",
+   "Take a left"
+  ],
+  "Turn right": [
+   "Turn right",
+   "Take a right"
+  ],
+  "Continue on": [
+   "Continue on",
+   "Stay on"
+  ],
+  "Keep left": [
+   "Keep left",
+   "Stay left"
+  ],
+  "Keep right": [
+   "Keep right",
+   "Stay right"
+  ]
+ },
  "lines": {
   "greet": [
    "Systems online. Where are we headed?",

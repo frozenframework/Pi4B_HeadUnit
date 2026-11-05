@@ -11,6 +11,34 @@
   "speed": 155,
   "pitch": 45
  },
+ "noise_scale": 0.72,
+ "noise_w": 0.95,
+ "pause": 0.28,
+ "phrases": {
+  "Turn left": [
+   "Turn left",
+   "Hang a left",
+   "Make a left"
+  ],
+  "Turn right": [
+   "Turn right",
+   "Hang a right",
+   "Make a right"
+  ],
+  "Continue on": [
+   "Continue on",
+   "Cruise on",
+   "Stay on"
+  ],
+  "Keep left": [
+   "Keep left",
+   "Ease left"
+  ],
+  "Keep right": [
+   "Keep right",
+   "Ease right"
+  ]
+ },
  "lines": {
   "greet": [
    "Hey, good to see you. Where are we cruising today?",
