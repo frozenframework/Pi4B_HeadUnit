@@ -95,6 +95,15 @@ def valhalla_bin(name):
     if not exe.exists(): sys.exit(f"Can't find {exe}. Install with: pip install pyvalhalla==3.9.1")
     return str(exe)
 
+def valhalla_env():
+    """On Windows the Valhalla programs need the DLLs pyvalhalla ships in site-packages/pyvalhalla.libs on
+    PATH (otherwise they exit at once with 3221225781 = 0xC0000135, 'DLL not found'); pyvalhalla's own
+    launcher does the same."""
+    if os.name != "nt": return None
+    import valhalla
+    libs = Path(valhalla.__file__).resolve().parent.parent / "pyvalhalla.libs"
+    return {**os.environ, "PATH": str(libs) + os.pathsep + os.environ.get("PATH", "")}
+
 def build_routing(pbfs, work, out):
     from valhalla import get_config
     tiles = work / "valhalla_tiles"
@@ -105,7 +114,7 @@ def build_routing(pbfs, work, out):
     cfg["mjolnir"]["timezone"] = ""; cfg["mjolnir"]["admin"] = ""   # skip optional admin/timezone DBs
     cfg_path = work / "valhalla.json"; cfg_path.write_text(json.dumps(cfg, indent=1))
     log("building routing graph (this is the slow part)")
-    subprocess.run([valhalla_bin("valhalla_build_tiles"), "-c", str(cfg_path), *map(str, pbfs)], check=True)
+    subprocess.run([valhalla_bin("valhalla_build_tiles"), "-c", str(cfg_path), *map(str, pbfs)], check=True, env=valhalla_env())
     tar_path = out / "valhalla_tiles.tar"
     log("packing", tar_path.name)
     with tarfile.open(tar_path, "w") as t:
