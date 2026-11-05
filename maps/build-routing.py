@@ -117,17 +117,33 @@ def build_routing(pbfs, work, out):
     subprocess.run([valhalla_bin("valhalla_build_tiles"), "-c", str(cfg_path), *map(str, pbfs)], check=True, env=valhalla_env())
     tar_path = out / "valhalla_tiles.tar"
     log("packing", tar_path.name)
-    with tarfile.open(tar_path, "w") as t:
+    part = tar_path.with_suffix(".tar.part")
+    with tarfile.open(part, "w") as t:
         for f in sorted(tiles.rglob("*.gph")):
             t.add(f, arcname=str(f.relative_to(tiles)).replace(os.sep, "/"))
+    os.replace(part, tar_path)                    # only a completely packed file gets the real name
     return tar_path
+
+def routing_already_built(pbfs, work, out):
+    """The routing graph from a run that stopped later (e.g. in the search step) is reused instead of
+    spending hours building it again: valhalla_tiles.tar is newer than the map data and holds every
+    tile that was built."""
+    tar_path, tiles = out / "valhalla_tiles.tar", work / "valhalla_tiles"
+    if not tar_path.exists() or not tiles.exists(): return False
+    if tar_path.stat().st_mtime < max(Path(p).stat().st_mtime for p in pbfs): return False
+    try:
+        with tarfile.open(tar_path) as t: n = sum(1 for m in t if m.isfile())
+    except (tarfile.TarError, OSError):
+        return False
+    return n > 0 and n == sum(1 for _ in tiles.rglob("*.gph"))
 
 BIG_PBF = 2 * 2**30      # above this much OpenStreetMap data, node positions go to a file on disk
 KIND_KEYS = ("amenity", "shop", "tourism", "leisure", "aeroway", "railway", "office", "healthcare", "craft", "historic")
 def build_search(pbfs, out, addresses, work=Path(".")):
     import osmium
     db_path = out / "search.sqlite"
-    if db_path.exists(): db_path.unlink()
+    for f in (db_path, out / "search.sqlite-journal", out / "search.sqlite-wal", out / "search.sqlite-shm"):
+        f.unlink(missing_ok=True)                    # incl. the leftovers of a run that stopped part way
     con = sqlite3.connect(db_path)
     con.execute("CREATE VIRTUAL TABLE places USING fts5(name, kind UNINDEXED, detail, lon UNINDEXED, lat UNINDEXED, tokenize='unicode61 remove_diacritics 2')")
     rows = []; seen_streets = set()
@@ -167,13 +183,18 @@ def build_search(pbfs, out, addresses, work=Path(".")):
     # Node positions: kept in memory for a state or two; for big regions (the whole US is ~10 GB of
     # OpenStreetMap data) in a file on disk instead, so it runs on a 16 GB computer.
     big = sum(Path(p).stat().st_size for p in pbfs) > BIG_PBF
-    idx_file = work / "node-locations.idx"
-    idx = f"sparse_file_array,{idx_file}" if big else "flex_mem"
-    for p in pbfs:
+    def remove(f):                                   # Windows may still hold the file for a moment: not fatal
+        try: f.unlink(missing_ok=True)
+        except OSError: log(f"(couldn't delete {f.name} yet; it's only a work file, delete hu-maps-work later)")
+    for old in work.glob("node-locations*.idx"): remove(old)
+    for i, p in enumerate(pbfs):
+        idx_file = work / f"node-locations-{i}.idx"
+        idx = f"sparse_file_array,{idx_file}" if big else "flex_mem"
         log("indexing", Path(p).name, "(node positions on disk)" if big else "")
-        idx_file.unlink(missing_ok=True)
-        H().apply_file(str(p), locations=True, idx=idx)
-    idx_file.unlink(missing_ok=True)
+        h = H(); h.apply_file(str(p), locations=True, idx=idx); del h
+        flush(); con.commit()                        # what's indexed is saved before anything else can fail
+        if big:
+            import gc; gc.collect(); remove(idx_file)
     flush(); con.execute("INSERT INTO places(places) VALUES('optimize')"); con.commit()
     n = con.execute("SELECT count(*) FROM places").fetchone()[0]; con.close()
     log(f"search index: {n:,} entries")
@@ -196,7 +217,13 @@ def main():
         pbfs = [download(f"{GEOFABRIK}{g}-latest.osm.pbf", work / (g.split("/")[-1] + "-latest.osm.pbf")) for g in reg["geofabrik"]]
     files = {}
     if not a.skip_routing:
-        files["routing"] = build_routing(pbfs, work, out).name
+        if routing_already_built(pbfs, work, out):
+            log("routing graph already built from this map data; reusing it (delete HEADUNIT_MAPS/valhalla_tiles.tar to rebuild)")
+            files["routing"] = "valhalla_tiles.tar"
+        else:
+            files["routing"] = build_routing(pbfs, work, out).name
+    elif (out / "valhalla_tiles.tar").exists():
+        files["routing"] = "valhalla_tiles.tar"
     if not a.skip_search:
         files["search"] = build_search(pbfs, out, addresses=not a.no_addresses, work=work).name
     manifest = {"region": a.region, "name": reg["name"], "bbox": reg["bbox"], "built": time.strftime("%Y-%m-%dT%H:%M:%S"),
