@@ -135,8 +135,13 @@ Building routing + search on a computer:
 python3 -m venv hu-maps && source hu-maps/bin/activate      # Windows: hu-maps\Scripts\activate
 pip install pyvalhalla==3.9.1 osmium
 python3 maps/build-routing.py --region texas-plus           # TX, LA, OK, NM, AR (about 30-60 min)
-python3 maps/build-routing.py --region us --no-addresses    # whole US: use the Windows PC (16 GB+ RAM, a few hours)
+python3 maps/build-routing.py --region us                  # whole US: use the Windows PC (16 GB+ RAM, a few hours)
 ```
+Search finds places and businesses by name, streets, and street addresses ("1234 N Main St, Conroe"):
+house numbers mapped in OpenStreetMap exactly, others estimated between their neighbors, otherwise
+the street. `--no-addresses` leaves addresses out for a smaller download. A run that stops after the
+routing graph is built reuses it next time, so adding addresses later only rebuilds search.
+
 Send the resulting `HEADUNIT_MAPS` folder to the head unit over Wi-Fi (same network as the computer;
 on the head unit turn on *Settings → Developer → SSH login over Wi-Fi* first):
 ```bash

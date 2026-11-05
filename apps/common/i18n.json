@@ -216,7 +216,11 @@
   "nav.recent": "Recent",
   "nav.clear_history_q": "Clear the list of recent and often-visited places? Saved places stay.",
   "nav.history_cleared": "History cleared",
-  "nav.then_say": "then {text}"
+  "nav.then_say": "then {text}",
+  "nav.k_address": "Address",
+  "nav.k_address_approx": "Approximate address",
+  "nav.k_street_only": "Street (house number not found)",
+  "nav.k_street": "Street"
  },
  "es": {
   "common.back": "Atrás",
@@ -434,7 +438,11 @@
   "nav.recent": "Recientes",
   "nav.clear_history_q": "¿Borrar la lista de lugares recientes y frecuentes? Los guardados se quedan.",
   "nav.history_cleared": "Historial borrado",
-  "nav.then_say": "y luego {text}"
+  "nav.then_say": "y luego {text}",
+  "nav.k_address": "Dirección",
+  "nav.k_address_approx": "Dirección aproximada",
+  "nav.k_street_only": "Calle (número no encontrado)",
+  "nav.k_street": "Calle"
  },
  "zh": {
   "common.back": "返回",
@@ -673,7 +681,11 @@
   "nav.recent": "最近",
   "nav.clear_history_q": "清除最近和常去地点的列表？已保存的地点会保留。",
   "nav.history_cleared": "记录已清除",
-  "nav.then_say": "然后{text}"
+  "nav.then_say": "然后{text}",
+  "nav.k_address": "地址",
+  "nav.k_address_approx": "大致地址",
+  "nav.k_street_only": "街道（未找到门牌号）",
+  "nav.k_street": "街道"
  },
  "tl": {
   "common.back": "Bumalik",
@@ -912,7 +924,11 @@
   "nav.recent": "Kamakailan",
   "nav.clear_history_q": "I-clear ang listahan ng kamakailan at madalas na lugar? Mananatili ang mga naka-save.",
   "nav.history_cleared": "Na-clear ang history",
-  "nav.then_say": "saka {text}"
+  "nav.then_say": "saka {text}",
+  "nav.k_address": "Address",
+  "nav.k_address_approx": "Tinatayang address",
+  "nav.k_street_only": "Kalye (hindi nakita ang numero ng bahay)",
+  "nav.k_street": "Kalye"
  },
  "vi": {
   "common.back": "Quay lại",
@@ -1130,7 +1146,11 @@
   "nav.recent": "Gần đây",
   "nav.clear_history_q": "Xóa danh sách địa điểm gần đây và hay đến? Địa điểm đã lưu vẫn giữ.",
   "nav.history_cleared": "Đã xóa lịch sử",
-  "nav.then_say": "rồi {text}"
+  "nav.then_say": "rồi {text}",
+  "nav.k_address": "Địa chỉ",
+  "nav.k_address_approx": "Địa chỉ ước tính",
+  "nav.k_street_only": "Đường (không tìm thấy số nhà)",
+  "nav.k_street": "Đường"
  },
  "ar": {
   "common.back": "رجوع",
@@ -1348,7 +1368,11 @@
   "nav.recent": "الأخيرة",
   "nav.clear_history_q": "مسح قائمة الأماكن الأخيرة والمتكررة؟ تبقى الأماكن المحفوظة.",
   "nav.history_cleared": "تم مسح السجل",
-  "nav.then_say": "ثم {text}"
+  "nav.then_say": "ثم {text}",
+  "nav.k_address": "العنوان",
+  "nav.k_address_approx": "عنوان تقريبي",
+  "nav.k_street_only": "شارع (لم يُعثر على رقم المنزل)",
+  "nav.k_street": "شارع"
  },
  "fr": {
   "common.back": "Retour",
@@ -1566,7 +1590,11 @@
   "nav.recent": "Récents",
   "nav.clear_history_q": "Effacer la liste des lieux récents et fréquents ? Les lieux enregistrés restent.",
   "nav.history_cleared": "Historique effacé",
-  "nav.then_say": "puis {text}"
+  "nav.then_say": "puis {text}",
+  "nav.k_address": "Adresse",
+  "nav.k_address_approx": "Adresse approximative",
+  "nav.k_street_only": "Rue (numéro introuvable)",
+  "nav.k_street": "Rue"
  },
  "ko": {
   "common.back": "뒤로",
@@ -1784,7 +1812,11 @@
   "nav.recent": "최근",
   "nav.clear_history_q": "최근 장소와 자주 가는 장소 목록을 지울까요? 저장된 장소는 유지됩니다.",
   "nav.history_cleared": "기록을 지웠습니다",
-  "nav.then_say": "그다음 {text}"
+  "nav.then_say": "그다음 {text}",
+  "nav.k_address": "주소",
+  "nav.k_address_approx": "대략적인 주소",
+  "nav.k_street_only": "도로 (번지를 찾지 못함)",
+  "nav.k_street": "도로"
  },
  "pt": {
   "common.back": "Voltar",
@@ -2002,7 +2034,11 @@
   "nav.recent": "Recentes",
   "nav.clear_history_q": "Limpar a lista de lugares recentes e frequentes? Os salvos ficam.",
   "nav.history_cleared": "Histórico limpo",
-  "nav.then_say": "depois {text}"
+  "nav.then_say": "depois {text}",
+  "nav.k_address": "Endereço",
+  "nav.k_address_approx": "Endereço aproximado",
+  "nav.k_street_only": "Rua (número não encontrado)",
+  "nav.k_street": "Rua"
  },
  "hi": {
   "common.back": "वापस",
@@ -2220,6 +2256,10 @@
   "nav.recent": "हाल की",
   "nav.clear_history_q": "हाल की और अक्सर जाने वाली जगहों की सूची मिटाएँ? सहेजी जगहें रहेंगी।",
   "nav.history_cleared": "इतिहास मिटा दिया",
-  "nav.then_say": "फिर {text}"
+  "nav.then_say": "फिर {text}",
+  "nav.k_address": "पता",
+  "nav.k_address_approx": "अनुमानित पता",
+  "nav.k_street_only": "सड़क (मकान नंबर नहीं मिला)",
+  "nav.k_street": "सड़क"
  }
 }

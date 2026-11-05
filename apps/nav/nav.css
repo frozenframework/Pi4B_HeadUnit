@@ -39,10 +39,12 @@ body.navigating #speedo { left: 352px; }
 @keyframes blink { 50% { opacity: 0; } }
 .split { flex: 1; display: grid; grid-template-columns: 420px 1fr; gap: 12px; min-height: 0; margin-top: 10px; }
 #results { min-height: 0; }
-#kbd { display: grid; grid-template-rows: repeat(4, 1fr); gap: 6px; }
+#kbd { display: grid; grid-template-rows: repeat(5, 1fr); gap: 6px; }
 #kbd .krow { display: flex; gap: 6px; justify-content: center; }
 #kbd button { flex: 1; min-width: 0; min-height: 0; padding: 0; font-size: 26px; font-weight: 700; }
 #kbd button.wide { flex: 2.2; font-size: 20px; }
+#kbd button.wider { flex: 4; font-size: 20px; }
+#kbd button.sym { color: var(--accent); }
 
 #themeCards { flex: 1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 10px; }
 .tcard { border-radius: var(--radius); overflow: hidden; border: 3px solid transparent; display: flex; flex-direction: column; background: var(--bg); }

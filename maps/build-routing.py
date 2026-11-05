@@ -12,7 +12,8 @@ into the head unit: it imports itself. Or copy it over the network with scp (see
 Setup once:   python3 -m venv hu-maps && source hu-maps/bin/activate   (Windows: hu-maps\\Scripts\\activate)
               pip install pyvalhalla==3.9.1 osmium
 Run:          python3 build-routing.py --region texas-plus
-              python3 build-routing.py --region us --no-addresses     (needs ~16 GB RAM, a few hours)
+              python3 build-routing.py --region us                    (needs ~16 GB RAM, a few hours)
+  Street addresses ("1234 N Main St, Conroe") are included; --no-addresses leaves them out (smaller).
 """
 import argparse, hashlib, json, os, shutil, sqlite3, subprocess, sys, tarfile, time, urllib.error, urllib.request
 from pathlib import Path
@@ -146,9 +147,15 @@ def build_search(pbfs, out, addresses, work=Path(".")):
         f.unlink(missing_ok=True)                    # incl. the leftovers of a run that stopped part way
     con = sqlite3.connect(db_path)
     con.execute("CREATE VIRTUAL TABLE places USING fts5(name, kind UNINDEXED, detail, lon UNINDEXED, lat UNINDEXED, tokenize='unicode61 remove_diacritics 2')")
-    rows = []; seen_streets = set()
+    # street addresses (house number lookups) in plain indexed tables: see bin/hu_addr.py
+    sys.path.insert(0, str(HERE.parent / "bin"))
+    import hu_addr
+    con.executescript(hu_addr.SCHEMA)
+    rows = []; addr_rows = []; street_rows = []; seen_streets = set(); seen_pts = set()
     def flush():
         con.executemany("INSERT INTO places VALUES (?,?,?,?,?)", rows); rows.clear()
+        con.executemany("INSERT INTO addr VALUES (?,?,?,?,?,?,?,?)", addr_rows); addr_rows.clear()
+        con.executemany("INSERT INTO street_pts VALUES (?,?,?,?,?)", street_rows); street_rows.clear()
     class H(osmium.SimpleHandler):
         def place(self, tags, lon, lat, is_way):
             name = tags.get("name")
@@ -160,9 +167,10 @@ def build_search(pbfs, out, addresses, work=Path(".")):
                         if k in tags: kind = tags[k].replace("_", " "); break
                 if kind:
                     rows.append((name, kind, " ".join(x for x in (tags.get("addr:housenumber", ""), tags.get("addr:street", ""), city) if x), lon, lat))
-            if addresses and "addr:housenumber" in tags and "addr:street" in tags and not name:
-                rows.append((f'{tags["addr:housenumber"]} {tags["addr:street"]}', "address", city, lon, lat))
-            if len(rows) > 50000: flush()
+            if addresses and "addr:housenumber" in tags:
+                a = hu_addr.addr_row(tags, lon, lat)
+                if a: addr_rows.append(a)
+            if len(rows) + len(addr_rows) > 50000: flush()
         def node(self, n):
             if n.tags and n.location.valid():
                 self.place(n.tags, n.location.lon, n.location.lat, False)
@@ -178,6 +186,14 @@ def build_search(pbfs, out, addresses, work=Path(".")):
                 key = (t["name"], round(lon, 2), round(lat, 2))       # one hit per street per ~1 km cell
                 if key not in seen_streets:
                     seen_streets.add(key); rows.append((t["name"], "street", t.get("ref", ""), lon, lat))
+                if addresses:                                         # points along the street, ~300 m apart
+                    for i in range(0, len(nodes), max(1, len(nodes) // 4)):
+                        nd = nodes[i]
+                        if not nd.location.valid(): continue
+                        pk = (t["name"], round(nd.location.lon * 300), round(nd.location.lat * 300))
+                        if pk in seen_pts: continue
+                        seen_pts.add(pk); street_rows.append(hu_addr.street_row(t["name"], "", nd.location.lon, nd.location.lat))
+                    if len(street_rows) > 50000: flush()
             else:
                 self.place(t, lon, lat, True)
     # Node positions: kept in memory for a state or two; for big regions (the whole US is ~10 GB of
@@ -196,8 +212,12 @@ def build_search(pbfs, out, addresses, work=Path(".")):
         if big:
             import gc; gc.collect(); remove(idx_file)
     flush(); con.execute("INSERT INTO places(places) VALUES('optimize')"); con.commit()
-    n = con.execute("SELECT count(*) FROM places").fetchone()[0]; con.close()
-    log(f"search index: {n:,} entries")
+    log("indexing street addresses")
+    con.executescript(hu_addr.INDEXES)
+    con.execute("INSERT OR REPLACE INTO meta VALUES ('format', '2')"); con.commit()
+    n = con.execute("SELECT count(*) FROM places").fetchone()[0]
+    na = con.execute("SELECT count(*) FROM addr").fetchone()[0]; con.execute("ANALYZE"); con.close()
+    log(f"search index: {n:,} places and streets, {na:,} street addresses")
     return db_path
 
 def main():

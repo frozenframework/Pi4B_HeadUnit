@@ -305,13 +305,14 @@ function showDest(d) {
 
 // ------------------------------------------------------------------ search with on-screen keyboard
 function buildKeyboard() {
-  const rows = ['1234567890', 'QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'];
+  // letters, numbers and the characters addresses and names use: 1234 N. Main St., Apt #2 / A&W / O'Reilly
+  const rows = ['1234567890', 'QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM,.', "&-'#/"];
   const kbd = $('kbd'); kbd.innerHTML = '';
   rows.forEach((r, ri) => {
     const row = document.createElement('div'); row.className = 'krow';
-    for (const ch of r) row.appendChild(key(ch, () => typeKey(ch)));
+    for (const ch of r) row.appendChild(key(ch, () => typeKey(ch), /[A-Z0-9]/.test(ch) ? '' : 'sym'));
     if (ri === 2) row.appendChild(key('⌫', () => typeKey('back'), 'wide'));
-    if (ri === 3) { row.appendChild(key(t('nav.space'), () => typeKey(' '), 'wide')); row.appendChild(key(t('nav.clear'), () => typeKey('clear'), 'wide')); }
+    if (ri === 4) { row.appendChild(key(t('nav.space'), () => typeKey(' '), 'wider')); row.appendChild(key(t('nav.clear'), () => typeKey('clear'), 'wide')); }
     kbd.appendChild(row);
   });
   function key(label, fn, cls = '') { const b = document.createElement('button'); b.textContent = label; b.className = cls; b.onpointerdown = (e) => { e.preventDefault(); fn(); }; return b; }
@@ -331,7 +332,8 @@ async function runSearch() {
   for (const r of res) {
     const el = document.createElement('div'); el.className = 'item';
     const dist = fmtDist(hav(near, [r.lon, r.lat]), state.units);
-    el.innerHTML = `<div><div>${esc(r.name)}</div><div class="sub">${esc([r.kind, r.detail].filter(Boolean).join(' · '))} · ${dist}</div></div>`;
+    const kind = { address: t('nav.k_address'), address_approx: t('nav.k_address_approx'), street_only: t('nav.k_street_only'), street: t('nav.k_street') }[r.kind] || r.kind;
+    el.innerHTML = `<div><div>${esc(r.name)}</div><div class="sub">${esc([kind, r.detail].filter(Boolean).join(' · '))} · ${dist}</div></div>`;
     el.onclick = async () => {
       if (state.assign) {                            // finding Home / Work / ... from the Places panel
         const label = state.assign; state.assign = null; closeSheets();

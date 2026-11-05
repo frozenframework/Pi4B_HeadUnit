@@ -220,15 +220,23 @@ async def route(request):
 
 # ---------------------------------------------------------------- offline search
 def do_search(q, near):
+    """Street addresses first ("1234 N Main St, Conroe": bin/hu_addr.py), then places, businesses and
+    streets by name."""
     if not SEARCH_DB.exists() or not q.strip():
         return []
-    terms = [re.sub(r'[^0-9A-Za-zÀ-ɏ]', '', t) for t in q.split()]
+    terms = [re.sub(r'[^0-9A-Za-zÀ-ɏ]', '', t) for t in q.replace("&", " ").split()]
     terms = [t for t in terms if t]
     if not terms:
         return []
     fts = " ".join(f'"{t}"*' for t in terms)
     con = sqlite3.connect(f"file:{SEARCH_DB}?mode=ro", uri=True)
+    addrs = []
     try:
+        try:
+            import hu_addr
+            addrs = hu_addr.lookup(con, q, near)
+        except Exception as e:
+            log.warning("address search: %s", e)
         rows = con.execute("SELECT name, kind, detail, lon, lat FROM places WHERE places MATCH ? LIMIT 200", (fts,)).fetchall()
     finally:
         con.close()
@@ -237,7 +245,7 @@ def do_search(q, near):
         dx = (r[3] - near[0]) * math.cos(math.radians(near[1])); dy = r[4] - near[1]
         return dx * dx + dy * dy
     rows.sort(key=dist)
-    return [{"name": r[0], "kind": r[1], "detail": r[2], "lon": r[3], "lat": r[4]} for r in rows[:25]]
+    return addrs + [{"name": r[0], "kind": r[1], "detail": r[2], "lon": r[3], "lat": r[4]} for r in rows[:25 - len(addrs)]]
 
 async def search(request):
     q = request.query.get("q", "")
