@@ -36,6 +36,12 @@ for x, y in ((-96.8001, 32.7790), (-95.4401, 30.3290)):
     e = [node(x, y + i * 0.002) for i in range(3)]; nid += 1
     w.add_way(W(id=nid, nodes=e, tags={"highway": "residential", "name": "Elm Street"}))
 node(-95.4300, 30.3000, {"name": "Walmart Supercenter", "shop": "supermarket"})
+# a road in the country outside Conroe with no house numbers mapped; a Way of the same name in Austin with numbers
+node(-95.3900, 30.2400, {"addr:housenumber": "10", "addr:street": "Other Road", "addr:postcode": "77302"})
+e = [node(-95.4100 + i * 0.003, 30.2450) for i in range(4)]; nid += 1
+w.add_way(W(id=nid, nodes=e, tags={"highway": "residential", "name": "Bramble Road"}))
+for n, x in ((400, -97.8600), (700, -97.8560)):
+    node(x, 30.3250, {"addr:housenumber": str(n), "addr:street": "Bramble Way", "addr:city": "Austin"})
 w.close()
 
 spec = importlib.util.spec_from_file_location("br", ROOT / "maps/build-routing.py"); br = importlib.util.module_from_spec(spec); spec.loader.exec_module(br)
@@ -43,8 +49,8 @@ out = T / "HEADUNIT_MAPS"; out.mkdir(); work = T / "work"; work.mkdir()
 br.build_search([pbf], out, addresses=True, work=work)
 con = sqlite3.connect(out / "search.sqlite")
 assert con.execute("SELECT value FROM meta WHERE key='format'").fetchone() == ("3",)
-assert con.execute("SELECT count(*) FROM areas WHERE kind='zip'").fetchone()[0] == 2
-assert con.execute("SELECT count(*) FROM addr").fetchone()[0] == 14, "4 Conroe + Houston + SH 105 + A&W + the house (a building)"
+assert con.execute("SELECT count(*) FROM areas WHERE kind='zip'").fetchone()[0] == 3
+assert con.execute("SELECT count(*) FROM addr").fetchone()[0] == 17, "4 Conroe + Houston + SH 105 + A&W + the house (a building)"
 assert con.execute("SELECT count(*) FROM street_pts").fetchone()[0] >= 2
 print("1) builder: street addresses (nodes and buildings) and street points indexed")
 
@@ -69,7 +75,7 @@ print("3) unmapped number estimated between its neighbours; otherwise the street
 
 # 4) the whole state, not just around you: the ZIP / city typed first, then Texas, then nearest
 SHREVEPORT = [-93.75, 32.52]
-r = L("500 Elm St, Dallas", CONROE); assert r[0]["lat"] == 32.78 and r[0]["detail"] == "75201", ("Dallas typed, near Conroe", r)
+r = L("500 Elm St, Dallas", CONROE); assert r[0]["lat"] == 32.78 and r[0]["detail"] == "Dallas 75201", ("Dallas typed, near Conroe", r)
 r = L("500 Elm St 75201", CONROE); assert r[0]["lat"] == 32.78, ("ZIP typed", r)
 r = L("500 Elm St Dallas TX 75201", CONROE); assert r[0]["lat"] == 32.78, r
 r = L("500 Elm St", CONROE); assert r[0]["lat"] == 30.33 and len(r) == 4, ("no city: nearest first, all listed", r)
@@ -77,6 +83,9 @@ r = L("500 Elm St", SHREVEPORT); assert r[0]["detail"] == "Tyler" and r[-1]["det
 r = L("500 Elm St, Shreveport LA", CONROE); assert r[0]["detail"] == "Shreveport", ("another state typed", r)
 r = L("510 Elm St, Dallas", CONROE); assert r[0]["kind"] == "address_approx" and 32.78 < r[0]["lat"] < 32.781, ("estimated in Dallas", r)
 r = L("900 Elm St, Dallas", CONROE); assert r[0]["kind"] == "street_only" and r[0]["lat"] > 32, ("the street in Dallas", r)
+r = L("463 Bramble Rd, Conroe, TX 77302", CONROE)
+assert r[0]["kind"] == "street_only" and r[0]["name"] == "Bramble Rd" and abs(r[0]["lat"] - 30.245) < 1e-3, ("your road, not a Way in Austin", r)
+r = L("463 Bramble Way, Austin", CONROE); assert r[0]["kind"] == "address_approx" and r[0]["name"] == "463 Bramble Way", r
 assert hu_addr.state_of(-95.46, 30.31) == "TX" and hu_addr.state_of(-93.75, 32.52) == "LA" and hu_addr.state_of(-96.39, 33.99) == "OK"
 o = hu_addr.suggest(con, "500 Elmm St, Dallas", CONROE)
 assert o[0]["option"] and o[0]["name"] == "500 Elm St" and o[0]["lat"] == 32.78 and any(x["kind"] == "area" for x in o), o

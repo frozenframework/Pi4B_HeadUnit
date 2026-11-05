@@ -4,6 +4,8 @@ Send routing + search (the HEADUNIT_MAPS folder from maps/build-routing.py) to a
 instead of a USB stick. Works on macOS, Linux and Windows 10/11 (uses the ssh that comes with them).
 
     python3 tools/push-maps.py HEADUNIT_MAPS --host miata-headunit.local
+    python3 tools/push-maps.py HEADUNIT_MAPS --only search --host ...   (just the search data, e.g. after
+                                                                       maps/add-addresses.py)
 
 Before the first push:
   - the head unit and this computer are on the same Wi-Fi (home network or your phone's hotspot)
@@ -117,6 +119,8 @@ def main():
     ap.add_argument("--host", default="miata-headunit.local", help="head unit name or IP (f250-headunit.local, frontier-headunit.local, 192.168.x.x)")
     ap.add_argument("--user", default="headunit"); ap.add_argument("--port", type=int, default=22)
     ap.add_argument("--tries", type=int, default=20, help="reconnect attempts per file")
+    ap.add_argument("--only", choices=["search", "routing", "basemap"], action="append",
+                    help="send just this part (e.g. --only search after maps/add-addresses.py); repeat for more")
     ap.add_argument("--setup-key", action="store_true", help="install this computer's SSH key on the head unit, then stop")
     a = ap.parse_args()
     pi = Pi(a.user, a.host, a.port)
@@ -132,7 +136,9 @@ def main():
         sys.exit(f"There's no {folder} folder here. Run this from the folder where you ran maps/build-routing.py, "
                  "or give the full path to HEADUNIT_MAPS.")
     m = json.loads(man.read_text())
-    files = [folder / n for n in FILES if (folder / n).exists()]
+    part = {"search": "search.sqlite", "routing": "valhalla_tiles.tar", "basemap": "basemap.pmtiles"}
+    names = [n for n in FILES if not a.only or n == "manifest.json" or n in [part[o] for o in a.only]]
+    files = [folder / n for n in names if (folder / n).exists()]
     total = sum(f.stat().st_size for f in files)
     print(f"Sending {m.get('name', m.get('region'))} (built {m.get('built', '?')}), {human(total)}, to {a.host}")
     r = pi.run(f"mkdir -p {INBOX} && df -B1 --output=avail /var/lib/headunit | tail -1")

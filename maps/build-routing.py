@@ -14,8 +14,10 @@ Setup once:   python3 -m venv hu-maps && source hu-maps/bin/activate   (Windows:
 Run:          python3 build-routing.py --region texas-plus
               python3 build-routing.py --region us                    (needs ~16 GB RAM, a few hours)
   Street addresses ("1234 N Main St, Conroe") are included; --no-addresses leaves them out (smaller).
+  OpenStreetMap lacks many country-road house numbers: --texas-county Montgomery (repeatable) or
+  --all-texas-addresses adds the Texas 911 address points too (or add them later: add-addresses.py).
 """
-import argparse, hashlib, json, os, shutil, sqlite3, subprocess, sys, tarfile, time, urllib.error, urllib.request
+import argparse, hashlib, importlib.util, json, os, shutil, sqlite3, subprocess, sys, tarfile, time, urllib.error, urllib.request
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -229,6 +231,9 @@ def main():
     ap.add_argument("--out", default="HEADUNIT_MAPS")
     ap.add_argument("--work", default="hu-maps-work")
     ap.add_argument("--no-addresses", action="store_true", help="skip street addresses in search (much smaller)")
+    ap.add_argument("--texas-county", action="append", default=[], metavar="COUNTY",
+                    help="also add Texas 911 house numbers for this county (repeat for more): see add-addresses.py")
+    ap.add_argument("--all-texas-addresses", action="store_true", help="add Texas 911 house numbers for every county")
     ap.add_argument("--skip-routing", action="store_true"); ap.add_argument("--skip-search", action="store_true")
     a = ap.parse_args()
     reg = REGIONS[a.region]
@@ -248,6 +253,11 @@ def main():
         files["routing"] = "valhalla_tiles.tar"
     if not a.skip_search:
         files["search"] = build_search(pbfs, out, addresses=not a.no_addresses, work=work).name
+        if (a.texas_county or a.all_texas_addresses) and not a.no_addresses:   # house numbers OpenStreetMap lacks
+            spec = importlib.util.spec_from_file_location("add_addresses", HERE / "add-addresses.py")
+            aa = importlib.util.module_from_spec(spec); spec.loader.exec_module(aa)
+            aa.add_to_db(out / "search.sqlite", [aa.fetch_county(c.strip().title(), work / "addresses")
+                                                 for c in (["*"] if a.all_texas_addresses else a.texas_county)])
     manifest = {"region": a.region, "name": reg["name"], "bbox": reg["bbox"], "built": time.strftime("%Y-%m-%dT%H:%M:%S"),
                 "sources": [p.name for p in pbfs], "files": files, "format": 1}
     (out / "manifest.json").write_text(json.dumps(manifest, indent=1))

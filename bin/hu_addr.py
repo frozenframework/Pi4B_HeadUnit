@@ -91,6 +91,7 @@ def norm_street(s):
 
 def core_street(s):
     ts = tokens(s)
+    if len(ts) > 2 and len(ts[0]) == 2 and ts[1] == "cr" and ts[0] not in DIRS.values(): ts = ts[1:]   # 911 data: "AN County Road 309"
     if len(ts) > 1 and ts[0] in DIRS.values(): ts = ts[1:]
     if len(ts) > 1 and ts[-1] in DIRS.values(): ts = ts[:-1]
     if len(ts) > 1 and ts[-1] in TYPES.values() and ts[0] not in ("fm", "rm", "cr", "sh", "us", "i"): ts = ts[:-1]
@@ -183,14 +184,25 @@ def find_area(con, city_words, zipc, want, near=None, zips=None):
     """The typed ZIP's centre, else the typed city's: searched there first."""
     return (zipc and zip_centre(con, zipc, zips)) or city_centre(con, city_words, want, near)
 
-def _scorer(st, city, zipc, want, strict_state, anchor):
+def street_type(street):
+    """'n brandon rd' -> 'rd', 'state hwy 105 w' -> '' (a numbered road), 'brandon' -> ''"""
+    ts = street.split()
+    if len(ts) > 1 and ts[-1] in DIRS.values(): ts = ts[:-1]
+    return ts[-1] if len(ts) > 1 and ts[-1] in TYPES.values() and ts[0] not in ("fm", "rm", "cr", "sh", "us", "i") else ""
+
+def _scorer(st, city, zipc, want, strict_state, anchor, typed_area=False):
+    typed_type = street_type(st)
     def score(r_street, r_city, r_zip, lon, lat):        # lower is better
         s = 0.0
-        if r_street != st: s += 0.5                     # typed "main st", this is "n main st": nearly as good
-        if city and r_city and not r_city.startswith(city): s += 10
-        if zipc and r_zip and r_zip != zipc: s += 10
+        if r_street != st:
+            rt = street_type(r_street)
+            s += 6 if typed_type and rt and rt != typed_type else 0.5   # Brandon Way isn't Brandon Rd; "main st" ~ "n main st"
+        if city and r_city: s += -2 if r_city.startswith(city) else 10      # the city you typed, confirmed
+        if zipc and r_zip: s += -2 if r_zip == zipc else 10
         if state_of(lon, lat) != want: s += 20 if strict_state else 9   # Texas first unless you typed another state
-        if anchor: s += min(_dist(anchor, (lon, lat)) / 20_000, 8)       # in your ZIP / city, else near you
+        if anchor:                                       # in the ZIP / city you typed (that matters most), else near you
+            d = _dist(anchor, (lon, lat))
+            s += min(d / 5_000, 15) if typed_area else min(d / 20_000, 8)
         return s
     return score
 
@@ -216,51 +228,60 @@ def lookup(con, q, near=None, limit=5, zips=None):
     if not candidates: return []
     st, core, city_t = candidates[0]
     city = " ".join(city_t)
-    anchor = find_area(con, city_t, zipc, want, near, zips) or near
-    score = _scorer(st, city, zipc, want, bool(typed_state), anchor)
-    pretty = lambda n, sfx, name, c: f"{n}{sfx.upper()} {title_street(name)}" + (f", {c.title()}" if c else "")
+    area = find_area(con, city_t, zipc, want, near, zips); anchor = area or near
+    score = _scorer(st, city, zipc, want, bool(typed_state), anchor, bool(area))
+    pretty = lambda n, sfx, name: f"{n}{sfx.upper()} {title_street(name)}"
+    def where(r_city, lon, lat, r_zip=""):               # don't call a street 300 km away "Conroe"
+        in_town = city and area and _dist(area, (lon, lat)) < 25_000
+        return " ".join(x for x in (title_place(r_city or (city if in_town else ""), lon, lat, want), r_zip) if x)
+    # Every candidate is scored the same way and the best come first: the exact house number, else a
+    # position estimated between its neighbours (+1), else the street itself (+2). So a house number
+    # 250 km away doesn't beat your own street in the town you typed when OpenStreetMap has no number
+    # for your house, and a Brandon Way doesn't stand in for Brandon Rd.
+    cands = []                                           # (score, result)
     rows = con.execute("SELECT num, suffix, street, city, zip, lon, lat FROM addr WHERE core=? AND num=? LIMIT 5000", (core, num)).fetchall()
     if suffix: rows = [r for r in rows if r[1] == suffix] or rows
-    if rows:
-        rows.sort(key=lambda r: score(r[2], r[3], r[4], r[5], r[6]))
-        out, seen = [], []
-        for r in rows:
-            if any(_dist((r[5], r[6]), s) < 150 for s in seen): continue
-            seen.append((r[5], r[6]))
-            out.append({"name": pretty(r[0], r[1], r[2], ""), "kind": "address",
-                        "detail": " ".join(x for x in (title_place(r[3], r[5], r[6], want), r[4]) if x), "lon": r[5], "lat": r[6]})
-            if len(out) >= limit: break
-        return out
-    # no such number: estimate between the closest numbers below and above on the same street (in the
-    # city / ZIP you typed first: every town has a Main St)
-    near_nums = con.execute("SELECT num, street, city, zip, lon, lat FROM addr WHERE core=? AND num BETWEEN ? AND ? LIMIT 50000",
-                            (core, num - 2000, num + 2000)).fetchall()
-    keyed = sorted(((score(r[1], r[2], r[3], r[4], r[5]), r) for r in near_nums), key=lambda x: x[0])
-    lo = [x for x in keyed if x[1][0] < num][:300]; hi = [x for x in keyed if x[1][0] > num][:300]
-    best = None
-    for sa, a in lo:
-        for sb, b in hi:
-            if a[1] != b[1] or _dist((a[4], a[5]), (b[4], b[5])) > 2500: continue
-            s = sa + (b[0] - a[0]) / 4000
-            if best is None or s < best[0]: best = (s, a, b)
-    if best:
-        _, a, b = best; f = (num - a[0]) / (b[0] - a[0])
-        lon, lat = a[4] + (b[4] - a[4]) * f, a[5] + (b[5] - a[5]) * f
-        in_town = city and anchor and _dist(anchor, (lon, lat)) < 25_000
-        return [{"name": pretty(num, suffix, a[1], ""), "kind": "address_approx", "detail": title_place(a[2] or (city if in_town else ""), lon, lat, want),
-                 "lon": lon, "lat": lat}]
-    # the street, at least: the stretch of it in your ZIP / city (or nearest you)
-    order, args = "", (core,)
-    if anchor:
-        k = math.cos(math.radians(anchor[1])) ** 2
-        order, args = " ORDER BY (lon-?)*(lon-?)*? + (lat-?)*(lat-?)", (core, anchor[0], anchor[0], k, anchor[1], anchor[1])
-    pts = con.execute("SELECT street, city, lon, lat FROM street_pts WHERE core=?" + order + " LIMIT 400", args).fetchall()
-    if not pts: return []
-    pts.sort(key=lambda r: score(r[0], r[1], "", r[2], r[3]))
-    r = pts[0]
-    in_town = city and anchor and _dist(anchor, (r[2], r[3])) < 25_000         # don't call a street 300 km away "Conroe"
-    return [{"name": title_street(r[0]), "kind": "street_only", "detail": title_place(r[1] or (city if in_town else ""), r[2], r[3], want),
-             "lon": r[2], "lat": r[3]}]
+    for r in rows:
+        cands.append((score(r[2], r[3], r[4], r[5], r[6]), {"name": pretty(r[0], r[1], r[2]), "kind": "address",
+                      "detail": where(r[3], r[5], r[6], r[4]), "lon": r[5], "lat": r[6]}))
+    best_exact = min((c[0] for c in cands), default=99)
+    if best_exact > 1.5:
+        # estimate between the closest numbers below and above on the same street (in the city / ZIP you
+        # typed first: every town has a Main St), one per street
+        near_nums = con.execute("SELECT num, street, city, zip, lon, lat FROM addr WHERE core=? AND num BETWEEN ? AND ? LIMIT 50000",
+                                (core, num - 2000, num + 2000)).fetchall()
+        keyed = sorted(((score(r[1], r[2], r[3], r[4], r[5]), r) for r in near_nums), key=lambda x: x[0])
+        lo = [x for x in keyed if x[1][0] < num][:300]; hi = [x for x in keyed if x[1][0] > num][:300]
+        pairs = []
+        for sa, a in lo:
+            for sb, b in hi:
+                if a[1] != b[1] or _dist((a[4], a[5]), (b[4], b[5])) > 2500: continue
+                pairs.append((sa + (b[0] - a[0]) / 4000, a, b))
+        pairs.sort(key=lambda x: x[0])
+        for s_, a, b in pairs[:40]:
+            f = (num - a[0]) / (b[0] - a[0]); lon, lat = a[4] + (b[4] - a[4]) * f, a[5] + (b[5] - a[5]) * f
+            cands.append((s_ + 1, {"name": pretty(num, suffix, a[1]), "kind": "address_approx", "detail": where(a[2], lon, lat), "lon": lon, "lat": lat}))
+        # the street, at least: the stretch of it in your ZIP / city (or nearest you), one per street name
+        order, args = "", (core,)
+        if anchor:
+            k = math.cos(math.radians(anchor[1])) ** 2
+            order, args = " ORDER BY (lon-?)*(lon-?)*? + (lat-?)*(lat-?)", (core, anchor[0], anchor[0], k, anchor[1], anchor[1])
+        pts = con.execute("SELECT street, city, lon, lat FROM street_pts WHERE core=?" + order + " LIMIT 400", args).fetchall()
+        for r in pts:
+            cands.append((score(r[0], r[1], "", r[2], r[3]) + 2, {"name": title_street(r[0]), "kind": "street_only",
+                          "detail": where(r[1], r[2], r[3]), "lon": r[2], "lat": r[3]}))
+    cands.sort(key=lambda c: c[0])
+    out = []
+    for sc, r in cands:
+        gap = 150 if r["kind"] == "address" else 2500     # one estimate / one street stretch per place
+        if any(_dist((r["lon"], r["lat"]), (o["lon"], o["lat"])) < gap and (r["kind"] == o["kind"] == "address" or
+               r["name"].split(" ", 1)[-1] == o["name"].split(" ", 1)[-1] or r["kind"] != "address") for o in out):
+            continue
+        if out and r["kind"] != "address" and (sc > cands[0][0] + 6 or sum(o["kind"] == r["kind"] for o in out) >= 2):
+            continue                                     # a couple of estimates / street stretches, not a page of them
+        out.append(r)
+        if len(out) >= limit: break
+    return out
 
 # ------------------------------------------------------------------ search helpers (hu-bridge)
 def _fts_any(words):

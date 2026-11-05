@@ -46,6 +46,12 @@ if area:                                                  # on that street in th
 else:
     rows = con.execute('select num, street, city from addr where core=? order by abs(num-?) limit 6', (core, p[0])).fetchall()
 print('4) closest numbers on that street:', [f'{r[0]} {r[1]} ({r[2] or "no city"})' for r in rows] or 'none')
-if rows and rows[0][0] != p[0]:
+if area and not rows:
+    print('   OpenStreetMap has no house numbers on that street near the ZIP / city you typed, so search shows the\n'
+          '   road itself there. For exact houses, add the Texas 911 address points on the PC:\n'
+          '     python maps/add-addresses.py HEADUNIT_MAPS --county <your county>   then   push-maps.py ... --only search')
+elif rows and rows[0][0] != p[0]:
     print('   Your house number isn\'t in OpenStreetMap; search estimates it between its neighbours (or shows the street).')
-print('5) search result:', hu_addr.lookup(con, sys.argv[1], None, zips=zips) or 'nothing')
+res = hu_addr.lookup(con, sys.argv[1], None, zips=zips)
+print('5) search results (best first):' if res else '5) search result: nothing')
+for r in res: print(f"   {r['name']} | {r['kind']} | {r['detail'] or '-'} | {r['lat']:.5f}, {r['lon']:.5f}")
