@@ -238,6 +238,18 @@ def do_search(q, near):
         except Exception as e:
             log.warning("address search: %s", e)
         rows = con.execute("SELECT name, kind, detail, lon, lat FROM places WHERE places MATCH ? LIMIT 200", (fts,)).fetchall()
+        if not addrs and re.match(r"^\s*\d", q):
+            # "1234 Smith Rd, Conroe TX" with no house-number match (or search data built without
+            # addresses): find the street itself by name, dropping the number and then trailing words
+            words = [re.sub(r'[^0-9A-Za-zÀ-ɏ]', '', w) for w in re.sub(r"^\s*\d+\w?\s+", "", q).replace(",", " ").split()]
+            words = [w for w in words if w and not re.fullmatch(r"\d{5}", w)]
+            for cut in range(len(words), 0, -1):
+                st = con.execute("SELECT name, kind, detail, lon, lat FROM places WHERE places MATCH ? AND kind='street' LIMIT 100",
+                                 (" ".join(f'"{w}"*' for w in words[:cut]),)).fetchall()
+                if st:
+                    st.sort(key=lambda r: (r[3] - near[0]) ** 2 + (r[4] - near[1]) ** 2 if near else 0)
+                    addrs = [{"name": r[0], "kind": "street_only", "detail": r[2], "lon": r[3], "lat": r[4]} for r in st[:3]]
+                    break
     finally:
         con.close()
     def dist(r):

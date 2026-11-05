@@ -25,14 +25,18 @@ TYPES = {"street": "st", "st": "st", "avenue": "ave", "ave": "ave", "av": "ave",
 DIRS = {"north": "n", "n": "n", "south": "s", "s": "s", "east": "e", "e": "e", "west": "w", "w": "w",
         "northeast": "ne", "ne": "ne", "northwest": "nw", "nw": "nw", "southeast": "se", "se": "se", "southwest": "sw", "sw": "sw"}
 PHRASES = [("farm to market road", "fm"), ("farm to market", "fm"), ("farm-to-market road", "fm"), ("ranch road", "rm"),
-           ("county road", "cr"), ("state highway", "sh"), ("us highway", "us"), ("u s highway", "us"), ("interstate", "i"),
+           ("county road", "cr"), ("state highway", "sh"), ("us highway", "us"), ("u s highway", "us"), ("us hwy", "us"), ("interstate", "i"),
            ("saint ", "st ")]
 STATES = {"tx", "texas", "la", "louisiana", "ok", "oklahoma", "nm", "new mexico", "ar", "arkansas"}
 
 def tokens(s):
     s = " " + re.sub(r"[^a-z0-9 ]+", " ", str(s or "").lower().replace(".", "").replace("'", "")) + " "
     for a, b in PHRASES: s = s.replace(" " + a + " ", " " + b + " ")
-    return [DIRS.get(t, TYPES.get(t, t)) for t in s.split()]
+    ts = s.split()
+    for i, t in enumerate(ts[:-1]):                # "Highway 105" / "TX 105" / "SH 105" are the same state highway
+        if t in ("highway", "hwy", "tx", "sh") and ts[i + 1].isdigit() and (i == 0 or ts[i - 1] not in ("us", "i")):
+            ts[i] = "sh"
+    return [DIRS.get(t, TYPES.get(t, t)) for t in ts]
 
 def norm_street(s):
     return " ".join(tokens(s))
@@ -43,6 +47,11 @@ def core_street(s):
     if len(ts) > 1 and ts[-1] in DIRS.values(): ts = ts[:-1]
     if len(ts) > 1 and ts[-1] in TYPES.values() and ts[0] not in ("fm", "rm", "cr", "sh", "us", "i"): ts = ts[:-1]
     return " ".join(ts)
+
+UPPER = {"sh", "us", "fm", "rm", "cr", "i", "ne", "nw", "se", "sw"}
+def title_street(s):
+    """'sh 105 w' -> 'SH 105 W', 'n main st' -> 'N Main St'"""
+    return " ".join(w.upper() if w in UPPER else w.title() for w in str(s).split())
 
 def norm_city(s):
     return " ".join(re.sub(r"[^a-z0-9 ]+", " ", str(s or "").lower()).split())
@@ -80,7 +89,7 @@ def has_addresses(con):
 
 def parse_query(q):
     """'1234 n main st, conroe tx 77301' -> (1234, '', 'n main st', ['conroe'], '77301') or None"""
-    m = re.match(r"^\s*(\d{1,6})\s*([a-zA-Z])?\s+(.+)$", q or "")
+    m = re.match(r"^\s*(\d{1,6})([a-zA-Z])?\s+(.+)$", q or "")     # 12A Main St; "130 N Main" = 130, North Main
     if not m: return None
     num, suffix, rest = int(m.group(1)), (m.group(2) or "").lower(), m.group(3)
     zm = re.search(r"\b(\d{5})(?:-\d{4})?\b", rest); zipc = zm.group(1) if zm else ""
@@ -121,7 +130,7 @@ def lookup(con, q, near=None, limit=5):
         if zipc and r_zip and r_zip != zipc: s += 10
         if near: s += min(_dist(near, (lon, lat)) / 20_000, 8)   # the one near you before one 60 miles away
         return s
-    pretty = lambda n, sfx, name, c: f"{n}{sfx.upper()} {name.title()}" + (f", {c.title()}" if c else "")
+    pretty = lambda n, sfx, name, c: f"{n}{sfx.upper()} {title_street(name)}" + (f", {c.title()}" if c else "")
     rows = con.execute("SELECT num, suffix, street, city, zip, lon, lat FROM addr WHERE core=? AND num=? LIMIT 200", (core, num)).fetchall()
     if suffix: rows = [r for r in rows if r[1] == suffix] or rows
     if rows:
@@ -152,4 +161,4 @@ def lookup(con, q, near=None, limit=5):
     if not pts: return []
     pts.sort(key=lambda r: score((r[0], r[1], "", r[2], r[3])))
     r = pts[0]
-    return [{"name": r[0].title(), "kind": "street_only", "detail": r[1].title(), "lon": r[2], "lat": r[3]}]
+    return [{"name": title_street(r[0]), "kind": "street_only", "detail": r[1].title(), "lon": r[2], "lat": r[3]}]

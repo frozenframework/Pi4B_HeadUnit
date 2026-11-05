@@ -17,6 +17,7 @@ conroe = lambda n, lat: {"addr:housenumber": str(n), "addr:street": "North Main 
 for n, lat in ((100, 30.3100), (120, 30.3110), (140, 30.3120), (300, 30.3200)):
     node(-95.4560, lat, conroe(n, lat))
 node(-95.3700, 29.7600, {"addr:housenumber": "120", "addr:street": "Main St", "addr:city": "Houston"})
+node(-95.5000, 30.3300, {"addr:housenumber": "4500", "addr:street": "State Highway 105 West", "addr:city": "Conroe"})
 node(-95.4555, 30.3115, {"name": "A&W Restaurant", "amenity": "fast_food", "addr:housenumber": "125", "addr:street": "North Main Street"})
 street = [node(-95.4561, 30.3090 + i * 0.002) for i in range(8)]
 w.add_way(W(id=1, nodes=street, tags={"highway": "residential", "name": "North Main Street"}))
@@ -29,7 +30,7 @@ out = T / "HEADUNIT_MAPS"; out.mkdir(); work = T / "work"; work.mkdir()
 br.build_search([pbf], out, addresses=True, work=work)
 con = sqlite3.connect(out / "search.sqlite")
 assert con.execute("SELECT value FROM meta WHERE key='format'").fetchone() == ("2",)
-assert con.execute("SELECT count(*) FROM addr").fetchone()[0] == 7, "4 Conroe + Houston + A&W + the house (a building)"
+assert con.execute("SELECT count(*) FROM addr").fetchone()[0] == 8, "4 Conroe + Houston + SH 105 + A&W + the house (a building)"
 assert con.execute("SELECT count(*) FROM street_pts").fetchone()[0] >= 2
 print("1) builder: street addresses (nodes and buildings) and street points indexed")
 
@@ -41,6 +42,10 @@ r = L("120 main st houston"); assert abs(r[0]["lat"] - 29.76) < 1e-6, ("city typ
 r = L("120 Main St", HOUSTON); assert abs(r[0]["lat"] - 29.76) < 1e-6 and len(r) == 2, ("nearest first, both listed", r)
 r = L("120 Main St", CONROE); assert abs(r[0]["lat"] - 30.3110) < 1e-6, r
 r = L("200 N. Main St."); assert r[0]["kind"] == "address" and abs(r[0]["lon"] + 95.45695) < 1e-3, r
+r = L("140 N Main St"); assert r[0]["name"] == "140 N Main St", ("N after the number is North, not apartment 140N", r)
+for q in ("4500 Hwy 105 W", "4500 Highway 105", "4500 TX-105 W, Conroe", "4500 State Highway 105 West"):
+    r = L(q); assert r and r[0]["kind"] == "address" and abs(r[0]["lat"] - 30.33) < 1e-6, (q, r)
+assert L("4500 Hwy 105 W")[0]["name"] == "4500 SH 105 W"
 print("2) exact house numbers: Street/St, North/N, with or without city/ZIP/comma, nearest first")
 
 r = L("130 N Main St", CONROE); assert r[0]["kind"] == "address_approx" and 30.3110 < r[0]["lat"] < 30.3120, r
@@ -65,7 +70,10 @@ try:
     r = search("140 n main st, conroe"); assert r[0]["kind"] == "address" and abs(r[0]["lat"] - 30.3120) < 1e-6, r
     r = search("a&w"); assert any(x["name"] == "A&W Restaurant" for x in r), r
     r = search("north main"); assert any(x["kind"] == "street" for x in r), r
+    # search data from before addresses (no addr table): the street still comes up for a typed address
+    old = sqlite3.connect(data / "search" / "search.sqlite"); old.execute("DROP TABLE addr"); old.commit(); old.close()
+    r = search("120 N Main St, Conroe TX 77301"); assert r and r[0]["kind"] == "street_only" and r[0]["name"] == "North Main Street", r
 finally:
     b.terminate(); b.wait(5)
-print("4) head-unit search: addresses first, business names with '&', streets by name")
+print("4) head-unit search: addresses first, business names with '&', streets by name; old data still finds the street")
 print("address search: all tests passed")
