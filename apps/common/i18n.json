@@ -220,7 +220,8 @@
   "nav.k_address": "Address",
   "nav.k_address_approx": "Approximate address",
   "nav.k_street_only": "Street (house number not found)",
-  "nav.k_street": "Street"
+  "nav.k_street": "Street",
+  "nav.enter": "Enter"
  },
  "es": {
   "common.back": "Atrás",
@@ -442,7 +443,8 @@
   "nav.k_address": "Dirección",
   "nav.k_address_approx": "Dirección aproximada",
   "nav.k_street_only": "Calle (número no encontrado)",
-  "nav.k_street": "Calle"
+  "nav.k_street": "Calle",
+  "nav.enter": "Intro"
  },
  "zh": {
   "common.back": "返回",
@@ -685,7 +687,8 @@
   "nav.k_address": "地址",
   "nav.k_address_approx": "大致地址",
   "nav.k_street_only": "街道（未找到门牌号）",
-  "nav.k_street": "街道"
+  "nav.k_street": "街道",
+  "nav.enter": "确定"
  },
  "tl": {
   "common.back": "Bumalik",
@@ -928,7 +931,8 @@
   "nav.k_address": "Address",
   "nav.k_address_approx": "Tinatayang address",
   "nav.k_street_only": "Kalye (hindi nakita ang numero ng bahay)",
-  "nav.k_street": "Kalye"
+  "nav.k_street": "Kalye",
+  "nav.enter": "Enter"
  },
  "vi": {
   "common.back": "Quay lại",
@@ -1150,7 +1154,8 @@
   "nav.k_address": "Địa chỉ",
   "nav.k_address_approx": "Địa chỉ ước tính",
   "nav.k_street_only": "Đường (không tìm thấy số nhà)",
-  "nav.k_street": "Đường"
+  "nav.k_street": "Đường",
+  "nav.enter": "Nhập"
  },
  "ar": {
   "common.back": "رجوع",
@@ -1372,7 +1377,8 @@
   "nav.k_address": "العنوان",
   "nav.k_address_approx": "عنوان تقريبي",
   "nav.k_street_only": "شارع (لم يُعثر على رقم المنزل)",
-  "nav.k_street": "شارع"
+  "nav.k_street": "شارع",
+  "nav.enter": "إدخال"
  },
  "fr": {
   "common.back": "Retour",
@@ -1594,7 +1600,8 @@
   "nav.k_address": "Adresse",
   "nav.k_address_approx": "Adresse approximative",
   "nav.k_street_only": "Rue (numéro introuvable)",
-  "nav.k_street": "Rue"
+  "nav.k_street": "Rue",
+  "nav.enter": "Entrée"
  },
  "ko": {
   "common.back": "뒤로",
@@ -1816,7 +1823,8 @@
   "nav.k_address": "주소",
   "nav.k_address_approx": "대략적인 주소",
   "nav.k_street_only": "도로 (번지를 찾지 못함)",
-  "nav.k_street": "도로"
+  "nav.k_street": "도로",
+  "nav.enter": "확인"
  },
  "pt": {
   "common.back": "Voltar",
@@ -2038,7 +2046,8 @@
   "nav.k_address": "Endereço",
   "nav.k_address_approx": "Endereço aproximado",
   "nav.k_street_only": "Rua (número não encontrado)",
-  "nav.k_street": "Rua"
+  "nav.k_street": "Rua",
+  "nav.enter": "Enter"
  },
  "hi": {
   "common.back": "वापस",
@@ -2260,6 +2269,7 @@
   "nav.k_address": "पता",
   "nav.k_address_approx": "अनुमानित पता",
   "nav.k_street_only": "सड़क (मकान नंबर नहीं मिला)",
-  "nav.k_street": "सड़क"
+  "nav.k_street": "सड़क",
+  "nav.enter": "एंटर"
  }
 }

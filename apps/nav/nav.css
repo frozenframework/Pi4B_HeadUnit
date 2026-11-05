@@ -45,6 +45,7 @@ body.navigating #speedo { left: 352px; }
 #kbd button.wide { flex: 2.2; font-size: 20px; }
 #kbd button.wider { flex: 4; font-size: 20px; }
 #kbd button.sym { color: var(--accent); }
+#kbd button.enter { background: var(--accent); color: var(--bg); border-color: var(--accent); }
 
 #themeCards { flex: 1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 10px; }
 .tcard { border-radius: var(--radius); overflow: hidden; border: 3px solid transparent; display: flex; flex-direction: column; background: var(--bg); }

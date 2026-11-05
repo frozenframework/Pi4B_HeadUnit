@@ -306,44 +306,72 @@ function showDest(d) {
 // ------------------------------------------------------------------ search with on-screen keyboard
 function buildKeyboard() {
   // letters, numbers and the characters addresses and names use: 1234 N. Main St., Apt #2 / A&W / O'Reilly
+  // ⌫ top right, Enter where a keyboard has it: Enter shows the best match on the map, ready to Go
   const rows = ['1234567890', 'QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM,.', "&-'#/"];
   const kbd = $('kbd'); kbd.innerHTML = '';
   rows.forEach((r, ri) => {
     const row = document.createElement('div'); row.className = 'krow';
     for (const ch of r) row.appendChild(key(ch, () => typeKey(ch), /[A-Z0-9]/.test(ch) ? '' : 'sym'));
-    if (ri === 2) row.appendChild(key('⌫', () => typeKey('back'), 'wide'));
+    if (ri === 0) row.appendChild(key('⌫', () => typeKey('back'), 'wide'));
+    if (ri === 2) row.appendChild(key(t('nav.enter') + ' ⏎', () => typeKey('enter'), 'wider enter'));
     if (ri === 4) { row.appendChild(key(t('nav.space'), () => typeKey(' '), 'wider')); row.appendChild(key(t('nav.clear'), () => typeKey('clear'), 'wide')); }
     kbd.appendChild(row);
   });
   function key(label, fn, cls = '') { const b = document.createElement('button'); b.textContent = label; b.className = cls; b.onpointerdown = (e) => { e.preventDefault(); fn(); }; return b; }
 }
-let query = '', searchTimer = null;
+let query = '', searchTimer = null, lastResults = { q: null, res: [], near: null };
 function typeKey(k) {
+  if (k === 'enter') { enterSearch(); return; }
   if (k === 'back') query = query.slice(0, -1); else if (k === 'clear') query = ''; else query += k.toLowerCase();
   $('searchText').textContent = query;
   clearTimeout(searchTimer); searchTimer = setTimeout(runSearch, 280);
 }
+// a USB keyboard works too (bench testing): typing, Backspace, Enter, Escape
+document.addEventListener('keydown', (e) => {
+  if ($('searchPanel').classList.contains('hidden') || e.ctrlKey || e.altKey || e.metaKey) return;
+  if (e.key === 'Enter') { e.preventDefault(); typeKey('enter'); }
+  else if (e.key === 'Backspace') { e.preventDefault(); typeKey('back'); }
+  else if (e.key === 'Escape') closeSheets();
+  else if (e.key.length === 1 && /[\p{L}\p{N} ,.&'#/-]/u.test(e.key)) { e.preventDefault(); typeKey(e.key); }
+});
+const kindName = (k) => ({ address: t('nav.k_address'), address_approx: t('nav.k_address_approx'), street_only: t('nav.k_street_only'), street: t('nav.k_street') })[k] || k;
+async function pickResult(r, near) {
+  const dist = fmtDist(hav(near, [r.lon, r.lat]), state.units);
+  if (state.assign) {                                // finding Home / Work / ... from the Places panel
+    const label = state.assign; state.assign = null; closeSheets();
+    if (await savePlace(label, { name: r.name, sub: r.detail || '', lnglat: [r.lon, r.lat] })) openFavorites();
+    return;
+  }
+  closeSheets(); state.map.flyTo({ center: [r.lon, r.lat], zoom: 16, pitch: 0 }); state.follow = false;
+  const sub = [r.kind === 'address' || r.kind === 'address_approx' || r.kind === 'street_only' ? kindName(r.kind) : '', r.detail, t('nav.away', { dist })].filter(Boolean).join(' · ');
+  showDest({ name: r.name, sub, lnglat: [r.lon, r.lat] }); logEvent('search_pick', { kind: r.kind });
+}
 async function runSearch() {
   const list = $('results'); list.innerHTML = '';
-  if (query.trim().length < 2) return;
-  const near = state.pos || state.map.getCenter().toArray();
-  const res = await api(`/api/search?q=${encodeURIComponent(query)}&near=${near.join(',')}`);
-  if (!res.length) { list.innerHTML = `<div class="item muted">${esc(t('nav.no_matches'))}</div>`; return; }
+  if (query.trim().length < 2) { lastResults = { q: query, res: [], near: null }; return []; }
+  const q = query, near = state.pos || state.map.getCenter().toArray();
+  const res = await api(`/api/search?q=${encodeURIComponent(q)}&near=${near.join(',')}`).catch(() => []);
+  if (q !== query) return null;                      // typed on meanwhile: a newer search is coming
+  lastResults = { q, res, near };
+  if (!res.length) { list.innerHTML = `<div class="item muted">${esc(t('nav.no_matches'))}</div>`; return res; }
   for (const r of res) {
     const el = document.createElement('div'); el.className = 'item';
     const dist = fmtDist(hav(near, [r.lon, r.lat]), state.units);
-    const kind = { address: t('nav.k_address'), address_approx: t('nav.k_address_approx'), street_only: t('nav.k_street_only'), street: t('nav.k_street') }[r.kind] || r.kind;
-    el.innerHTML = `<div><div>${esc(r.name)}</div><div class="sub">${esc([kind, r.detail].filter(Boolean).join(' · '))} · ${dist}</div></div>`;
-    el.onclick = async () => {
-      if (state.assign) {                            // finding Home / Work / ... from the Places panel
-        const label = state.assign; state.assign = null; closeSheets();
-        if (await savePlace(label, { name: r.name, sub: r.detail || '', lnglat: [r.lon, r.lat] })) openFavorites();
-        return;
-      }
-      closeSheets(); state.map.flyTo({ center: [r.lon, r.lat], zoom: 15.5, pitch: 0 }); state.follow = false; showDest({ name: r.name, sub: t('nav.away', { dist }), lnglat: [r.lon, r.lat] }); logEvent('search_pick');
-    };
+    el.innerHTML = `<div><div>${esc(r.name)}</div><div class="sub">${esc([kindName(r.kind), r.detail].filter(Boolean).join(' · '))} · ${dist}</div></div>`;
+    el.onclick = () => pickResult(r, near);
     list.appendChild(el);
   }
+  return res;
+}
+// Enter: search right away and show the best match (an address first) on the map, with Go
+async function enterSearch() {
+  clearTimeout(searchTimer);
+  if (query.trim().length < 2) return;
+  const res = lastResults.q === query ? lastResults.res : await runSearch();
+  if (!res) return;
+  if (!res.length) { toast(t('nav.no_matches')); return; }
+  logEvent('search_enter', { n: res.length });
+  pickResult(res[0], lastResults.near || state.pos || state.map.getCenter().toArray());
 }
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
