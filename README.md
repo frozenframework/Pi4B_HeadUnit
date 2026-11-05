@@ -108,7 +108,7 @@ sudo ./setup.sh --vehicle f250 --tier 2          # or: --vehicle miata, --tier 1
 | `85-updates` | signed software updates from GitHub: check timer, Wi-Fi hook, install-at-key-on + rollback services |
 | `75-camera` | backup camera (Frontier): v4l/GStreamer, `/dev/hu-rearcam` for the USB capture stick, set to NTSC |
 | `77-swc` | steering-wheel controls (Frontier): SPI on, `python3-spidev`, `headunit-swc` service |
-| `90-hudiy` | adds a **Drive** menu to Hudiy (Navigation, iPod & USB, AM/FM Radio, Head Unit Settings); Android Auto GPS → gpsd |
+| `90-hudiy` | adds a **Drive** menu to Hudiy (Navigation, iPod & USB, AM/FM Radio, Head Unit Settings); Android Auto GPS → gpsd; Hudiy starts on the offline map (and its home button goes back to it); *Settings → Driving → Start on the map* switches that off |
 
 Every stage can be run again safely: system files are only edited inside `# >>> headunit:` blocks.
 To redo one stage: `sudo /opt/headunit/setup.sh --only 20-display`.
@@ -123,7 +123,7 @@ There are two kinds of map data:
 | Data | Made where | How to update |
 |---|---|---|
 | **Map display** (the themed picture) | Downloaded by the Pi from the daily OpenStreetMap build at Protomaps, cut to your region | *Settings → Maps → Update maps now* on Wi-Fi, or `sudo systemctl start headunit-update-maps` |
-| **Routing + search** | Built on your Mac or PC (too heavy for the Pi) | `maps/build-routing.py`, then a USB stick |
+| **Routing + search** | Built on your Mac or PC (too heavy for the Pi) | `maps/build-routing.py`, then `tools/push-maps.py` over Wi-Fi (or a USB stick) |
 
 Building routing + search on a computer:
 ```bash
@@ -132,8 +132,16 @@ pip install pyvalhalla==3.9.1 osmium
 python3 maps/build-routing.py --region texas-plus           # TX, LA, OK, NM, AR (about 30-60 min)
 python3 maps/build-routing.py --region us --no-addresses    # whole US: use the Windows PC (16 GB+ RAM, a few hours)
 ```
-Copy the resulting `HEADUNIT_MAPS` folder onto any USB stick and plug it into the head unit. It
-imports by itself. Sizes (estimates): texas-plus is about 3–6 GB in total, and the whole US is about
+Send the resulting `HEADUNIT_MAPS` folder to the head unit over Wi-Fi (same network as the computer;
+on the head unit turn on *Settings → Developer → SSH login over Wi-Fi* first):
+```bash
+python3 tools/push-maps.py --setup-key --host miata-headunit.local     # once: no password prompts after this
+python3 tools/push-maps.py HEADUNIT_MAPS --host miata-headunit.local   # f250-headunit.local, frontier-headunit.local, or an IP
+```
+It shows percent, speed and time left, continues where it stopped if Wi-Fi drops (or if you run it
+again later), and installs the files when they're all there; routing and search work right away.
+Windows: same commands with `python` (uses the ssh built into Windows 10/11).
+Or copy the folder onto any USB stick and plug it into the head unit: it imports by itself. Sizes (estimates): texas-plus is about 3–6 GB in total, and the whole US is about
 30–45 GB (the 256 GB card in tier 3). Regions are defined in `maps/regions.json`.
 
 ---

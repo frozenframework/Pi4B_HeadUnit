@@ -81,7 +81,7 @@ def system_language():
 
 DEFAULT_SETTINGS = {"theme": C("DEFAULT_THEME", "neon-overdrive"), "units": "imperial", "voice": True,
                     "language": system_language(), "lastPos": None,
-                    "syncHudiyColors": True, "nightAuto": True,
+                    "syncHudiyColors": True, "nightAuto": True, "startOnMap": True,
                     "display": {"level": 100, "auto": True, "day": 100, "night": 45, "method": "auto"}, "radio": {"band": "FM", "FM": 101100, "AM": 740,
                     "presets": {"FM": [], "AM": []}}}
 
@@ -468,7 +468,7 @@ async def settings_api(request):
     if request.method == "GET":
         return web.json_response(settings())
     body = await request.json()
-    s = settings(); old_theme = s.get("theme")
+    s = settings(); old_theme = s.get("theme"); old_start = s.get("startOnMap")
     for k, v in body.items():
         if k not in DEFAULT_SETTINGS: continue
         if isinstance(v, dict) and isinstance(s.get(k), dict):
@@ -478,6 +478,9 @@ async def settings_api(request):
     if "display" in body:
         usage("display", **{k: s["display"].get(k) for k in ("level", "auto", "day", "night")})
     write_json(USER_DIR / "settings.json", s)
+    if s.get("startOnMap") != old_start:   # Hudiy's first screen: offline map or its own dashboard
+        subprocess.Popen([sys.executable, "/opt/headunit/bin/hu-hudiy-start.py", "--config"],
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     if s.get("theme") != old_theme:
         usage("theme_change", theme=s["theme"], prev=old_theme)
         if s.get("syncHudiyColors"):   # skin Hudiy too: colors right away, backgrounds at its next start
