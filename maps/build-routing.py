@@ -14,7 +14,7 @@ Setup once:   python3 -m venv hu-maps && source hu-maps/bin/activate   (Windows:
 Run:          python3 build-routing.py --region texas-plus
               python3 build-routing.py --region us --no-addresses     (needs ~16 GB RAM, a few hours)
 """
-import argparse, hashlib, json, os, shutil, sqlite3, subprocess, sys, tarfile, time, urllib.request
+import argparse, hashlib, json, os, shutil, sqlite3, subprocess, sys, tarfile, time, urllib.error, urllib.request
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -24,8 +24,11 @@ GEOFABRIK = "https://download.geofabrik.de/"
 def log(*a):
     print(time.strftime("%H:%M:%S"), *a, flush=True)
 
-def download(url, dest):
-    """Resumable download with a progress line, then MD5 check against Geofabrik's .md5 file."""
+def download(url, dest, tries=30):
+    """Resumable download with a progress line, then MD5 check against Geofabrik's .md5 file.
+    A dropped or broken connection (common on long downloads: resets, SSL "record layer failure",
+    timeouts) is retried by itself, continuing from the last byte; running the script again later
+    also continues. If Geofabrik publishes a newer file meanwhile (If-Range), it starts that one over."""
     dest = Path(dest)
     md5_url = url + ".md5"
     try:
@@ -35,20 +38,49 @@ def download(url, dest):
     if dest.exists() and expected and md5(dest) == expected:
         log("up to date:", dest.name); return dest
     part = dest.with_suffix(dest.suffix + ".part")
-    have = part.stat().st_size if part.exists() else 0
-    req = urllib.request.Request(url, headers={"Range": f"bytes={have}-"} if have else {})
-    with urllib.request.urlopen(req, timeout=120) as r, open(part, "ab" if have else "wb") as f:
-        total = have + int(r.headers.get("Content-Length", 0))
-        got = have; last = 0
-        while True:
-            chunk = r.read(1 << 20)
-            if not chunk: break
-            f.write(chunk); got += len(chunk)
-            if time.time() - last > 2:
-                print(f"\r  {dest.name}: {got/2**20:,.0f} / {total/2**20:,.0f} MB", end="", flush=True); last = time.time()
+    tag_file = part.with_suffix(part.suffix + ".etag")
+    for attempt in range(1, tries + 1):
+        have = part.stat().st_size if part.exists() else 0
+        hdr = {}
+        if have:
+            hdr["Range"] = f"bytes={have}-"
+            if tag_file.exists(): hdr["If-Range"] = tag_file.read_text().strip()
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url, headers=hdr), timeout=120) as r:
+                if have and r.status == 200:                       # file changed on the server (or no resume): start over
+                    log(f"{dest.name} changed on the server; starting it over"); have = 0
+                etag = r.headers.get("ETag") or r.headers.get("Last-Modified")
+                if etag: tag_file.write_text(etag)
+                total = have + int(r.headers.get("Content-Length", 0))
+                got = have; last = 0
+                with open(part, "ab" if have else "wb") as f:
+                    while True:
+                        chunk = r.read(1 << 20)
+                        if not chunk: break
+                        f.write(chunk); got += len(chunk)
+                        if time.time() - last > 2:
+                            print(f"\r  {dest.name}: {got/2**20:,.0f} / {total/2**20:,.0f} MB", end="", flush=True); last = time.time()
+            if total and got < total:
+                raise IOError(f"connection closed at {got/2**20:,.0f} MB")
+            break
+        except urllib.error.HTTPError as e:
+            if e.code == 416 and have:                           # already have all of it
+                break
+            if e.code < 500 and e.code != 429: raise
+            err = f"HTTP {e.code}"
+        except Exception as e:                                   # reset, SSL error, timeout, short read...
+            err = f"{type(e).__name__}: {e}"
+        got_now = part.stat().st_size if part.exists() else 0
+        wait = min(60, 5 * attempt)
+        print(); log(f"{dest.name}: connection dropped at {got_now/2**20:,.0f} MB ({err}); continuing in {wait} s (try {attempt} of {tries})")
+        time.sleep(wait)
+    else:
+        sys.exit(f"{dest.name} kept failing. Run the same command again: it continues where it stopped.")
     print()
     if expected and md5(part) != expected:
-        part.unlink(); sys.exit(f"Checksum mismatch for {dest.name}; run again to re-download.")
+        part.unlink(); tag_file.unlink(missing_ok=True)
+        sys.exit(f"Checksum mismatch for {dest.name}; run again to re-download.")
+    tag_file.unlink(missing_ok=True)
     part.replace(dest); return dest
 
 def md5(p):
