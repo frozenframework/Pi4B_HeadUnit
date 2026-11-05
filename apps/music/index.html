@@ -3,16 +3,9 @@
 <title>iPod & USB Music</title><link rel="stylesheet" href="../common/hu.css"><link rel="stylesheet" href="music.css"></head>
 <body data-app="music">
 <section id="now" class="panel">
-  <!-- iPod / USB (MPD on the head unit) or what CarPlay / Android Auto is playing (through Hudiy) -->
-  <div id="srcTabs" class="row hidden">
-    <button data-src="usb" data-log="m_src_usb" data-i18n="mu.src_usb">iPod &amp; USB</button>
-    <button data-src="phone" data-log="m_src_phone" id="srcPhone">CarPlay</button>
-  </div>
   <div id="src" class="muted" data-i18n="mu.no_source">No iPod or USB drive connected</div>
-  <div class="np"><img id="cover" alt="" hidden>
-    <div class="npt"><div id="title" class="glow" data-i18n="mu.nothing">Nothing playing</div>
-    <div id="artist" class="muted"></div></div></div>
-  <button id="openPhone" class="ghost hidden" data-log="m_open_phone"></button>
+  <div id="title" class="glow" data-i18n="mu.nothing">Nothing playing</div>
+  <div id="artist" class="muted"></div>
   <div id="bar"><div id="fill"></div></div>
   <div id="times" class="row muted"><span id="el">0:00</span><span id="du">0:00</span></div>
   <div class="row ctl">

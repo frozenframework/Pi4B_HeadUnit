@@ -168,12 +168,9 @@
   "set.back_map": "Back to map",
   "set.exit": "Exit",
   "nav.app_map": "Map",
-  "nav.app_music": "Music",
-  "nav.app_radio": "Radio",
-  "nav.app_settings": "Settings",
-  "mu.src_usb": "iPod & USB",
-  "mu.from_phone": "Playing from {name}",
-  "mu.open_phone": "Open {name}"
+  "nav.app_music": "iPod & USB",
+  "nav.app_radio": "AM/FM Radio",
+  "nav.app_settings": "Head Unit Settings"
  },
  "es": {
   "common.back": "Atrás",
@@ -343,12 +340,9 @@
   "set.back_map": "Volver al mapa",
   "set.exit": "Salir",
   "nav.app_map": "Mapa",
-  "nav.app_music": "Música",
-  "nav.app_radio": "Radio",
-  "nav.app_settings": "Ajustes",
-  "mu.src_usb": "iPod y USB",
-  "mu.from_phone": "Sonando desde {name}",
-  "mu.open_phone": "Abrir {name}"
+  "nav.app_music": "iPod y USB",
+  "nav.app_radio": "Radio AM/FM",
+  "nav.app_settings": "Ajustes del equipo"
  },
  "zh": {
   "common.back": "返回",
@@ -539,12 +533,9 @@
   "set.back_map": "返回地图",
   "set.exit": "退出",
   "nav.app_map": "地图",
-  "nav.app_music": "音乐",
-  "nav.app_radio": "收音机",
-  "nav.app_settings": "设置",
-  "mu.src_usb": "iPod 和 USB",
-  "mu.from_phone": "正在从 {name} 播放",
-  "mu.open_phone": "打开 {name}"
+  "nav.app_music": "iPod 和 USB",
+  "nav.app_radio": "AM/FM 收音机",
+  "nav.app_settings": "主机设置"
  },
  "tl": {
   "common.back": "Bumalik",
@@ -735,12 +726,9 @@
   "set.back_map": "Bumalik sa mapa",
   "set.exit": "Lumabas",
   "nav.app_map": "Mapa",
-  "nav.app_music": "Musika",
-  "nav.app_radio": "Radyo",
-  "nav.app_settings": "Settings",
-  "mu.src_usb": "iPod at USB",
-  "mu.from_phone": "Tumutugtog mula sa {name}",
-  "mu.open_phone": "Buksan ang {name}"
+  "nav.app_music": "iPod at USB",
+  "nav.app_radio": "AM/FM Radyo",
+  "nav.app_settings": "Settings ng Head Unit"
  },
  "vi": {
   "common.back": "Quay lại",
@@ -910,12 +898,9 @@
   "set.back_map": "Quay lại bản đồ",
   "set.exit": "Thoát",
   "nav.app_map": "Bản đồ",
-  "nav.app_music": "Nhạc",
-  "nav.app_radio": "Radio",
-  "nav.app_settings": "Cài đặt",
-  "mu.src_usb": "iPod và USB",
-  "mu.from_phone": "Đang phát từ {name}",
-  "mu.open_phone": "Mở {name}"
+  "nav.app_music": "iPod và USB",
+  "nav.app_radio": "Radio AM/FM",
+  "nav.app_settings": "Cài đặt đầu máy"
  },
  "ar": {
   "common.back": "رجوع",
@@ -1085,12 +1070,9 @@
   "set.back_map": "العودة إلى الخريطة",
   "set.exit": "خروج",
   "nav.app_map": "الخريطة",
-  "nav.app_music": "الموسيقى",
-  "nav.app_radio": "الراديو",
-  "nav.app_settings": "الإعدادات",
-  "mu.src_usb": "iPod وUSB",
-  "mu.from_phone": "يُشغَّل من {name}",
-  "mu.open_phone": "فتح {name}"
+  "nav.app_music": "iPod وUSB",
+  "nav.app_radio": "راديو AM/FM",
+  "nav.app_settings": "إعدادات الجهاز"
  },
  "fr": {
   "common.back": "Retour",
@@ -1260,12 +1242,9 @@
   "set.back_map": "Retour à la carte",
   "set.exit": "Quitter",
   "nav.app_map": "Carte",
-  "nav.app_music": "Musique",
-  "nav.app_radio": "Radio",
-  "nav.app_settings": "Réglages",
-  "mu.src_usb": "iPod et USB",
-  "mu.from_phone": "Lecture depuis {name}",
-  "mu.open_phone": "Ouvrir {name}"
+  "nav.app_music": "iPod et USB",
+  "nav.app_radio": "Radio AM/FM",
+  "nav.app_settings": "Réglages de l'autoradio"
  },
  "ko": {
   "common.back": "뒤로",
@@ -1435,12 +1414,9 @@
   "set.back_map": "지도로 돌아가기",
   "set.exit": "나가기",
   "nav.app_map": "지도",
-  "nav.app_music": "음악",
-  "nav.app_radio": "라디오",
-  "nav.app_settings": "설정",
-  "mu.src_usb": "iPod 및 USB",
-  "mu.from_phone": "{name}에서 재생 중",
-  "mu.open_phone": "{name} 열기"
+  "nav.app_music": "iPod 및 USB",
+  "nav.app_radio": "AM/FM 라디오",
+  "nav.app_settings": "헤드 유닛 설정"
  },
  "pt": {
   "common.back": "Voltar",
@@ -1610,12 +1586,9 @@
   "set.back_map": "Voltar ao mapa",
   "set.exit": "Sair",
   "nav.app_map": "Mapa",
-  "nav.app_music": "Música",
-  "nav.app_radio": "Rádio",
-  "nav.app_settings": "Ajustes",
-  "mu.src_usb": "iPod e USB",
-  "mu.from_phone": "Tocando pelo {name}",
-  "mu.open_phone": "Abrir {name}"
+  "nav.app_music": "iPod e USB",
+  "nav.app_radio": "Rádio AM/FM",
+  "nav.app_settings": "Ajustes da central"
  },
  "hi": {
   "common.back": "वापस",
@@ -1785,11 +1758,8 @@
   "set.back_map": "मैप पर वापस",
   "set.exit": "बाहर निकलें",
   "nav.app_map": "मैप",
-  "nav.app_music": "संगीत",
-  "nav.app_radio": "रेडियो",
-  "nav.app_settings": "सेटिंग्स",
-  "mu.src_usb": "iPod और USB",
-  "mu.from_phone": "{name} से चल रहा है",
-  "mu.open_phone": "{name} खोलें"
+  "nav.app_music": "iPod और USB",
+  "nav.app_radio": "AM/FM रेडियो",
+  "nav.app_settings": "हेड यूनिट सेटिंग्स"
  }
 }

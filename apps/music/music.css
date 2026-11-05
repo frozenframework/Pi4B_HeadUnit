@@ -20,16 +20,3 @@ body { display: grid; grid-template-columns: 430px 1fr; gap: 10px; padding: 10px
 .playall { color: var(--accent); font-weight: 700; }
 @media (max-width: 1100px) { body { grid-template-columns: 360px minmax(0, 1fr); } }
 @media (min-height: 560px) { #title { font-size: 40px; max-height: 140px; } .ctl button { height: 88px; } }
-
-/* source tabs + what the phone is playing */
-#srcTabs { gap: 8px; }
-#srcTabs.hidden { display: none; }
-#srcTabs button { flex: 1; min-height: 48px; font-size: 18px; }
-#srcTabs button.on { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--panel)); }
-.np { display: flex; gap: 14px; align-items: center; min-width: 0; }
-.npt { min-width: 0; flex: 1; }
-#cover { width: 112px; height: 112px; border-radius: 10px; object-fit: cover; flex: none; box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 35%, transparent); }
-#cover[hidden] { display: none; }
-#openPhone { min-height: 44px; font-size: 17px; color: var(--accent); align-self: flex-start; }
-body.phone #shuffle { visibility: hidden; }
-@media (max-height: 420px) { #cover { width: 76px; height: 76px; } #srcTabs button { min-height: 40px; } }
