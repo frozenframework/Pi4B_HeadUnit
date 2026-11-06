@@ -82,7 +82,7 @@ def system_language():
 DEFAULT_SETTINGS = {"theme": C("DEFAULT_THEME", "neon-overdrive"), "units": "imperial", "voice": True,
                     "language": system_language(), "lastPos": None,
                     "syncHudiyColors": True, "nightAuto": True, "startOnMap": True, "phoneScreen": "map",
-                    "voicePack": "standard",
+                    "voicePack": "standard", "contactsToPlaces": False,
                     "dayNight": False, "dayTheme": "sunset-junction", "nightTheme": C("DEFAULT_THEME", "neon-overdrive"),
                     "display": {"level": 100, "auto": True, "day": 100, "night": 45, "method": "auto"}, "radio": {"band": "FM", "FM": 101100, "AM": 740,
                     "presets": {"FM": [], "AM": []}}}
@@ -586,7 +586,9 @@ async def settings_api(request):
         s["theme"] = day_night_theme(s)                       # switch right away to the skin for now
     write_json(USER_DIR / "settings.json", s)
     if "voicePack" in body:
-        start_voice_downloads()                              # the chosen voice first
+        start_voice_downloads()
+    if body.get("contactsToPlaces"):                          # turned on: the saved contacts go in now
+        asyncio.get_running_loop().run_in_executor(None, contacts_to_places)                              # the chosen voice first
     if s.get("startOnMap") != old_start:   # Hudiy's first screen: offline map or its own dashboard
         subprocess.Popen([sys.executable, "/opt/headunit/bin/hu-hudiy-start.py", "--config"],
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -662,13 +664,34 @@ places = Places(USER_DIR)
 import hu_contacts, hu_addr as _hu_addr
 contacts = hu_contacts.Contacts(USER_DIR / "contacts", SEARCH_DB, bus=hu_contacts.Bus(C("BUSCTL", "busctl")), log=log,
                                 lookup=_hu_addr.lookup)
+_contacts_in_places = {}                     # phone -> when its contacts last went into the address book
+def contacts_to_places():
+    """Settings > Maps > Add contacts to the address book: after every sync from a phone (each time it
+    connects), its contacts with an address on the map go into Places, kept up to date."""
+    if not settings().get("contactsToPlaces"):
+        _contacts_in_places.clear(); return
+    for d in contacts.saved():
+        if _contacts_in_places.get(d["address"]) == d["updated"]: continue
+        items, seen = [], {}
+        for c in d["contacts"]:
+            for a in c["addresses"]:
+                if "lon" not in a: continue
+                k = f'{c["name"]}|{a["label"]}'; seen[k] = seen.get(k, 0) + 1
+                items.append({"key": k + (f"|{seen[k]}" if seen[k] > 1 else ""), "name": c["name"], "sub": a["text"],
+                              "ctype": a["label"], "lnglat": [a["lon"], a["lat"]]})
+        r = places.sync_contacts(d["address"], items, d.get("phone", ""))
+        _contacts_in_places[d["address"]] = d["updated"]
+        usage("contacts_to_places", **r); log.info("contacts -> address book (%s): %s", d.get("phone"), r)
+
 async def contacts_watch():
     """Phones on the head unit's Bluetooth share their contacts (bin/hu_contacts.py)."""
     if C("CONTACTS", "1") != "1" or not shutil.which(C("BUSCTL", "busctl")):
         return
     loop = asyncio.get_running_loop()
     while True:
-        try: await loop.run_in_executor(None, contacts.tick)
+        try:
+            await loop.run_in_executor(None, contacts.tick)
+            await loop.run_in_executor(None, contacts_to_places)
         except Exception as e: log.warning("contacts: %s", e)
         await asyncio.sleep(float(C("CONTACTS_EVERY", "20")))
 
@@ -678,6 +701,7 @@ async def contacts_api(request):
     body = await request.json()
     if body.get("op") == "forget":
         n = contacts.forget(body.get("address")); usage("contacts_forget", n=n)
+        places.remove_contacts(body.get("address")); _contacts_in_places.clear()   # out of the address book too
         return web.json_response({"ok": True, "forgotten": n})
     raise web.HTTPBadRequest(text="unknown op")
 

@@ -463,11 +463,17 @@ async function openFavorites() {
     el.onclick = (e) => { if (e.target.tagName === 'BUTTON') { e.stopPropagation(); onBtn(); } else onGo(); };
     list.appendChild(el);
   };
-  const saved = PLACES.places.filter(p => !PLACE_LABELS.includes(p.label));
+  const saved = PLACES.places.filter(p => !PLACE_LABELS.includes(p.label) && p.label !== 'contact');
+  const people = PLACES.places.filter(p => p.label === 'contact');     // from the phone (Settings > Maps)
   sect(t('nav.saved_places'));
   if (!saved.length) { const d = document.createElement('div'); d.className = 'item muted'; d.textContent = t('nav.places_empty'); list.appendChild(d); }
   for (const p of saved) row(p.name, [p.sub, dist(p.lnglat)].filter(Boolean).join(' · '), () => goPlace(p), t('common.remove'),
     async () => { await placesApi({ op: 'remove', id: p.id }); openFavorites(); });
+  if (people.length) {
+    sect(t('nav.contacts_sect'));
+    for (const p of people) row(p.name, [({ home: t('nav.home'), work: t('nav.work') })[p.ctype] || '', p.sub, dist(p.lnglat)].filter(Boolean).join(' · '),
+      () => goPlace(p), t('common.remove'), async () => { await placesApi({ op: 'remove', id: p.id }); openFavorites(); });
+  }
   if (PLACES.frequent.length) {
     sect(t('nav.often'));
     for (const f of PLACES.frequent) row(f.name || t('nav.often_here'), [t('nav.visits', { n: f.visits }), dist(f.lnglat)].filter(Boolean).join(' · '),

@@ -73,14 +73,15 @@ assert any("RemoveSession" in c for c in calls) and not (T / "obexd-tmp.vcf").ex
 f = store / "aabbccddeeff.json"
 assert stat.S_IMODE(f.stat().st_mode) == 0o600 and stat.S_IMODE(store.stat().st_mode) == 0o700
 saved = f.read_text(); assert "555" not in saved and "No Address" not in saved, "only names and addresses are kept"
-d = json.loads(saved); assert d["count"] == 2 and d["phone"] == "Robert's iPhone"
+d = json.loads(saved); assert d["count"] == 2 and d["phone"] == "Robert's iPhone" and "lon" not in d["contacts"][1]["addresses"][0]
 sean = d["contacts"][0]["addresses"]
 assert sean[0]["found"] == "address" and abs(sean[0]["lat"] - 30.3120) < 1e-6, sean
 print("2) phonebook pulled through obexd, session closed and the file removed; saved 0600 with names + addresses only")
 
 r = ct.search("sean"); assert r[0]["name"] == "Sean Example" and r[0]["label"] == "home" and r[0]["kind"] == "contact", r
 assert ct.search("sea ex")[0]["name"] == "Sean Example" and ct.search("sean home")[0]["label"] == "home"
-assert ct.search("joe")[0]["detail"] == "120 Main St, Houston TX" and ct.search("140 n main") == [] and ct.search("zed") == []
+assert ct.search("joe") == [], "Houston isn't in this map data: not placed on a Main St in Conroe"
+assert ct.search("140 n main") == [] and ct.search("zed") == []
 n = len(LOG.read_text().splitlines()); ct.tick()
 assert not any("PullAll" in l for l in LOG.read_text().splitlines()[n:]), "not fetched again while it stays connected"
 fake(connected=False); ct.tick(); assert ct.search("sean"), "saved: still found after the phone disconnects"
@@ -119,14 +120,24 @@ try:
         st = get("/api/contacts")
         if st["phones"] and st["phones"][0]["state"] == "ok": break
         time.sleep(0.25)
-    p = st["phones"][0]; assert p["phone"] == "Robert's iPhone" and p["contacts"] == 2 and p["on_map"] >= 2 and p["connected"], st
+    p = st["phones"][0]; assert p["phone"] == "Robert's iPhone" and p["contacts"] == 2 and p["on_map"] == 1 and p["connected"], st
     r = get("/api/search?q=" + urllib.parse.quote("sean") + "&near=-95.45,30.31")
     assert r[0]["kind"] == "contact" and r[0]["name"] == "Sean Q Example" and abs(r[0]["lat"] - 30.312) < 1e-6, r
+    # Settings > Maps > Add contacts to the address book: in Places now, and after every connection
+    assert not any(p["label"] == "contact" for p in get("/api/places")["places"])
+    post("/api/settings", {"contactsToPlaces": True}); time.sleep(0.8)
+    pl = [p for p in get("/api/places")["places"] if p["label"] == "contact"]
+    assert [(p["name"], p["ctype"]) for p in pl] == [("Sean Q Example", "home")] and abs(pl[0]["lnglat"][1] - 30.312) < 1e-6, pl
+    VCF.write_text(IPHONE.replace("Sean Example", "Sean Q Example").replace("140 N Main St", "300 N Main St"))
+    fake(connected=False); time.sleep(0.8); fake(); time.sleep(1.5)                 # the phone reconnects
+    pl = [p for p in get("/api/places")["places"] if p["label"] == "contact"]
+    assert len(pl) == 1 and abs(pl[0]["lnglat"][1] - 30.32) < 1e-6 and pl[0]["sub"].startswith("300 N Main"), ("moved", pl)
     assert post("/api/contacts", {"op": "forget"})["forgotten"] == 1
+    assert not any(p["label"] == "contact" for p in get("/api/places")["places"]), "Forget takes them out of Places too"
     time.sleep(0.8)
     assert not any(x["kind"] == "contact" for x in get("/api/search?q=sean")) and get("/api/contacts")["phones"] == [], \
         "forgotten, and not fetched again while the phone stays connected"
 finally:
     b.terminate(); b.wait(5)
-print("5) head unit: contacts arrive by themselves, 'sean' finds his house first in map search, Forget works")
+print("5) head unit: contacts arrive by themselves, 'sean' finds his house first; into the address book on every connection; Forget")
 print("contacts: all tests passed")

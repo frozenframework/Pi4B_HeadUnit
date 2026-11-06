@@ -67,7 +67,7 @@ function wireSkins() {
 }
 const onOff = (v) => v ? t('common.on') : t('common.off');
 function switches() {
-  for (const k of ['startOnMap', 'voice', 'nightAuto', 'syncHudiyColors']) {
+  for (const k of ['startOnMap', 'voice', 'nightAuto', 'syncHudiyColors', 'contactsToPlaces']) {
     const b = $(k); b.textContent = onOff(S[k]); b.classList.toggle('on', !!S[k]);
     b.onclick = async () => {
       S = await saveSettings({ [k]: !S[k] }); logEvent('setting', { k, v: S[k] }); switches();

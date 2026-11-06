@@ -169,6 +169,13 @@ class Contacts:
             con = sqlite3.connect(f"file:{self.db}?mode=ro", uri=True)
             try:
                 r = self.lookup(con, key, None, 1)
+                if r and r[0]["kind"] != "address" and a["city"]:
+                    # only an estimate or the street: it must be in the contact's town, not a same-named
+                    # street somewhere else (the map data may not cover their town at all)
+                    import hu_addr
+                    want = hu_addr.STATE_CODES.get(a["state"].lower(), hu_addr.DEFAULT_STATE)
+                    town = hu_addr.city_centre(con, hu_addr.norm_city(a["city"]).split(), want)
+                    if not town or hu_addr._dist(town, (r[0]["lon"], r[0]["lat"])) > 30_000: r = []
                 if r: hit = {"lon": r[0]["lon"], "lat": r[0]["lat"], "kind": r[0]["kind"]}
             except Exception as e:
                 if self.log: self.log.warning("contacts: finding an address: %s", e)

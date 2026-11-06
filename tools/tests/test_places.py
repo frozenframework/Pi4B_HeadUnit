@@ -48,4 +48,29 @@ assert P.frequent() == [] and P.recent() == [], "history older than 120 days age
 clock.t -= 200 * 86400; P.clear_history(); assert P.history() == []
 assert any(p["label"] == "gym" for p in P.places()), "clearing history keeps saved places"
 print("4) saved places drop out of suggestions; history ages out and can be cleared, saved places stay")
+
+# 5) contacts from a phone (Settings > Maps > Add contacts to the address book)
+PH = "AA:BB:CC:DD:EE:FF"
+C1 = [{"key": "Sean|home", "name": "Sean", "sub": "140 N Main St, Conroe TX 77301", "ctype": "home", "lnglat": [-95.456, 30.312]},
+      {"key": "Sean|work", "name": "Sean", "sub": "4500 SH 105 W, Conroe TX", "ctype": "work", "lnglat": [-95.50, 30.33]},
+      {"key": "Amy|home", "name": "Amy", "sub": "1 Elm St", "ctype": "home", "lnglat": [-95.40, 30.30]}]
+assert P.sync_contacts(PH, C1, "Robert's iPhone") == {"added": 3, "changed": 0, "removed": 0, "total": 3}
+cs = [p for p in P.places() if p["label"] == "contact"]
+assert [p["name"] for p in cs] == ["Amy", "Sean", "Sean"] and cs[1]["ctype"] == "home" and cs[0]["phone"] == "Robert's iPhone"
+ids = {p["key"]: p["id"] for p in cs}
+assert P.sync_contacts(PH, C1)["added"] == 0, "the next connection adds nothing twice"
+C2 = [dict(C1[0], sub="200 N Main St, Conroe TX 77301", lnglat=[-95.457, 30.315]), C1[2]]   # Sean moved, his work is gone
+assert P.sync_contacts(PH, C2) == {"added": 0, "changed": 1, "removed": 1, "total": 2}
+sean = next(p for p in P.places() if p.get("key") == "Sean|home")
+assert sean["id"] == ids["Sean|home"] and sean["lnglat"] == [-95.457, 30.315], "updated in place (same entry)"
+P.remove(next(p["id"] for p in P.places() if p.get("key") == "Amy|home"))
+assert P.sync_contacts(PH, C2)["total"] == 1 and not any(p.get("key") == "Amy|home" for p in P.places()), "removed here = stays removed"
+for i in range(205): clock.t += 1; P.save("favorite", f"Spot {i}", [-97 + i * 0.01, 31.0])
+assert sum(p["label"] == "favorite" for p in P.places()) == 200 and any(p["label"] == "contact" for p in P.places()), \
+    "your own places are capped at 200; contacts don't push them out (or the other way round)"
+P.sync_contacts("11:22:33:44:55:66", C1[:1], "Passenger")
+assert P.remove_contacts(PH) == 1 and [p["phone"] for p in P.places() if p["label"] == "contact"] == ["Passenger"]
+assert P.sync_contacts(PH, C2)["total"] == 2, "after Forget, a removed contact can come back"
+assert P.remove_contacts() == 3 and not any(p["label"] == "contact" for p in P.places())
+print("5) contacts: added once, kept up to date (moved / deleted on the phone), removed ones stay removed, Forget clears")
 print("places: all tests passed")
