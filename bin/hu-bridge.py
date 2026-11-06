@@ -208,6 +208,29 @@ def do_route(body):
     s = res["trip"]["summary"]
     return {"shape": shape, "maneuvers": man, "summary": {"length": s["length"], "time": s["time"], "units": units}}
 
+# ---------------------------------------------------------------- start-up timeline (bin/hu_boot.py)
+import hu_boot
+BOOT_LOG = USER_DIR / "boot-times.json"
+async def boot_api(request):
+    """GET: this start's timeline and the last ones. POST {mark: "map"}: the map is on screen (the nav
+    page, once its first picture is drawn) - this start is complete and goes into the history."""
+    loop = asyncio.get_running_loop()
+    if request.method == "POST":
+        name = (await request.json()).get("mark")
+        if name not in ("map",): raise web.HTTPBadRequest(text="unknown mark")
+        first = name not in hu_boot.marks()
+        hu_boot.mark(name)
+        if first:
+            s = await loop.run_in_executor(None, hu_boot.summary)
+            hist = [h for h in read_json(BOOT_LOG, []) if h.get("boot") != hu_boot.boot_id()][-9:]
+            hist.append({"boot": hu_boot.boot_id(), "t": int(time.time()), "version": VERSION, **s})
+            try: write_json(BOOT_LOG, hist)
+            except OSError: pass
+            usage("boot", **{k: v for k, v in s.items()})
+        return web.json_response({"ok": True})
+    now = await loop.run_in_executor(None, hu_boot.summary)
+    return web.json_response({"now": now, "history": read_json(BOOT_LOG, [])})
+
 # ---------------------------------------------------------------- routing: fast first route
 ROUTING_STATUS = ROUTING_TAR.parent / "index-status.json"
 _routing_prep = {"mtime": None, "busy": False}
@@ -1121,6 +1144,8 @@ async def on_start(app):
     app["parked"] = asyncio.create_task(parked_watch())
     app["contacts"] = asyncio.create_task(contacts_watch())
     app["routing"] = asyncio.create_task(routing_watch())
+    try: hu_boot.mark("bridge")                     # start-up timeline (Settings > Developer)
+    except Exception: pass
     ZIPS.get()                                       # ZIP centres for older search data, in the background
     usage("bridge_start", vehicle=C("VEHICLE_ID", ""))
     asyncio.get_running_loop().run_in_executor(None, hudiy_hotspot_guard)
@@ -1207,6 +1232,7 @@ def make_app():
     app.router.add_route("*", "/api/favorites", favorites_api)
     app.router.add_route("*", "/api/places", places_api)
     app.router.add_route("*", "/api/contacts", contacts_api)
+    app.router.add_route("*", "/api/boot", boot_api)
     app.router.add_get("/api/contacts/{what}", contacts_api)
     app.router.add_post("/api/log", log_api)
     app.router.add_post("/api/maps/update", maps_update)

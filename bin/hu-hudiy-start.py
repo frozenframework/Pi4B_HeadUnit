@@ -46,12 +46,16 @@ def open_map(wait=60):
         try:
             socket.create_connection(("127.0.0.1", port), timeout=1).close(); break
         except OSError:
-            time.sleep(1)
+            time.sleep(0.25)                        # checked often: the map comes up as soon as Hudiy can take it
     else:
         return False
-    time.sleep(2)                                   # let Hudiy finish drawing its first screen
-    ok = send_once("headunit-start", [(DISPATCH_ACTION, dispatch_action(MAP_ACTION))])
-    time.sleep(4)                                   # once more: Hudiy can still be busy starting up the first time
+    try:
+        import hu_boot; hu_boot.mark("hudiy")       # start-up timeline (Settings > Developer)
+    except Exception:
+        pass
+    time.sleep(1)                                   # let Hudiy finish drawing its first screen (it opens the map itself
+    ok = send_once("headunit-start", [(DISPATCH_ACTION, dispatch_action(MAP_ACTION))])   # via defaultAction too)
+    time.sleep(3)                                   # once more: Hudiy can still be busy starting up the first time
     return send_once("headunit-start", [(DISPATCH_ACTION, dispatch_action(MAP_ACTION))]) or ok
 
 def main():

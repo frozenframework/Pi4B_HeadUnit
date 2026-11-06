@@ -201,7 +201,19 @@ function wireRegion() {
 }
 
 // ---- Developer
+// start-up timeline (bin/hu_boot.py): how long from Linux starting to the map on screen, step by step
+async function bootInfo() {
+  const r = await api('/api/boot').catch(() => null); if (!r) return;
+  const h = r.history || [], last = r.now?.map ? r.now : h.at(-1);
+  const n = (x) => x == null ? '–' : x.toLocaleString(langTag(), { maximumFractionDigits: 1 });
+  if (!last?.map) { $('bootInfo').textContent = t('set.boot_none'); return; }
+  const prev = h.filter(x => x.map).slice(-6, -1).map(x => n(x.map)).join(', ');
+  $('bootInfo').innerHTML = `${esc(t('set.boot_line', { s: n(last.map) }))}<br><span class="muted">${esc(t('set.boot_parts', {
+    sys: n(last.system), desk: n(last.desktop), bridge: n(last.bridge), hudiy: n(last.hudiy), map: n(last.map) }))}` +
+    (prev ? `<br>${esc(t('set.boot_before', { list: prev }))}` : '') + '</span>';
+}
 async function dev() {
+  bootInfo();
   SYS = await api('/api/system').catch(() => null) || SYS || {};
   const b = $('sshBtn'); b.textContent = onOff(SYS.ssh); b.classList.toggle('on', !!SYS.ssh);
   $('pwWarn').classList.toggle('hidden', !SYS.default_password);

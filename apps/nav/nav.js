@@ -762,7 +762,10 @@ async function main() {
         state.pos = p; state.heading = bearing(state.route.shape[i], state.route.shape[i + 1]); state.progress = i; guide(); refreshRoute(); resetMarkers();
         state.map.jumpTo({ center: p, bearing: state.heading, pitch: 55, zoom: +(params.get('zoom') || 16), padding: { left: 340, top: 60, right: 80, bottom: 0 } }); }
     }
-    state.map.once('idle', () => { document.body.dataset.ready = '1'; if (!PREVIEW && !SIM) say('', 'greet'); });
+    state.map.once('idle', () => {
+      document.body.dataset.ready = '1';
+      if (!PREVIEW && !SIM) { say('', 'greet'); api('/api/boot', { json: { mark: 'map' } }).catch(() => {}); }   // start-up timeline
+    });
   });
   state.map.on('error', (e) => logEvent('map_error', { msg: String(e.error?.message || e.error).slice(0, 160) }));
   // frame-rate sampling, so test drives show whether the Pi keeps up with a given skin

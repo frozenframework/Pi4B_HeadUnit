@@ -65,8 +65,7 @@ run_hudiy() {   # dir script
     DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" timeout 60m bash -c "cd '$1' && ./$2" 2>&1 \
     | sed -u "s/#\{0,1\}$num/(order number)/g"
   local rc=${PIPESTATUS[1]}
-  loginctl disable-linger "$U"
-  return "$rc"
+  return "$rc"                     # linger stays on: the head unit's services start with the system (setup.d/22)
 }
 if [ ! -d "/home/$U/.hudiy" ]; then
   inst=$(find "$B/hudiy" -maxdepth 2 -type f \( -name '*.sh' -o -name '*.deb' -o -name '*.tar.gz' -o -name '*.zip' \) 2>/dev/null | head -1)

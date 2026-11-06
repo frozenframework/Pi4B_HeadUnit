@@ -15,10 +15,13 @@ touch "$AS"; sed -i -e "\|hu-hudiy-theme.py|d" -e "\|hu-wait-bridge.sh|d" -e "\|
 # Start screen: Hudiy opens the offline map first (Settings > Driving > Start on the map). --config sets
 # Hudiy's defaultAction before it starts; --open waits in the background and opens the map once Hudiy is up.
 as_user python3 /opt/headunit/bin/hu-hudiy-start.py --config || true
+sed -i "\|hu-desktop-start.py|d" "$AS"
 sed -i "1i python3 /opt/headunit/bin/hu-hudiy-start.py --open \&" "$AS"
-sed -i "1i python3 /opt/headunit/bin/hu-hudiy-start.py --config" "$AS"
-# ...and Hudiy waits (up to 30 s) for the head-unit bridge, so the Drive menu apps load on the first try.
-sed -i "1i /opt/headunit/bin/hu-wait-bridge.sh" "$AS"; sed -i "1i $THEME_LINE" "$AS"
+# ...and Hudiy waits (up to 30 s) for the head-unit bridge, so the Drive menu apps load on the first try
+# (the bridge starts with the system - setup.d/22 - so it normally answers at once).
+sed -i "1i /opt/headunit/bin/hu-wait-bridge.sh" "$AS"
+# Hudiy's skin colors and first screen, in one quick program (only written when they changed)
+sed -i "1i python3 /opt/headunit/bin/hu-desktop-start.py" "$AS"
 # After an update (or going back a version), Hudiy's browser forgets its cached copies of the apps first.
 sed -i "1i /opt/headunit/bin/hu-clear-webcache.sh" "$AS"
 chown "$(hu_user):$(hu_user)" "$AS"

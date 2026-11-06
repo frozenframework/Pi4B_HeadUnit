@@ -106,8 +106,11 @@ def apply_config(p):
             for k, v in o.items(): walk(v, k)
         elif isinstance(o, list):
             for v in o: walk(v, parent)
+    before = CFG.read_text()
     walk(data)
-    tmp = CFG.with_suffix(".tmp"); tmp.write_text(json.dumps(data, indent=4)); tmp.replace(CFG)
+    after = json.dumps(data, indent=4)
+    if json.loads(before) == data: return False          # already right: no write (quicker start, less SD wear)
+    tmp = CFG.with_suffix(".tmp"); tmp.write_text(after); tmp.replace(CFG)
     return True
 
 def apply_live(p):
@@ -127,7 +130,7 @@ def main():
     p = plan(themes, skin)
     ok = apply_config(p)
     both = f" (day {p['light']['name']}, night {p['dark']['name']}, {'night' if p['darkMode'] else 'day'} now)" if p["dark"] is not p["light"] else ""
-    print(f"Hudiy skin: {t['name']}{both} ({'config written' if ok else 'Hudiy not installed yet'})")
+    print(f"Hudiy skin: {t['name']}{both} ({'config written' if ok else ('already set' if CFG.exists() else 'Hudiy not installed yet')})")
     if "--live" in sys.argv:
         print("live recolor:", "sent" if apply_live(p) else "Hudiy API not reachable (applies at the next start)")
 
