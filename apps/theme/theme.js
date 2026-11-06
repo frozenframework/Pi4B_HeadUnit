@@ -207,6 +207,12 @@ async function dev() {
     `${esc(t('set.version'))}: <b>${esc(SYS.version || '?')}</b>`,
   ].join('<br>');
 }
+function wireContacts() {
+  $('contactsForget').onclick = async () => {
+    const r = await api('/api/contacts', { json: { op: 'forget' } }).catch(() => null);
+    if (r?.ok) { toast(t('set.contacts_forgotten')); contactsInfo(); }
+  };
+}
 function wireDev() {
   $('termBtn').onclick = async () => { const r = await api('/api/dev/terminal', { json: {} }); if (!r.ok) toast(r.error || '?', 4000); };
   $('oskBtn').onclick = async () => { const r = await api('/api/dev/keyboard', { json: {} }); if (!r.ok) toast(t('set.osk_failed'), 4000); };
@@ -217,7 +223,17 @@ async function maps() {
   const st = await api('/api/status'); const m = st.maps;
   const yes = (v) => v ? `<span class="accent">${esc(t('set.installed'))}</span>` : `<span style="color:var(--warn)">${esc(t('set.missing'))}</span>`;
   $('mapInfo').innerHTML = `${esc(t('set.map_region'))}: <b>${esc(m.name || m.region || t('set.not_set'))}</b><br>${esc(t('set.map_display'))}: ${yes(m.basemap)} ${m.basemap_date ? '(' + esc(m.basemap_date) + ')' : ''}<br>${esc(t('set.routing'))}: ${yes(m.routing)} · ${esc(t('set.search'))}: ${yes(m.search)} ${m.built ? '(' + esc(t('set.built', { date: m.built.slice(0, 10) })) + ')' : ''}`;
-  mapProgress();
+  mapProgress(); contactsInfo();
+}
+// Phone contacts (bin/hu_contacts.py): which phones shared contacts, how many have an address on the map
+async function contactsInfo() {
+  const r = await api('/api/contacts').catch(() => null); if (!r) return;
+  const day = (x) => new Date(x * 1000).toLocaleDateString(langTag(), { month: 'short', day: 'numeric' });
+  const lines = (r.phones || []).map(p => p.state === 'syncing' ? t('set.contacts_syncing', { phone: p.phone })
+    : p.state === 'error' && !p.updated ? t('set.contacts_error', { phone: p.phone })
+    : t('set.contacts_line', { phone: p.phone, n: p.contacts, m: p.on_map, date: day(p.updated) }));
+  $('contactsInfo').textContent = lines.length ? lines.join(' · ') : t('set.contacts_none');
+  $('contactsForget').classList.toggle('hidden', !(r.phones || []).some(p => p.updated));
 }
 // ---- Map download progress bar (status from bin/hu-update-maps.sh + hu-maps-progress.py)
 const ACTIVE = ['preparing', 'downloading', 'retrying', 'checking'];
@@ -302,7 +318,7 @@ function askGoBack(v, cur) {
   $('update').onclick = async () => { const r = await api('/api/maps/update', { json: {} }); toast(r.message || ''); setTimeout(mapProgress, 1500); };
   $('updCheck').onclick = async () => { const r = await api('/api/update/check', { json: {} }); toast(r.message || ''); setTimeout(updates, 2000); };
   $('exitBtn').onclick = exitSettings;
-  wireVoice(); wireSkins(); cards(); switches(); wireDisplay(); followTheme((s) => { S = s; cards(); }); wireRegion(); wireDev(); page(new URLSearchParams(location.search).get('page') || 'skins');
+  wireVoice(); wireSkins(); cards(); switches(); wireDisplay(); followTheme((s) => { S = s; cards(); }); wireRegion(); wireDev(); wireContacts(); page(new URLSearchParams(location.search).get('page') || 'skins');
   setInterval(() => { if (!$('maps').classList.contains('hidden')) mapProgress(); }, 2000);
   setInterval(() => { if (!$('maps').classList.contains('hidden')) maps(); }, 15000);
   setInterval(() => { if (!$('display').classList.contains('hidden')) display(); }, 2000);

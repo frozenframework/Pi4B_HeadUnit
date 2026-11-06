@@ -24,6 +24,7 @@ fonts-noto-cjk
 locales
 python3-pil
 plymouth
+bluez-obexd
 rtl-sdr
 ddcutil
 python3-gi

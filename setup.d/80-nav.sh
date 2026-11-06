@@ -16,5 +16,5 @@ S
 chmod 440 /etc/sudoers.d/headunit
 visudo -cf /etc/sudoers.d/headunit >/dev/null
 enable_user_unit /opt/headunit/systemd/headunit-bridge.service
-usermod -aG gpio "$U" 2>/dev/null || true
+usermod -aG gpio,bluetooth "$U" 2>/dev/null || usermod -aG gpio "$U" 2>/dev/null || true   # bluetooth: phone contacts
 say "nav: bridge enabled for $U; data in /var/lib/headunit"

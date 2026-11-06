@@ -286,7 +286,10 @@ def do_search(q, near):
             rows = con.execute("SELECT name, kind, detail, lon, lat FROM places WHERE places MATCH ? LIMIT 5000",
                                (" ".join(f'"{t}"*' for t in rest),)).fetchall()
         hu_addr._sort_places(rows, want, anchor)
-        res = addrs + [{"name": r[0], "kind": r[1], "detail": r[2], "lon": r[3], "lat": r[4]} for r in rows[:25 - len(addrs)]]
+        people = []
+        try: people = contacts.search(q, near)            # "sean" -> Sean's house from the phone's contacts
+        except Exception as e: log.warning("contact search: %s", e)
+        res = people + addrs + [{"name": r[0], "kind": r[1], "detail": r[2], "lon": r[3], "lat": r[4]} for r in rows[:25 - len(addrs) - len(people)]]
         if not res:
             res = hu_addr.suggest(con, q, near, zips)
         return res
@@ -655,6 +658,29 @@ async def sun_api(request):
 from hu_places import Places
 places = Places(USER_DIR)
 
+# ---------------------------------------------------------------- contacts' addresses (phone over Bluetooth)
+import hu_contacts, hu_addr as _hu_addr
+contacts = hu_contacts.Contacts(USER_DIR / "contacts", SEARCH_DB, bus=hu_contacts.Bus(C("BUSCTL", "busctl")), log=log,
+                                lookup=_hu_addr.lookup)
+async def contacts_watch():
+    """Phones on the head unit's Bluetooth share their contacts (bin/hu_contacts.py)."""
+    if C("CONTACTS", "1") != "1" or not shutil.which(C("BUSCTL", "busctl")):
+        return
+    loop = asyncio.get_running_loop()
+    while True:
+        try: await loop.run_in_executor(None, contacts.tick)
+        except Exception as e: log.warning("contacts: %s", e)
+        await asyncio.sleep(float(C("CONTACTS_EVERY", "20")))
+
+async def contacts_api(request):
+    if request.method == "GET":
+        return web.json_response({"phones": contacts.status()})
+    body = await request.json()
+    if body.get("op") == "forget":
+        n = contacts.forget(body.get("address")); usage("contacts_forget", n=n)
+        return web.json_response({"ok": True, "forgotten": n})
+    raise web.HTTPBadRequest(text="unknown op")
+
 async def places_api(request):
     if request.method == "GET":
         return web.json_response(places.summary())
@@ -946,6 +972,7 @@ async def on_start(app):
     app["daynight"] = asyncio.create_task(day_night_watch())
     app["voices"] = asyncio.create_task(voice_watch())
     app["parked"] = asyncio.create_task(parked_watch())
+    app["contacts"] = asyncio.create_task(contacts_watch())
     ZIPS.get()                                       # ZIP centres for older search data, in the background
     usage("bridge_start", vehicle=C("VEHICLE_ID", ""))
     asyncio.get_running_loop().run_in_executor(None, hudiy_hotspot_guard)
@@ -1031,6 +1058,7 @@ def make_app():
     app.router.add_route("*", "/api/settings", settings_api)
     app.router.add_route("*", "/api/favorites", favorites_api)
     app.router.add_route("*", "/api/places", places_api)
+    app.router.add_route("*", "/api/contacts", contacts_api)
     app.router.add_post("/api/log", log_api)
     app.router.add_post("/api/maps/update", maps_update)
     app.router.add_get("/api/maps/update-status", maps_update_status)

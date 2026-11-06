@@ -13,6 +13,7 @@ PKGS=(
   fonts-noto-core fonts-noto-cjk # screen text in Arabic, Hindi, Chinese, Korean (Settings > Region & language)
   locales                        # system language switching
   python3-pil plymouth           # boot image (setup.d/25-bootsplash.sh)
+  bluez-obexd                    # contacts' addresses from the phone over Bluetooth (bin/hu_contacts.py)
 )
 [ "$(conf_get RADIO 0)" = 1 ] && PKGS+=(rtl-sdr)
 say "installing: ${PKGS[*]}"

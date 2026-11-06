@@ -334,6 +334,8 @@ document.addEventListener('keydown', (e) => {
   else if (e.key === 'Escape') closeSheets();
   else if (e.key.length === 1 && /[\p{L}\p{N} ,.&'#/-]/u.test(e.key)) { e.preventDefault(); typeKey(e.key); }
 });
+// a contact's address: Home / Work / Contact, and a note when only the street was found on the map
+const contactKind = (r) => [({ home: t('nav.home'), work: t('nav.work') })[r.label] || t('nav.k_contact'), r.found === 'street_only' ? t('nav.k_contact_street') : ''].filter(Boolean).join(' · ');
 const kindName = (k) => ({ address: t('nav.k_address'), address_approx: t('nav.k_address_approx'), street_only: t('nav.k_street_only'), street: t('nav.k_street'), area: t('nav.k_area') })[k] || k;
 async function pickResult(r, near) {
   const dist = fmtDist(hav(near, [r.lon, r.lat]), state.units);
@@ -343,7 +345,7 @@ async function pickResult(r, near) {
     return;
   }
   closeSheets(); state.map.flyTo({ center: [r.lon, r.lat], zoom: 16, pitch: 0 }); state.follow = false;
-  const sub = [r.kind === 'address' || r.kind === 'address_approx' || r.kind === 'street_only' ? kindName(r.kind) : '', r.detail, t('nav.away', { dist })].filter(Boolean).join(' · ');
+  const sub = [r.kind === 'contact' ? contactKind(r) : r.kind === 'address' || r.kind === 'address_approx' || r.kind === 'street_only' ? kindName(r.kind) : '', r.detail, t('nav.away', { dist })].filter(Boolean).join(' · ');
   showDest({ name: r.name, sub, lnglat: [r.lon, r.lat] }); logEvent('search_pick', { kind: r.kind });
 }
 async function runSearch() {
@@ -359,7 +361,7 @@ async function runSearch() {
   for (const r of res) {
     const el = document.createElement('div'); el.className = 'item';
     const dist = fmtDist(hav(near, [r.lon, r.lat]), state.units);
-    el.innerHTML = `<div><div>${esc(r.name)}</div><div class="sub">${esc([kindName(r.kind), r.detail].filter(Boolean).join(' · '))} · ${dist}</div></div>`;
+    el.innerHTML = `<div><div>${esc(r.name)}</div><div class="sub">${esc([r.kind === 'contact' ? contactKind(r) : kindName(r.kind), r.detail].filter(Boolean).join(' · '))} · ${dist}</div></div>`;
     el.onclick = () => pickResult(r, near);
     list.appendChild(el);
   }
