@@ -114,6 +114,7 @@ export function diagText(key, v, t) {
     err_no_answer: () => t('diag.err_no_answer', v),
     err_permission: () => t('diag.err_permission', v),
     err_no_dbuslib: () => t('diag.err_no_dbuslib', v),
+    err_dropped: () => t('diag.err_dropped', v),
     no_dbuslib: () => t('diag.err_no_dbuslib', v),
   };
   return m[key] ? m[key]() : key;

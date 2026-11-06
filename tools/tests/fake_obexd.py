@@ -15,7 +15,7 @@ conn = open_dbus_connection(bus=addr)
 conn.send_and_get_reply(message_bus.RequestName("org.bluez.obex"))
 conn.send_and_get_reply(message_bus.AddMatch(MatchRule(type="signal", sender="org.freedesktop.DBus",
                                                       interface="org.freedesktop.DBus", member="NameOwnerChanged")))
-sessions, counter = {}, itertools.count()
+sessions, counter, drops = {}, itertools.count(), [0, None]
 
 def flat(x):
     if isinstance(x, (list, tuple)):
@@ -51,12 +51,20 @@ while True:
         sessions.pop(msg.body[0], None); ok()
     elif path in sessions and iface == "org.bluez.obex.PhonebookAccess1" and member == "Select" and sig == "ss":
         ok()
+        st = state()
+        if st.get("drop_id") != drops[1]:                 # a new scenario: count again
+            drops[:] = [0, st.get("drop_id")]
+        if drops[0] < st.get("drop_after_select", 0):      # the phone hangs up right after (as when it asks to allow)
+            drops[0] += 1; sessions.pop(path, None)
     elif path in sessions and iface == "org.bluez.obex.PhonebookAccess1" and member == "GetSize":
-        ok("q", 3)
+        ok("q", 3); sessions.pop(path, None)               # what an iPhone seemed to do: closes the connection after it
     elif path in sessions and iface == "org.bluez.obex.PhonebookAccess1" and member == "PullAll":
         shutil.copy(VCF, TMP); ok("oa{sv}", path + "/transfer0", {"Filename": ("s", TMP), "Size": ("t", 0)})
     elif member == "Get" and "/transfer" in (path or ""):
         err("org.freedesktop.DBus.Error.UnknownObject", "finished")      # obexd drops a finished transfer
+    elif path and path.startswith("/org/bluez/obex/client/session") and path not in sessions:
+        err("org.freedesktop.DBus.Error.UnknownObject",      # libdbus >= 1.13: the object is gone
+            f'Method "{member}" with signature "{sig}" on interface "{iface}" doesn\'t exist')
     else:                                                 # what obexd (libdbus) says for a missing interface
         err("org.freedesktop.DBus.Error.UnknownMethod",
             f'Method "{member}" with signature "{sig}" on interface "{iface}" doesn\'t exist')

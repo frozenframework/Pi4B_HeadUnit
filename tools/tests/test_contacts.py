@@ -95,7 +95,7 @@ saved = f.read_text(); assert "555" not in saved and "No Address" not in saved, 
 d = json.loads(saved); assert d["count"] == 2 and d["phone"] == "Robert's iPhone" and "lon" not in d["contacts"][1]["addresses"][0]
 sean = d["contacts"][0]["addresses"]
 assert sean[0]["found"] == "address" and abs(sean[0]["lat"] - 30.3120) < 1e-6, sean
-assert [c[1] for c in calls if c[0] == "obex"][:5] == ["CreateSession", "Select", "GetSize", "PullAll", "Get"], calls
+assert [c[1] for c in calls if c[0] == "obex"][:4] == ["CreateSession", "Select", "PullAll", "Get"], ("no GetSize: an iPhone hangs up after it", calls)
 print("2) phonebook pulled through obexd on one connection, session closed and the file removed; saved 0600 with names + addresses only")
 
 r = ct.search("sean"); assert r[0]["name"] == "Sean Example" and r[0]["label"] == "home" and r[0]["kind"] == "contact", r
@@ -131,13 +131,20 @@ class Spy(hu_contacts.Bus):
         cb = k["progress"]; return super().pull_phonebook(address, progress=lambda ph, d=0, t=0: (phases.append((ph, d, t)), cb(ph, d, t)))
 ct3 = hu_contacts.Contacts(T / "user3", DB, bus=Spy(str(FAKE)), lookup=hu_addr.lookup)
 rep3 = ct3.force_import()
-assert phases[0][0] == "connecting" and ("downloading", 0, 3) in phases, phases
+assert phases[0][0] == "connecting" and ("downloading", 0, 0) in phases, phases
 keys = [(r["ok"], r["key"]) for r in rep3]
 assert keys == [(True, "bt_ok"), (True, "obexd"), (True, "phone_ready"), (True, "imported")] or \
        [k for k in keys if k[1] != "bt_group" and k[1] != "bt_group_reboot"] == [(True, "bt_ok"), (True, "obexd"), (True, "phone_ready"), (True, "imported")], keys
 assert rep3[-1]["vars"]["received"] == 3 and rep3[-1]["vars"]["n"] == 2
 n = len(LOG.read_text().splitlines()); ct3.force_import()
 assert any("PullAll" in l for l in LOG.read_text().splitlines()[n:]), "Import now fetches again even though it's fresh"
+# the phone hangs up part way (as it does right after asking "Allow ... to sync contacts?"): a new session
+hu_contacts.Bus.RETRY_WAIT = 0
+fake(drop_after_select=2, drop_id=1); n = len(LOG.read_text().splitlines()); rep5 = ct3.force_import()
+assert rep5[-1]["key"] == "imported", rep5
+assert sum('"CreateSession"' in l for l in LOG.read_text().splitlines()[n:]) == 3, "third try worked"
+fake(drop_after_select=9, drop_id=2); rep6 = ct3.force_import()
+assert rep6[-1]["key"] == "import_failed" and rep6[-1]["vars"]["error"] == "err_dropped" and "after PullAll" in rep6[-1]["vars"]["detail"], rep6
 fake(no_obexd=True, refuse=True); rep4 = ct3.force_import()
 assert (False, "obexd") in [(r["ok"], r["key"]) for r in rep4] and rep4[-1]["key"] == "import_failed" and rep4[-1]["vars"]["error"] == "err_refused", rep4
 assert ct3.progress["AA:BB:CC:DD:EE:FF"]["phase"] == "error"

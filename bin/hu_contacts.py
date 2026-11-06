@@ -77,11 +77,13 @@ ERRORS = {"err_no_dbuslib": "a Python D-Bus library (python3-jeepney) is missing
           "err_refused": "the phone said no: allow contact sync on the phone (iPhone: Settings > Bluetooth > (i) > Sync Contacts)",
           "err_obexd": "the Bluetooth contacts service (bluez-obexd) isn't installed or running",
           "err_no_answer": "the phone didn't answer: is it nearby, unlocked, and connected to the head unit?",
-          "err_permission": "no permission to use Bluetooth yet (restart the head unit once after the update)"}
+          "err_permission": "no permission to use Bluetooth yet (restart the head unit once after the update)",
+          "err_dropped": "the phone closed the contacts connection each time (3 tries): unlock it, check Sync Contacts is on, and try again"}
 def friendly(e):
     """busctl / obexd errors as a code Settings shows in words a driver can act on (else the message)."""
     m = str(e)
     if m == "err_no_dbuslib": return m
+    if m.startswith("err_dropped"): return "err_dropped"
     for pat, code in (("ServiceUnknown|org.bluez.obex was not provided|not activatable", "err_obexd"),
                       ("Failed to connect to bus|AccessDenied|Permission denied", "err_permission"),
                       ("Not Allowed|Forbidden|Rejected|denied|stopped the transfer", "err_refused"),
@@ -119,25 +121,45 @@ class Bus:
             except Exception: pass
         return "org.bluez.obex" in names
 
-    def pull_phonebook(self, address, timeout=300, progress=lambda phase, done=0, total=0: None):
+    RETRY_WAIT = 2
+    def pull_phonebook(self, address, timeout=300, progress=lambda phase, done=0, total=0: None, tries=3):
         """The phone's contacts as vCard text (PBAP over obexd). progress(phase, done, total) along the way:
-        connecting (the phone may ask to allow it) -> downloading (contacts received of total).
+        connecting (the phone may ask to allow it) -> downloading (contacts received so far).
+
         Everything goes over ONE session-bus connection (ObexLink): obexd ends a session the moment the
-        program that created it disconnects, so separate busctl calls can't do this."""
-        progress("connecting")
+        program that created it disconnects, so separate busctl calls can't do this.
+        Only CreateSession -> Select -> PullAll: no GetSize first - an iPhone may close the contacts
+        connection after it (the session then vanishes: "UnknownObject ... PullAll"). If the phone closes
+        the connection anyway (it also does when it has just asked "Allow ... to sync contacts?"), it's
+        tried again with a new session, up to `tries` times."""
+        last = None
+        for attempt in range(1, tries + 1):
+            progress("connecting", attempt - 1, 0)
+            try:
+                return self._pull_once(address, timeout, progress)
+            except SessionGone as e:
+                last = e
+                if attempt < tries: time.sleep(self.RETRY_WAIT * attempt)
+        raise RuntimeError(f"err_dropped ({last})")
+
+    def _pull_once(self, address, timeout, progress):
         link = ObexLink()
-        sess = fname = None
+        sess = fname = None; step = "CreateSession"
+        PB = "org.bluez.obex.PhonebookAccess1"
+        def call(path, iface, method, *a, **k):
+            nonlocal step; step = method
+            try: return link.call(path, iface, method, *a, **k)
+            except RuntimeError as e:                         # the session (or the transfer) is gone: the phone hung up
+                if re.search(r"UnknownObject|UnknownMethod|UnknownInterface|Disconnected|not connected|Connection reset", str(e), re.I):
+                    raise SessionGone(f"after {step}: {e}") from None
+                raise
         try:
-            sess = link.call("/org/bluez/obex", "org.bluez.obex.Client1", "CreateSession", "sa{sv}",
-                             (address, {"Target": ("s", "pbap")}), timeout=90)[0]
-            PB = "org.bluez.obex.PhonebookAccess1"
-            link.call(sess, PB, "Select", "ss", ("int", "pb"))
-            total = 0
-            try: total = int(link.call(sess, PB, "GetSize")[0])
-            except Exception: pass
-            progress("downloading", 0, total)
-            transfer, props = link.call(sess, PB, "PullAll", "sa{sv}",
-                                        ("", {"Format": ("s", "vcard30"), "Fields": ("as", ["VERSION", "FN", "N", "ADR"])}))
+            sess = call("/org/bluez/obex", "org.bluez.obex.Client1", "CreateSession", "sa{sv}",
+                        (address, {"Target": ("s", "pbap")}), timeout=90)[0]
+            call(sess, PB, "Select", "ss", ("int", "pb"))
+            progress("downloading", 0, 0)
+            transfer, props = call(sess, PB, "PullAll", "sa{sv}",
+                                   ("", {"Format": ("s", "vcard30"), "Fields": ("as", ["VERSION", "FN", "N", "ADR"])}))
             fname = link.plain(props.get("Filename"))
             t0 = time.time()
             while time.time() - t0 < timeout:
@@ -145,12 +167,13 @@ class Bus:
                     st = link.plain(link.call(transfer, "org.freedesktop.DBus.Properties", "Get", "ss",
                                               ("org.bluez.obex.Transfer1", "Status"))[0])
                 except RuntimeError:                         # obexd drops the transfer once it's finished
-                    st = "complete" if fname and os.path.exists(fname) else "error"
+                    st = "complete" if fname and os.path.exists(fname) and os.path.getsize(fname) > 0 else "gone"
                 if st == "complete": break
+                if st == "gone": raise SessionGone("during the transfer")
                 if st == "error": raise RuntimeError("the phone stopped the transfer (allow contact sync on the phone)")
                 try:
                     with open(fname, "rb") as fh: got = fh.read().upper().count(b"BEGIN:VCARD")
-                    progress("downloading", got, max(total, got))
+                    progress("downloading", got, 0)
                 except OSError: pass
                 time.sleep(0.5)
             else:
@@ -165,6 +188,9 @@ class Bus:
                 try: link.call("/org/bluez/obex", "org.bluez.obex.Client1", "RemoveSession", "o", (sess,), timeout=10)
                 except Exception: pass
             link.close()
+
+class SessionGone(Exception):
+    """The phone closed the contacts connection part way (obexd removed the session)."""
 
 class ObexLink:
     """One connection to the session bus for a whole phonebook transfer (jeepney, pure Python; or
@@ -360,7 +386,7 @@ class Contacts:
                                                                      "received": p.get("received", 0)}})
             except Exception as e:
                 st.update(state="error", error=friendly(e))
-                report.append({"ok": False, "key": "import_failed", "vars": {"phone": d["name"], "error": friendly(e)}})
+                report.append({"ok": False, "key": "import_failed", "vars": {"phone": d["name"], "error": friendly(e), "detail": str(e)[:300]}})
         return report
 
     def tick(self):

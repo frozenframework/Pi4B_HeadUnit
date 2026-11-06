@@ -229,7 +229,8 @@ function wireContacts() {
 function diagReport(rep) {
   $('devContactsReport').innerHTML = (rep || []).map(r => {
     const v = { ...r.vars, error: contactsError(r.vars?.error, t) };
-    return `<div class="${r.ok ? 'ok' : 'bad'}">${esc(diagText(r.key === 'obexd' ? (r.ok ? 'obexd_ok' : 'obexd_missing') : r.key, v, t))}</div>`;
+    const detail = !r.ok && r.vars?.detail && r.vars.detail !== r.vars.error ? `<span class="muted"> (${esc(r.vars.detail)})</span>` : '';
+    return `<div class="${r.ok ? 'ok' : 'bad'}">${esc(diagText(r.key === 'obexd' ? (r.ok ? 'obexd_ok' : 'obexd_missing') : r.key, v, t))}${detail}</div>`;
   }).join('');
 }
 function progressBars(box, list) {
