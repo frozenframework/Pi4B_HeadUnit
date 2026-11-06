@@ -430,7 +430,7 @@ class Contacts:
         phones = self.active(); people = {}
         for ph in phones:
             for c in ph["contacts"]:
-                p = people.setdefault(c["name"].lower(), {"name": c["name"], "addresses": []})
+                p = people.setdefault(c["name"].lower(), {"name": c["name"], "addresses": [], "src": ph["address"], "phone": ph.get("phone", "")})
                 for a in c["addresses"]:
                     if any(x["text"] == a["text"] for x in p["addresses"]): continue
                     p["addresses"].append({k: a[k] for k in ("label", "text", "lon", "lat", "found") if k in a})

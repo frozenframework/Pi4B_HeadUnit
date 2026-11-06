@@ -6,17 +6,17 @@ go often are offered for saving, and recent destinations are one tap away.
 Everything stays on the head unit (~/.config/headunit/places.json and place-history.json); Settings in
 the Places panel can clear the history. Positions are [lon, lat].
 
-Contacts (label "contact"): with Settings > Maps > Add contacts to the address book on, every time a
-phone shares its contacts (bin/hu_contacts.py) the ones with an address on the map are added here and
-kept up to date: changed addresses move, contacts deleted on the phone go away. One you remove here
-isn't added back (contact-dismissed.json); Forget in Settings takes them all out.
+Contacts: the phone's contacts are only listed in the Address book (bin/hu_contacts.py), not here. Up
+to FAV_CONTACTS (3) of them can be starred there; those show in Places (label "contact") and follow the
+phone: when the phone's contact gets a new address, the favorite is replaced with it the next time the
+phone shares its contacts. Forget in Settings takes them out too.
 """
 import json, math, threading, time, uuid
 from pathlib import Path
 
 LABELS = ("home", "work", "gym", "school")          # one each; anything else is a saved favorite
-CONTACT = "contact"                                 # imported from a phone's contacts (sync_contacts)
-CONTACTS_MAX = 2000
+CONTACT = "contact"                                 # a favorite contact, starred in the Address book
+FAV_CONTACTS = 3
 NEAR_M = 60                                         # same spot
 CLUSTER_M = 150                                     # "the same place" for counting visits
 OFTEN = 3                                           # visits before a place is suggested
@@ -40,7 +40,6 @@ class Places:
     def __init__(self, folder: Path, clock=time.time):
         self.dir = Path(folder); self.clock = clock; self.lock = threading.Lock()
         self.pf = self.dir / "places.json"; self.hf = self.dir / "place-history.json"
-        self.df = self.dir / "contact-dismissed.json"
         self._migrate()
 
     # ---------------------------------------------------------- storage
@@ -53,7 +52,12 @@ class Places:
         tmp = f.with_suffix(".tmp"); tmp.write_text(json.dumps(data, indent=1)); tmp.replace(f)
 
     def _migrate(self):
-        """Favorites from before Places become saved places (once)."""
+        """Favorites from before Places become saved places (once). Contacts the old "add every contact"
+        option put here go; only starred ones belong in Places."""
+        ps = self._read(self.pf, None)
+        if ps and any(p.get("label") == CONTACT and not p.get("fav") for p in ps):
+            self._write(self.pf, [p for p in ps if not (p.get("label") == CONTACT and not p.get("fav"))])
+        (self.dir / "contact-dismissed.json").unlink(missing_ok=True)
         old = self.dir / "favorites.json"
         if self.pf.exists() or not old.exists(): return
         places = []
@@ -92,47 +96,59 @@ class Places:
     def remove(self, pid):
         with self.lock:
             ps = self.places(); n = len(ps)
-            for p in ps:                                            # a removed contact stays removed
-                if p.get("id") == pid and p.get("label") == CONTACT and p.get("src"):
-                    d = self._read(self.df, {}); d.setdefault(p["src"], [])
-                    if p.get("key") not in d[p["src"]]: d[p["src"]].append(p.get("key"))
-                    self._write(self.df, d)
             ps = [p for p in ps if p.get("id") != pid]
             self._write(self.pf, ps); return len(ps) < n
 
-    # ---------------------------------------------------------- contacts from a phone
-    def sync_contacts(self, src, items, phone=""):
-        """items: [{key, name, sub, lnglat}] = that phone's contacts with an address now. Adds new ones,
-        updates changed ones, removes ones no longer on the phone; skips ones you removed here."""
+    # ---------------------------------------------------------- favorite contacts (from the Address book)
+    def fav_contacts(self):
+        return [p for p in self.places() if p.get("label") == CONTACT]
+
+    def favorite_contact(self, src, name, ctype, sub, lnglat, phone=""):
+        """Star a contact's address. One entry per person (starring again picks the other address);
+        ValueError("limit") when FAV_CONTACTS are already starred."""
+        ll = _ok_lnglat(lnglat)
+        if not ll or not str(name or "").strip(): raise ValueError("bad contact")
+        name = str(name).strip()[:80]
         with self.lock:
-            ps = self.places(); gone = set(self._read(self.df, {}).get(src, []))
-            mine = {p.get("key"): p for p in ps if p.get("label") == CONTACT and p.get("src") == src}
-            rest = [p for p in ps if not (p.get("label") == CONTACT and p.get("src") == src)]
-            new, added, changed = [], 0, 0
-            for it in items:
-                ll = _ok_lnglat(it.get("lnglat"))
-                if not ll or not it.get("key") or it["key"] in gone or any(n["key"] == it["key"] for n in new): continue
-                p = mine.get(it["key"])
-                if p is None:
-                    p = {"id": uuid.uuid4().hex[:10], "label": CONTACT, "added": int(self.clock())}; added += 1
-                elif (p.get("lnglat"), p.get("sub"), p.get("name")) != (ll, str(it.get("sub", ""))[:120], str(it["name"])[:80]):
+            ps = self.places()
+            same = [p for p in ps if p.get("label") == CONTACT and p.get("name", "").lower() == name.lower()]
+            if not same and sum(p.get("label") == CONTACT for p in ps) >= FAV_CONTACTS:
+                raise ValueError("limit")
+            p = same[0] if same else {"id": uuid.uuid4().hex[:10], "label": CONTACT, "added": int(self.clock())}
+            p.update(name=name, sub=str(sub or "")[:120], lnglat=ll, src=str(src or ""), phone=str(phone or "")[:60], fav=True,
+                     ctype=ctype if ctype in ("home", "work") else "other")
+            if not same: ps.append(p)
+            self._write(self.pf, ps)
+            return p
+
+    def update_contacts(self, src, contacts):
+        """The phone shared its contacts again: a starred contact whose address changed on the phone is
+        replaced with the phone's (same kind of address - Home, Work - if it still has one, else its
+        first address on the map). Contacts gone from the phone stay starred as they were."""
+        changed = 0
+        with self.lock:
+            ps = self.places()
+            for p in ps:
+                if p.get("label") != CONTACT or (p.get("src") and p["src"] != src): continue
+                c = next((c for c in contacts if c["name"].lower() == p["name"].lower()), None)
+                if not c: continue
+                onmap = [a for a in c["addresses"] if a.get("lon") is not None]
+                if not onmap: continue
+                a = next((a for a in onmap if a.get("label") == p.get("ctype")), None) or onmap[0]
+                ll = _ok_lnglat([a["lon"], a["lat"]])
+                if (p.get("sub"), p.get("lnglat"), p.get("ctype")) != (a.get("text", ""), ll, a.get("label")):
+                    p.update(sub=str(a.get("text", ""))[:120], lnglat=ll, ctype=a.get("label") if a.get("label") in ("home", "work") else "other",
+                             src=src, updated=int(self.clock()))
                     changed += 1
-                p.update(name=str(it["name"])[:80], sub=str(it.get("sub", ""))[:120], lnglat=ll, src=src, key=it["key"], phone=str(phone)[:60],
-                         ctype=it.get("ctype", "other") if it.get("ctype") in ("home", "work") else "other")
-                new.append(p)
-            removed = len(set(mine) - {n["key"] for n in new})
-            new.sort(key=lambda p: p["name"].lower())
-            self._write(self.pf, rest + new[:CONTACTS_MAX])
-            return {"added": added, "changed": changed, "removed": removed, "total": len(new)}
+            if changed: self._write(self.pf, ps)
+        return changed
 
     def remove_contacts(self, src=None):
-        """Forget: every imported contact (of one phone, or all), and the list of ones you'd removed."""
+        """Forget (Settings): the starred contacts from one phone, or all."""
         with self.lock:
             ps = self.places()
             keep = [p for p in ps if not (p.get("label") == CONTACT and src in (None, p.get("src")))]
             self._write(self.pf, keep)
-            d = self._read(self.df, {})
-            self._write(self.df, {} if src is None else {k: v for k, v in d.items() if k != src})
             return len(ps) - len(keep)
 
     def rename(self, pid, name):

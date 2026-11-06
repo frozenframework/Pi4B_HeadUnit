@@ -186,15 +186,21 @@ try:
     assert [c["name"] for c in get("/api/contacts/book")["contacts"]] == ["Joe's, Tacos Shop", "Sean Q Example"]
     r = get("/api/search?q=" + urllib.parse.quote("sean") + "&near=-95.45,30.31")
     assert r[0]["kind"] == "contact" and r[0]["name"] == "Sean Q Example" and abs(r[0]["lat"] - 30.312) < 1e-6, r
-    # Settings > Maps > Add contacts to the address book: in Places now, and after every connection
-    assert not any(p["label"] == "contact" for p in get("/api/places")["places"])
-    post("/api/settings", {"contactsToPlaces": True}); time.sleep(0.8)
-    pl = [p for p in get("/api/places")["places"] if p["label"] == "contact"]
+    # the whole phonebook goes to the Address book on every connection - not into Places; a starred contact
+    # (at most 3) shows in Places and moves when the phone's address changes
+    assert not any(p["label"] == "contact" for p in get("/api/places")["places"]), "no contacts in Places by themselves"
+    book = get("/api/contacts/book")["contacts"]; sean = next(c for c in book if c["name"] == "Sean Q Example")
+    assert sean["src"] == "AA:BB:CC:DD:EE:FF" and sean["phone"] == "Robert's iPhone"
+    a0 = sean["addresses"][0]
+    r = post("/api/places", {"op": "fav_contact", "name": sean["name"], "ctype": a0["label"], "sub": a0["text"],
+                             "lnglat": [a0["lon"], a0["lat"]], "src": sean["src"], "phone": sean["phone"]})
+    pl = [p for p in r["places"] if p["label"] == "contact"]
     assert [(p["name"], p["ctype"]) for p in pl] == [("Sean Q Example", "home")] and abs(pl[0]["lnglat"][1] - 30.312) < 1e-6, pl
     VCF.write_text(IPHONE.replace("Sean Example", "Sean Q Example").replace("140 N Main St", "300 N Main St"))
     fake(connected=False); time.sleep(0.8); fake(); time.sleep(1.5)                 # the phone reconnects
     pl = [p for p in get("/api/places")["places"] if p["label"] == "contact"]
-    assert len(pl) == 1 and abs(pl[0]["lnglat"][1] - 30.32) < 1e-6 and pl[0]["sub"].startswith("300 N Main"), ("moved", pl)
+    assert len(pl) == 1 and abs(pl[0]["lnglat"][1] - 30.32) < 1e-6 and pl[0]["sub"].startswith("300 N Main"), ("replaced by the phone's", pl)
+    assert [a["text"][:13] for a in next(c for c in get("/api/contacts/book")["contacts"] if c["name"] == "Sean Q Example")["addresses"]][0] == "300 N Main St"
     assert post("/api/contacts", {"op": "forget"})["forgotten"] == 1
     assert not any(p["label"] == "contact" for p in get("/api/places")["places"]), "Forget takes them out of Places too"
     time.sleep(0.8)
@@ -202,5 +208,5 @@ try:
         "forgotten, and not fetched again while the phone stays connected"
 finally:
     b.terminate(); b.wait(5)
-print("6) head unit: contacts arrive by themselves, 'sean' finds his house first; into the address book on every connection; Forget")
+print("6) head unit: the phonebook goes to the Address book on every connection; 'sean' finds his house; a starred contact shows in Places and follows the phone; Forget")
 print("contacts: all tests passed")

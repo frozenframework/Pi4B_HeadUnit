@@ -82,7 +82,7 @@ def system_language():
 DEFAULT_SETTINGS = {"theme": C("DEFAULT_THEME", "neon-overdrive"), "units": "imperial", "voice": True,
                     "language": system_language(), "lastPos": None,
                     "syncHudiyColors": True, "nightAuto": True, "startOnMap": True, "phoneScreen": "map",
-                    "voicePack": "standard", "contactsToPlaces": False,
+                    "voicePack": "standard",
                     "dayNight": False, "dayTheme": "sunset-junction", "nightTheme": C("DEFAULT_THEME", "neon-overdrive"),
                     "display": {"level": 100, "auto": True, "day": 100, "night": 45, "method": "auto"}, "radio": {"band": "FM", "FM": 101100, "AM": 740,
                     "presets": {"FM": [], "AM": []}}}
@@ -630,8 +630,7 @@ async def settings_api(request):
     write_json(USER_DIR / "settings.json", s)
     if "voicePack" in body:
         start_voice_downloads()
-    if body.get("contactsToPlaces"):                          # turned on: the saved contacts go in now
-        asyncio.get_running_loop().run_in_executor(None, contacts_to_places)                              # the chosen voice first
+                              # the chosen voice first
     if s.get("startOnMap") != old_start:   # Hudiy's first screen: offline map or its own dashboard
         subprocess.Popen([sys.executable, "/opt/headunit/bin/hu-hudiy-start.py", "--config"],
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -756,24 +755,16 @@ import hu_contacts, hu_addr as _hu_addr
 contacts = hu_contacts.Contacts(USER_DIR / "contacts", SEARCH_DB, bus=hu_contacts.Bus(C("BUSCTL", "busctl")), log=log,
                                 lookup=_hu_addr.lookup)
 _contacts_importing = threading.Event(); _contacts_report = []
-_contacts_in_places = {}                     # phone -> when its contacts last went into the address book
+_contacts_in_places = {}                     # phone -> the contacts update its starred contacts were checked against
 def contacts_to_places():
-    """Settings > Maps > Add contacts to the address book: after every sync from a phone (each time it
-    connects), its contacts with an address on the map go into Places, kept up to date."""
-    if not settings().get("contactsToPlaces"):
-        _contacts_in_places.clear(); return
+    """After every sync from a phone (each time it connects): a starred contact (Places, at most 3)
+    whose address changed on the phone is replaced with the phone's. Nothing else goes into Places:
+    the phone's contacts are listed in the Address book."""
     for d in contacts.saved():
         if _contacts_in_places.get(d["address"]) == d["updated"]: continue
-        items, seen = [], {}
-        for c in d["contacts"]:
-            for a in c["addresses"]:
-                if "lon" not in a: continue
-                k = f'{c["name"]}|{a["label"]}'; seen[k] = seen.get(k, 0) + 1
-                items.append({"key": k + (f"|{seen[k]}" if seen[k] > 1 else ""), "name": c["name"], "sub": a["text"],
-                              "ctype": a["label"], "lnglat": [a["lon"], a["lat"]]})
-        r = places.sync_contacts(d["address"], items, d.get("phone", ""))
+        n = places.update_contacts(d["address"], d["contacts"])
         _contacts_in_places[d["address"]] = d["updated"]
-        usage("contacts_to_places", **r); log.info("contacts -> address book (%s): %s", d.get("phone"), r)
+        if n: usage("fav_contacts_updated", n=n); log.info("contacts: %d starred contact(s) moved to the phone's new address", n)
 
 async def contacts_watch():
     """Phones on the head unit's Bluetooth share their contacts (bin/hu_contacts.py)."""
@@ -823,6 +814,9 @@ async def places_api(request):
             p = places.save(b.get("label", "favorite"), b.get("name", ""), b.get("lnglat"), b.get("sub", ""))
             usage("place_saved", label=p["label"])
         elif op == "remove": places.remove(str(b.get("id", "")))
+        elif op == "fav_contact":                         # starred in the Address book (at most 3)
+            p = places.favorite_contact(b.get("src", ""), b.get("name", ""), b.get("ctype", ""), b.get("sub", ""), b.get("lnglat"), b.get("phone", ""))
+            usage("fav_contact", n=len(places.fav_contacts()))
         elif op == "rename": places.rename(str(b.get("id", "")), str(b.get("name", "")))
         elif op in ("route", "arrive"): places.record(op, b.get("lnglat"), b.get("name", ""))
         elif op == "clear_history": places.clear_history(); usage("place_history_cleared")

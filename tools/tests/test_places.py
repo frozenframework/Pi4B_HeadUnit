@@ -49,28 +49,35 @@ clock.t -= 200 * 86400; P.clear_history(); assert P.history() == []
 assert any(p["label"] == "gym" for p in P.places()), "clearing history keeps saved places"
 print("4) saved places drop out of suggestions; history ages out and can be cleared, saved places stay")
 
-# 5) contacts from a phone (Settings > Maps > Add contacts to the address book)
+# 5) starred contacts (from the Address book): at most 3, follow the phone's address, Forget clears them
 PH = "AA:BB:CC:DD:EE:FF"
-C1 = [{"key": "Sean|home", "name": "Sean", "sub": "140 N Main St, Conroe TX 77301", "ctype": "home", "lnglat": [-95.456, 30.312]},
-      {"key": "Sean|work", "name": "Sean", "sub": "4500 SH 105 W, Conroe TX", "ctype": "work", "lnglat": [-95.50, 30.33]},
-      {"key": "Amy|home", "name": "Amy", "sub": "1 Elm St", "ctype": "home", "lnglat": [-95.40, 30.30]}]
-assert P.sync_contacts(PH, C1, "Robert's iPhone") == {"added": 3, "changed": 0, "removed": 0, "total": 3}
-cs = [p for p in P.places() if p["label"] == "contact"]
-assert [p["name"] for p in cs] == ["Amy", "Sean", "Sean"] and cs[1]["ctype"] == "home" and cs[0]["phone"] == "Robert's iPhone"
-ids = {p["key"]: p["id"] for p in cs}
-assert P.sync_contacts(PH, C1)["added"] == 0, "the next connection adds nothing twice"
-C2 = [dict(C1[0], sub="200 N Main St, Conroe TX 77301", lnglat=[-95.457, 30.315]), C1[2]]   # Sean moved, his work is gone
-assert P.sync_contacts(PH, C2) == {"added": 0, "changed": 1, "removed": 1, "total": 2}
-sean = next(p for p in P.places() if p.get("key") == "Sean|home")
-assert sean["id"] == ids["Sean|home"] and sean["lnglat"] == [-95.457, 30.315], "updated in place (same entry)"
-P.remove(next(p["id"] for p in P.places() if p.get("key") == "Amy|home"))
-assert P.sync_contacts(PH, C2)["total"] == 1 and not any(p.get("key") == "Amy|home" for p in P.places()), "removed here = stays removed"
+sean = P.favorite_contact(PH, "Sean", "home", "140 N Main St, Conroe TX 77301", [-95.456, 30.312], "Robert's iPhone")
+P.favorite_contact(PH, "Amy", "home", "1 Elm St", [-95.40, 30.30]); P.favorite_contact(PH, "Joe", "work", "2 Oak St", [-95.41, 30.31])
+try: P.favorite_contact(PH, "Dana", "home", "3 Pine St", [-95.42, 30.32]); raise AssertionError("a 4th")
+except ValueError as e: assert str(e) == "limit"
+again = P.favorite_contact(PH, "sean", "work", "4500 SH 105 W", [-95.50, 30.33])           # the other address: same entry
+assert again["id"] == sean["id"] and len(P.fav_contacts()) == 3 and again["ctype"] == "work"
+P.favorite_contact(PH, "Sean", "home", "140 N Main St, Conroe TX 77301", [-95.456, 30.312])
+phone = [{"name": "Sean", "addresses": [{"label": "home", "text": "200 N Main St, Conroe TX 77301", "lon": -95.457, "lat": 30.315},
+                                        {"label": "work", "text": "4500 SH 105 W", "lon": -95.50, "lat": 30.33}]},
+         {"name": "Amy", "addresses": [{"label": "home", "text": "1 Elm St", "lon": -95.40, "lat": 30.30}]},
+         {"name": "Joe", "addresses": [{"label": "home", "text": "9 Ash St", "lon": -95.43, "lat": 30.29}]}]       # Joe has no work address now
+assert P.update_contacts(PH, phone) == 2, "Sean moved; Joe's only address on the phone is now his home"
+s2 = next(p for p in P.places() if p["name"] == "Sean")
+assert s2["id"] == sean["id"] and s2["lnglat"] == [-95.457, 30.315] and s2["sub"].startswith("200 N Main") and s2["ctype"] == "home"
+assert next(p for p in P.places() if p["name"] == "Joe")["sub"] == "9 Ash St"
+assert P.update_contacts(PH, phone) == 0 and P.update_contacts("11:22:33:44:55:66", phone) == 0, "another phone's Sean isn't ours"
+assert P.update_contacts(PH, []) == 0 and len(P.fav_contacts()) == 3, "deleted on the phone: stays starred as it was"
+P.remove(s2["id"]); assert len(P.fav_contacts()) == 2
+P.favorite_contact(PH, "Dana", "home", "3 Pine St", [-95.42, 30.32]); assert len(P.fav_contacts()) == 3, "room again after one is taken off"
 for i in range(205): clock.t += 1; P.save("favorite", f"Spot {i}", [-97 + i * 0.01, 31.0])
-assert sum(p["label"] == "favorite" for p in P.places()) == 200 and any(p["label"] == "contact" for p in P.places()), \
-    "your own places are capped at 200; contacts don't push them out (or the other way round)"
-P.sync_contacts("11:22:33:44:55:66", C1[:1], "Passenger")
-assert P.remove_contacts(PH) == 1 and [p["phone"] for p in P.places() if p["label"] == "contact"] == ["Passenger"]
-assert P.sync_contacts(PH, C2)["total"] == 2, "after Forget, a removed contact can come back"
-assert P.remove_contacts() == 3 and not any(p["label"] == "contact" for p in P.places())
-print("5) contacts: added once, kept up to date (moved / deleted on the phone), removed ones stay removed, Forget clears")
+assert sum(p["label"] == "favorite" for p in P.places()) == 200 and len(P.fav_contacts()) == 3, "your 200 places and 3 contacts don't push each other out"
+assert P.remove_contacts(PH) == 3 and not P.fav_contacts()
+# an older version put every contact in Places: those go, starred ones stay
+import json as _j
+pf = T / "places.json"; ps = _j.loads(pf.read_text())
+ps += [{"id": "x1", "label": "contact", "name": "Bulk", "lnglat": [-95, 30], "src": PH}, {"id": "x2", "label": "contact", "name": "Star", "lnglat": [-95, 30], "fav": True}]
+pf.write_text(_j.dumps(ps)); P2 = Places(T, clock=clock)
+assert [p["name"] for p in P2.fav_contacts()] == ["Star"]
+print("5) starred contacts: at most 3, replaced by the phone's new address, Forget clears; old bulk-imported ones removed")
 print("places: all tests passed")

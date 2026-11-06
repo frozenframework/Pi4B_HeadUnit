@@ -132,6 +132,9 @@ body[data-app="nav"] { position: fixed; inset: 0 0 0 var(--rail); height: auto; 
 #bookList .item .sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #bookList .item.off { opacity: .5; }
 #bookList .item .n { color: var(--accent); font-size: 16px; flex: none; }
+#bookList .favStar { flex: none; width: 60px; min-height: 52px; padding: 0; display: grid; place-items: center; }
+#bookList .favStar svg { width: 28px; height: 28px; stroke: var(--muted); fill: none; stroke-width: 2; }
+#bookList .favStar.on svg { stroke: var(--accent); fill: var(--accent); }
 #bookIndex { display: flex; flex-direction: column; gap: 3px; min-height: 0; }
 #bookIndex button { flex: 1; min-height: 0; padding: 0; font-size: 16px; font-weight: 700; color: var(--accent); }
 #bookIndex button:disabled { color: var(--muted); opacity: .35; }

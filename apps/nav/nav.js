@@ -473,13 +473,13 @@ async function openFavorites() {
     list.appendChild(el);
   };
   const saved = PLACES.places.filter(p => !PLACE_LABELS.includes(p.label) && p.label !== 'contact');
-  const people = PLACES.places.filter(p => p.label === 'contact');     // from the phone (Settings > Maps)
+  const people = PLACES.places.filter(p => p.label === 'contact');     // starred in the Address book (at most 3)
   sect(t('nav.saved_places'));
   if (!saved.length) { const d = document.createElement('div'); d.className = 'item muted'; d.textContent = t('nav.places_empty'); list.appendChild(d); }
   for (const p of saved) row(p.name, [p.sub, dist(p.lnglat)].filter(Boolean).join(' · '), () => goPlace(p), t('common.remove'),
     async () => { await placesApi({ op: 'remove', id: p.id }); openFavorites(); });
   if (people.length) {
-    sect(t('nav.contacts_sect'));
+    sect(t('nav.fav_contacts'));
     for (const p of people) row(p.name, [({ home: t('nav.home'), work: t('nav.work') })[p.ctype] || '', p.sub, dist(p.lnglat)].filter(Boolean).join(' · '),
       () => goPlace(p), t('common.remove'), async () => { await placesApi({ op: 'remove', id: p.id }); openFavorites(); });
   }
@@ -521,7 +521,33 @@ const BACK_ICON = '<svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>';
 const addrLabel = (l) => ({ home: t('nav.home'), work: t('nav.work') })[l] || t('nav.k_contact');
 async function openBook(assign = null) {
   state.bookAssign = assign;
-  const r = await api('/api/contacts/book').catch(() => null) || { phones: [], contacts: [] };
+  const [r, pl] = await Promise.all([api('/api/contacts/book').catch(() => null), api('/api/places').catch(() => null)]);
+  if (pl) PLACES = pl;
+  const book = r || { phones: [], contacts: [] };
+  return renderBook(book, assign);
+}
+// the star on each person: up to 3 starred contacts show in Places (and follow the phone's address)
+const favOf = (name) => PLACES.places.find(p => p.label === 'contact' && p.name.toLowerCase() === name.toLowerCase());
+function paintStar(b, on) { b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); }
+async function toggleFav(c, btn) {
+  const fav = favOf(c.name);
+  if (fav) {
+    await placesApi({ op: 'remove', id: fav.id }); paintStar(btn, false);
+    toast(t('nav.fav_removed', { name: c.name })); logEvent('fav_contact', { on: false }); return;
+  }
+  if (PLACES.places.filter(p => p.label === 'contact').length >= 3) { toast(t('nav.fav_limit'), 4500); return; }
+  const onMap = c.addresses.filter(a => a.lon != null);
+  if (!onMap.length) { toast(t('nav.not_on_map_long'), 4000); return; }
+  let a = onMap[0];
+  if (onMap.length > 1) {
+    const i = await choose(t('nav.fav_which', { name: c.name }), onMap.map((x, n) => ({ value: n, label: `${addrLabel(x.label)}: ${x.text}`, icon: x.label === 'home' || x.label === 'work' ? x.label : 'favorite' })), true);
+    if (i === null) return; a = onMap[i];
+  }
+  const r = await placesApi({ op: 'fav_contact', name: c.name, ctype: a.label, sub: a.text, lnglat: [a.lon, a.lat], src: c.src, phone: c.phone });
+  if (r?.ok) { paintStar(btn, true); toast(t('nav.fav_added', { name: c.name })); logEvent('fav_contact', { on: true }); }
+  else if (r?.error === 'limit') toast(t('nav.fav_limit'), 4500);
+}
+function renderBook(r, assign) {
   const list = $('bookList'), idx = $('bookIndex'); list.innerHTML = ''; idx.innerHTML = '';
   $('bookFrom').textContent = r.phones.length ? t('nav.book_from', { phone: r.phones.join(', ') }) : '';
   if (!r.contacts.length) list.innerHTML = `<div class="item muted">${esc(t('nav.book_empty'))}</div>`;
@@ -535,7 +561,10 @@ async function openBook(assign = null) {
     const el = document.createElement('div'); el.className = 'item' + (onMap.length ? '' : ' off');
     const sub = onMap.length === 1 ? [addrLabel(onMap[0].label), onMap[0].text].join(' · ')
       : onMap.length ? onMap.map(a => addrLabel(a.label)).join(' · ') : [c.addresses[0].text, t('nav.not_on_map')].join(' · ');
-    el.innerHTML = `<div class="grow"><div>${esc(c.name)}</div><div class="sub">${esc(sub)}</div></div>` + (onMap.length > 1 ? `<span class="n">${onMap.length} ›</span>` : '');
+    el.innerHTML = `<div class="grow"><div>${esc(c.name)}</div><div class="sub">${esc(sub)}</div></div>` + (onMap.length > 1 ? `<span class="n">${onMap.length} ›</span>` : '') +
+      (onMap.length && !assign ? `<button class="ghost favStar" aria-label="${esc(t('nav.fav_star'))}">${icons.star}</button>` : '');
+    const star = el.querySelector('.favStar');
+    if (star) { paintStar(star, !!favOf(c.name)); star.onclick = (e) => { e.stopPropagation(); toggleFav(c, star); }; }
     el.onclick = () => pickContact(c);
     list.appendChild(el);
   }
