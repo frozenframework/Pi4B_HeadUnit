@@ -234,6 +234,21 @@ class Contacts:
         now = [d for d in saved if d["address"] in self.connected]
         return now or sorted(saved, key=lambda d: d.get("updated", 0))[-1:]
 
+    def book(self):
+        """The address book screen: everyone with an address from the phones search uses, A to Z
+        (one entry per name; addresses not found on the map are listed but can't be picked)."""
+        phones = self.active(); people = {}
+        for ph in phones:
+            for c in ph["contacts"]:
+                p = people.setdefault(c["name"].lower(), {"name": c["name"], "addresses": []})
+                for a in c["addresses"]:
+                    if any(x["text"] == a["text"] for x in p["addresses"]): continue
+                    p["addresses"].append({k: a[k] for k in ("label", "text", "lon", "lat", "found") if k in a})
+        for p in people.values():
+            p["addresses"].sort(key=lambda a: ("lon" not in a, {"home": 0, "work": 1}.get(a["label"], 2)))
+        out = sorted(people.values(), key=lambda p: (not p["name"][:1].isalpha(), p["name"].lower()))
+        return {"phones": [ph.get("phone", "") for ph in phones], "contacts": out}
+
     def search(self, q, near=None, limit=6):
         words = [w for w in re.sub(r"[^\w ]+", " ", q.lower()).split() if w]
         if not words or words[0][0].isdigit(): return []

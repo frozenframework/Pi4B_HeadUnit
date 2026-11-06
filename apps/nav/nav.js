@@ -392,16 +392,17 @@ const PLACE_ICONS = {
   favorite: '<svg viewBox="0 0 24 24"><path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/></svg>',
   here: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>',
   search: '<svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.6-4.6"/></svg>',
+  book: '<svg viewBox="0 0 24 24"><path d="M5 3h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5z"/><path d="M9 3v18"/><circle cx="14" cy="10" r="2"/><path d="M11.5 15.5c.6-1.4 1.5-2 2.5-2s1.9.6 2.5 2"/></svg>',
 };
 const labelName = (l) => ({ home: t('nav.home'), work: t('nav.work'), gym: t('nav.gym'), school: t('nav.school'), favorite: t('nav.favorite') })[l] || l;
 let PLACES = { places: [], frequent: [], recent: [] };
 const placesApi = (body) => api('/api/places', { json: body }).then(r => { if (r && r.places) PLACES = r; return r; });
 
 // a small chooser over the map: resolves with the picked value, or null
-function choose(title, options) {
+function choose(title, options, wide = false) {
   return new Promise((resolve) => {
     $('chooseTitle').textContent = title;
-    const box = $('chooseList'); box.innerHTML = '';
+    const box = $('chooseList'); box.innerHTML = ''; box.classList.toggle('wide', wide);
     const done = (v) => { $('chooser').classList.add('hidden'); resolve(v); };
     for (const o of options) {
       const b = document.createElement('button'); b.className = o.danger ? 'danger' : (o.primary ? 'primary' : '');
@@ -427,7 +428,8 @@ function goPlace(p) { closeSheets(); routeTo({ name: p.name, lnglat: p.lnglat })
 
 // Home / Work / ...: set it to where the car is, or find it with search
 async function setLabel(label, existing) {
-  const opts = [{ value: 'here', label: t('nav.here_now'), icon: 'here' }, { value: 'search', label: t('nav.search_it'), icon: 'search' }];
+  const opts = [{ value: 'here', label: t('nav.here_now'), icon: 'here' }, { value: 'search', label: t('nav.search_it'), icon: 'search' },
+                { value: 'book', label: t('nav.from_book'), icon: 'book' }];
   if (existing) opts.push({ value: 'remove', label: t('common.remove'), danger: true });
   const how = await choose(existing ? labelName(label) : t('nav.set_place', { label: labelName(label) }), opts);
   if (how === 'here') {
@@ -436,6 +438,8 @@ async function setLabel(label, existing) {
   } else if (how === 'search') {
     state.assign = label; closeSheets(); buildKeyboard();
     $('searchPanel').classList.remove('hidden'); toast(t('nav.search_for', { label: labelName(label) }), 3500);
+  } else if (how === 'book') {
+    openBook(label);
   } else if (how === 'remove') {
     await placesApi({ op: 'remove', id: existing.id }); openFavorites();
   }
@@ -486,6 +490,63 @@ async function openFavorites() {
       async () => { const l = await choose(t('nav.save_as'), saveAsOptions()); if (l && await savePlace(l, rc)) openFavorites(); });
   }
   $('favPanel').classList.remove('hidden');
+}
+// ------------------------------------------------------------------ address book (the phone's contacts)
+// Everyone with an address from the phone (Settings > Maps > Phone contacts), A to Z: scroll, or tap a
+// letter on the side. A person with one address on the map goes straight to it (Go / save); with more,
+// pick Home / Work / ... Opened from "Set Home" etc., the picked address becomes that place.
+const BOOK_ICON = '<svg viewBox="0 0 24 24"><path d="M5 3h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5z"/><path d="M9 3v18"/><circle cx="14" cy="10" r="2"/><path d="M11.5 15.5c.6-1.4 1.5-2 2.5-2s1.9.6 2.5 2"/></svg>';
+const BACK_ICON = '<svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>';
+const addrLabel = (l) => ({ home: t('nav.home'), work: t('nav.work') })[l] || t('nav.k_contact');
+async function openBook(assign = null) {
+  state.bookAssign = assign;
+  const r = await api('/api/contacts/book').catch(() => null) || { phones: [], contacts: [] };
+  const list = $('bookList'), idx = $('bookIndex'); list.innerHTML = ''; idx.innerHTML = '';
+  $('bookFrom').textContent = r.phones.length ? t('nav.book_from', { phone: r.phones.join(', ') }) : '';
+  if (!r.contacts.length) list.innerHTML = `<div class="item muted">${esc(t('nav.book_empty'))}</div>`;
+  const first = {}, letterOf = (n) => { const c = (n[0] || '#').toLocaleUpperCase(); return /\p{L}/u.test(c) ? c : '#'; };
+  for (const c of r.contacts) {
+    const L = letterOf(c.name);
+    if (!first[L]) {
+      const h = document.createElement('div'); h.className = 'item sect'; h.textContent = L; list.appendChild(h); first[L] = h;
+    }
+    const onMap = c.addresses.filter(a => a.lon != null);
+    const el = document.createElement('div'); el.className = 'item' + (onMap.length ? '' : ' off');
+    const sub = onMap.length === 1 ? [addrLabel(onMap[0].label), onMap[0].text].join(' · ')
+      : onMap.length ? onMap.map(a => addrLabel(a.label)).join(' · ') : [c.addresses[0].text, t('nav.not_on_map')].join(' · ');
+    el.innerHTML = `<div class="grow"><div>${esc(c.name)}</div><div class="sub">${esc(sub)}</div></div>` + (onMap.length > 1 ? `<span class="n">${onMap.length} ›</span>` : '');
+    el.onclick = () => pickContact(c);
+    list.appendChild(el);
+  }
+  // letter groups on the side, big enough to hit while parked: ABC DEF ... (other alphabets and # at the end)
+  const groups = ['ABC', 'DEF', 'GHI', 'JKL', 'MNO', 'PQRS', 'TUV', 'WXYZ'];
+  const other = Object.keys(first).filter(l => !/^[A-Z]$/.test(l) && l !== '#').sort();
+  if (other.length) groups.push(other.join('')); groups.push('#');
+  if (r.contacts.length > 12) for (const g of groups) {
+    const target = [...g].map(L => first[L]).find(Boolean);
+    const b = document.createElement('button'); b.textContent = g.length > 4 ? g.slice(0, 2) + '…' : g; b.disabled = !target;
+    b.onclick = () => target?.scrollIntoView({ block: 'start' }); idx.appendChild(b);
+  }
+  $('favPanel').classList.add('hidden'); $('bookPanel').classList.remove('hidden');
+  logEvent('book_open', { n: r.contacts.length, assign: !!assign });
+}
+async function pickContact(c) {
+  const onMap = c.addresses.filter(a => a.lon != null);
+  if (!onMap.length) { toast(t('nav.not_on_map_long'), 4000); return; }
+  let a = onMap[0];
+  if (onMap.length > 1) {
+    const i = await choose(c.name, onMap.map((x, n) => ({ value: n, label: `${addrLabel(x.label)}: ${x.text}`, icon: x.label === 'home' || x.label === 'work' ? x.label : 'favorite' })), true);
+    if (i === null) return; a = onMap[i];
+  }
+  const d = { name: c.name, sub: [addrLabel(a.label), a.found === 'street_only' ? t('nav.k_contact_street') : '', a.text].filter(Boolean).join(' · '), lnglat: [a.lon, a.lat] };
+  logEvent('book_pick', { assign: !!state.bookAssign });
+  if (state.bookAssign) {                            // setting Home / Work / ... from the address book
+    const label = state.bookAssign; state.bookAssign = null; closeSheets();
+    if (await savePlace(label, { name: label === 'favorite' ? c.name : labelName(label), sub: d.sub, lnglat: d.lnglat })) openFavorites();
+    return;
+  }
+  closeSheets(); state.map.flyTo({ center: d.lnglat, zoom: 16, pitch: 0 }); state.follow = false;
+  showDest(d);
 }
 async function clearHistory() {
   const ok = await choose(t('nav.clear_history_q'), [{ value: 'yes', label: t('nav.clear_history'), danger: true }, { value: null, label: t('common.cancel') }]);
@@ -669,6 +730,8 @@ async function main() {
   $('searchBtn').onclick = () => { buildKeyboard(); $('searchPanel').classList.remove('hidden'); };
   $('favBtn').onclick = openFavorites;
   $('clearHist').onclick = clearHistory;
+  $('bookBtn').insertAdjacentHTML('afterbegin', BOOK_ICON); $('bookBtn').onclick = () => openBook();
+  $('bookBack').innerHTML = BACK_ICON; $('bookBack').onclick = () => { state.bookAssign = null; $('bookPanel').classList.add('hidden'); openFavorites(); };
   $('themeBtn').onclick = openThemes;
   $('moreSettings').onclick = openSettings;
   $('centerBtn').onclick = () => { state.follow = true; if (state.pos) camera(); else toast(t('nav.waiting_gps')); };

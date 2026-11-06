@@ -696,6 +696,8 @@ async def contacts_watch():
         await asyncio.sleep(float(C("CONTACTS_EVERY", "20")))
 
 async def contacts_api(request):
+    if request.method == "GET" and request.match_info.get("what") == "book":
+        return web.json_response(contacts.book())
     if request.method == "GET":
         return web.json_response({"phones": contacts.status()})
     body = await request.json()
@@ -1083,6 +1085,7 @@ def make_app():
     app.router.add_route("*", "/api/favorites", favorites_api)
     app.router.add_route("*", "/api/places", places_api)
     app.router.add_route("*", "/api/contacts", contacts_api)
+    app.router.add_get("/api/contacts/{what}", contacts_api)
     app.router.add_post("/api/log", log_api)
     app.router.add_post("/api/maps/update", maps_update)
     app.router.add_get("/api/maps/update-status", maps_update_status)

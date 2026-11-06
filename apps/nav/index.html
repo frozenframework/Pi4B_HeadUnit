@@ -75,9 +75,19 @@
 <!-- favorites -->
 <section id="favPanel" class="sheet panel hidden">
   <div class="sheetHead row"><button class="ghost closeBtn" data-log="close_fav" aria-label="Close" data-i18n-aria="common.close"></button><h2 data-i18n="nav.places">Places</h2>
+    <button id="bookBtn" class="ghost" data-log="places_book"><span data-i18n="nav.book">Address book</span></button>
     <button id="clearHist" class="ghost" data-log="places_clear_history" data-i18n="nav.clear_history">Clear history</button></div>
   <div id="placeTiles" class="tiles"></div>
   <div id="favList" class="list"></div>
+</section>
+<!-- address book: the phone's contacts (bin/hu_contacts.py), A to Z, pick a person's address -->
+<section id="bookPanel" class="sheet panel hidden">
+  <div class="sheetHead row"><button id="bookBack" class="ghost backBtn" data-log="close_book" aria-label="Back" data-i18n-aria="common.back"></button>
+    <h2 data-i18n="nav.book">Address book</h2><span id="bookFrom" class="muted"></span></div>
+  <div class="bookSplit">
+    <div id="bookList" class="list"></div>
+    <div id="bookIndex"></div>
+  </div>
 </section>
 <!-- small chooser (Save as Home / Work / ..., Set Home: where I am / search) -->
 <section id="chooser" class="panel hidden">

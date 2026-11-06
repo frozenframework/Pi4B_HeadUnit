@@ -109,7 +109,23 @@ body[data-app="nav"] { position: fixed; inset: 0 0 0 var(--rail); height: auto; 
 #moreSettings { margin-inline-start: auto; color: var(--accent); font-size: 20px; min-height: 52px; }
 
 /* Places: Home / Work / Gym / School tiles, then saved, often-visited and recent places */
-#favPanel .sheetHead #clearHist { margin-inline-start: auto; font-size: 16px; min-height: 48px; }
+#favPanel .sheetHead #clearHist { font-size: 16px; min-height: 48px; }
+#favPanel .sheetHead #bookBtn { margin-inline-start: auto; font-size: 18px; min-height: 52px; color: var(--accent); display: flex; align-items: center; gap: 8px; }
+#bookBtn svg, .backBtn svg { width: 26px; height: 26px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.backBtn { width: 64px; padding: 0; display: grid; place-items: center; }
+#bookFrom { margin-inline-start: auto; font-size: 16px; }
+/* address book: a long list you scroll with a finger, letters on the side to jump */
+.bookSplit { flex: 1; display: grid; grid-template-columns: 1fr 84px; gap: 8px; min-height: 0; margin-top: 8px; }
+#bookList { min-height: 0; }
+#bookList .sect { min-height: 0; padding: 10px 16px 2px; font-size: 18px; font-weight: 700; color: var(--accent); border: none; position: sticky; top: 0;
+  background: var(--panel); z-index: 1; }
+#bookList .item .grow { flex: 1; min-width: 0; }
+#bookList .item .sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#bookList .item.off { opacity: .5; }
+#bookList .item .n { color: var(--accent); font-size: 16px; flex: none; }
+#bookIndex { display: flex; flex-direction: column; gap: 3px; min-height: 0; }
+#bookIndex button { flex: 1; min-height: 0; padding: 0; font-size: 16px; font-weight: 700; color: var(--accent); }
+#bookIndex button:disabled { color: var(--muted); opacity: .35; }
 .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 10px 0 6px; }
 .tile { position: relative; min-height: 96px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px;
   padding: 8px 14px; text-align: start; }
@@ -125,7 +141,9 @@ body[data-app="nav"] { position: fixed; inset: 0 0 0 var(--rail); height: auto; 
 #favList .item .grow { flex: 1; min-width: 0; }
 #chooser { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 30; width: min(620px, calc(100% - 40px)); padding: 12px 16px 16px; }
 .chooseGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; margin-top: 10px; }
+.chooseGrid.wide { grid-template-columns: 1fr; }
+.chooseGrid.wide button { justify-content: flex-start; text-align: start; padding: 8px 18px; }
 .chooseGrid button { min-height: 72px; font-size: 20px; display: flex; align-items: center; justify-content: center; gap: 8px; }
-.chooseGrid button svg { width: 26px; height: 26px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.chooseGrid button svg { flex: none; width: 26px; height: 26px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .chooseGrid button.danger { border-color: var(--warn); color: var(--warn); }
 @media (max-height: 460px) { .tiles { margin: 6px 0 2px; } .tile { min-height: 70px; } .tile .ti { font-size: 18px; } }

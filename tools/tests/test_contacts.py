@@ -82,12 +82,15 @@ r = ct.search("sean"); assert r[0]["name"] == "Sean Example" and r[0]["label"] =
 assert ct.search("sea ex")[0]["name"] == "Sean Example" and ct.search("sean home")[0]["label"] == "home"
 assert ct.search("joe") == [], "Houston isn't in this map data: not placed on a Main St in Conroe"
 assert ct.search("140 n main") == [] and ct.search("zed") == []
+bk = ct.book(); assert bk["phones"] == ["Robert's iPhone"] and [c["name"] for c in bk["contacts"]] == ["Joe's, Tacos Shop", "Sean Example"], bk
+sa = bk["contacts"][1]["addresses"]; assert sa[0]["label"] == "home" and "lon" in sa[0] and "lon" not in sa[1], ("on the map first", sa)
+assert "lon" not in bk["contacts"][0]["addresses"][0], "listed, but not on the map"
 n = len(LOG.read_text().splitlines()); ct.tick()
 assert not any("PullAll" in l for l in LOG.read_text().splitlines()[n:]), "not fetched again while it stays connected"
 fake(connected=False); ct.tick(); assert ct.search("sean"), "saved: still found after the phone disconnects"
 VCF.write_text(IPHONE.replace("Sean Example", "Sean Q Example")); fake(); ct.tick()
 assert ct.search("sean")[0]["name"] == "Sean Q Example", "fetched again when it reconnects"
-print("3) found by name / part of a name / 'home'; fetched once per connection; still there after disconnecting")
+print("3) found by name / part of a name / 'home'; address book A-Z; fetched once per connection; still there after disconnecting")
 
 # a refused sync (iPhone: Sync Contacts off, or not allowed yet) is retried later, not every 20 s
 ct2 = hu_contacts.Contacts(T / "user2", DB, bus=hu_contacts.Bus(str(FAKE)), lookup=hu_addr.lookup)
@@ -121,6 +124,7 @@ try:
         if st["phones"] and st["phones"][0]["state"] == "ok": break
         time.sleep(0.25)
     p = st["phones"][0]; assert p["phone"] == "Robert's iPhone" and p["contacts"] == 2 and p["on_map"] == 1 and p["connected"], st
+    assert [c["name"] for c in get("/api/contacts/book")["contacts"]] == ["Joe's, Tacos Shop", "Sean Q Example"]
     r = get("/api/search?q=" + urllib.parse.quote("sean") + "&near=-95.45,30.31")
     assert r[0]["kind"] == "contact" and r[0]["name"] == "Sean Q Example" and abs(r[0]["lat"] - 30.312) < 1e-6, r
     # Settings > Maps > Add contacts to the address book: in Places now, and after every connection
