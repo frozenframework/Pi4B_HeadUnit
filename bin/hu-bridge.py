@@ -594,6 +594,10 @@ async def settings_api(request):
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     if s.get("theme") != old_theme:
         theme_changed(s, old_theme, "settings")
+    elif {"dayNight", "dayTheme", "nightTheme"} & set(body) and s.get("syncHudiyColors"):
+        # Hudiy's light / dark sections hold the day / night skins: rewrite them when the pair changes
+        subprocess.Popen([sys.executable, "/opt/headunit/bin/hu-hudiy-theme.py", s["theme"], "--live"],
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return web.json_response(s)
 
 def theme_changed(s, old_theme, why):
@@ -605,25 +609,65 @@ def theme_changed(s, old_theme, why):
 # ---------------------------------------------------------------- day / night skins (sunrise and sunset)
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import hu_sun
-_last_pos = {"pos": None}
+SUN_POS = USER_DIR / "sun-position.json"          # the last GPS position, kept across restarts
+_last_pos = {"pos": None, "saved": 0}
+
+def tz_name():
+    tz = os.environ.get("TZ", "").lstrip(":")
+    if tz: return tz
+    try: return Path("/etc/timezone").read_text().strip()
+    except OSError: pass
+    try: return str(Path("/etc/localtime").resolve()).split("zoneinfo/", 1)[1]
+    except (OSError, IndexError): return ""
 
 def sun_position():
-    """Where to work out sunrise/sunset: GPS now, else the last GPS position, else the map region's middle."""
+    """Where to work out sunrise/sunset: GPS now, else the last GPS position (kept on disk), else your Home
+    place, else the time zone's populated middle, else the map region's middle (only for one state -
+    the middle of 'United States' is in the Pacific). Returns (lat, lon, source)."""
     f = gps.fix
     if f.get("mode", 0) >= 2 and f.get("lat") is not None and f.get("lon") is not None:
-        _last_pos["pos"] = (f["lat"], f["lon"]); return f["lat"], f["lon"], "gps"
+        pos = (round(f["lat"], 3), round(f["lon"], 3)); _last_pos["pos"] = pos
+        if time.time() - _last_pos["saved"] > 600:
+            _last_pos["saved"] = time.time()
+            try: write_json(SUN_POS, {"lat": pos[0], "lon": pos[1], "t": int(time.time())})
+            except OSError: pass
+        return f["lat"], f["lon"], "gps"
     if _last_pos["pos"]: return (*_last_pos["pos"], "gps")
+    sp = read_json(SUN_POS, None)
+    if sp and sp.get("lat") is not None: return sp["lat"], sp["lon"], "last"
     lp = settings().get("lastPos")
     if lp: return lp[1], lp[0], "last"
     try:
+        home = next((p for p in places.places() if p.get("label") == "home"), None)
+        if home: return home["lnglat"][1], home["lnglat"][0], "home"
+    except Exception:
+        pass
+    tzp = hu_sun.tz_position(tz_name())
+    if tzp: return tzp[0], tzp[1], "timezone"
+    try:
         region = C("MAP_REGION", "texas-plus")
         w, so, e, n = json.loads((APP_DIR.parent / "maps" / "regions.json").read_text())[region]["bbox"]
-        return (so + n) / 2, (w + e) / 2, "region"
+        if e - w < 25 and n - so < 25:
+            return (so + n) / 2, (w + e) / 2, "region"
     except Exception:
-        return 41.88, -87.63, "default"
+        pass
+    return 31.0, -97.5, "default"
+
+_clock = {}
+def sun_now():
+    """The time for sunrise / sunset: the Pi's clock, or the GPS's when the clock is off (hu_sun.corrected_now)."""
+    old = _clock.get("off", 0)
+    t, off = hu_sun.corrected_now(gps.fix, time.time(), _clock)
+    if off and abs(off - old) > 60:
+        log.warning("day/night skins: the clock is %+.0f min off; using GPS time", off / 60)
+    return t
+
+def clock_trusted(t):
+    """Not when the clock says it's years ago (no clock battery, no internet, no GPS yet)."""
+    return t > 1_735_689_600        # 2025-01-01
 
 def sun_info(t=None):
-    t = time.time() if t is None else t
+    t = sun_now() if t is None else t
     lat, lon, src = sun_position()
     rise, sett = hu_sun.rise_set(lat, lon, hu_sun.local_midnight(t))
     night = hu_sun.is_night(lat, lon, t)
@@ -632,10 +676,13 @@ def sun_info(t=None):
         if x > t: nxt = x; break
     if nxt is None:                                          # after today's sunset: tomorrow's sunrise
         nxt = hu_sun.rise_set(lat, lon, hu_sun.local_midnight(t) + 86400 + 3600)[0]
-    return {"night": night, "sunrise": rise, "sunset": sett, "next": nxt, "source": src}
+    return {"night": night, "sunrise": rise, "sunset": sett, "next": nxt, "source": src, "clock_ok": clock_trusted(t),
+            "gps_clock": bool(_clock.get("off")), "lat": round(lat, 2), "lon": round(lon, 2)}
 
 def day_night_theme(s):
-    return s.get("nightTheme") if sun_info()["night"] else s.get("dayTheme")
+    sun = sun_info()
+    if not sun["clock_ok"]: return s.get("theme")          # don't guess with a clock that isn't set
+    return s.get("nightTheme") if sun["night"] else s.get("dayTheme")
 
 async def day_night_watch():
     """With day/night skins on, switch the skin at sunrise and sunset (checked every 30 s)."""
@@ -645,6 +692,7 @@ async def day_night_watch():
             if s.get("dayNight"):
                 want = await asyncio.get_running_loop().run_in_executor(None, day_night_theme, s)
                 if want and want != s.get("theme"):
+                    s = settings()                            # fresh: Settings may have saved something meanwhile
                     old = s.get("theme"); s["theme"] = want
                     write_json(USER_DIR / "settings.json", s)
                     log.info("day/night skins: %s -> %s", old, want)

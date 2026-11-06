@@ -1,6 +1,7 @@
 """Hudiy skin sync: the config gets dark/light, source color, color roles and background in both theme
 sections plus CarPlay/Android Auto day-night = common; --live sends SetDarkMode (37) and SetThemeColors (54);
-syncHudiyColors=false turns it off; unrelated keys survive."""
+syncHudiyColors=false turns it off; unrelated keys survive; day and night skins go in Hudiy's light and dark
+sections, so sunrise / sunset only flips dark mode."""
 import json, os, socket, struct, subprocess, sys, tempfile, threading
 from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
@@ -45,6 +46,19 @@ assert b"#00E5FF" in got[1][1], got[1]
 (home / ".config/headunit").mkdir(parents=True); (home / ".config/headunit/settings.json").write_text(json.dumps({"theme": "sunset-junction"}))
 print(run("--startup").stdout.strip())
 d = json.loads(cfg.read_text()); assert d["theme"]["darkThemeEnabled"] is False and d["theme"]["light"]["sourceColor"] == "#FF6A1A"
+# day and night skins: Hudiy's light section = the day skin, dark section = the night skin, dark mode at night,
+# so the bridge only flips dark mode at sunrise / sunset and everything in Hudiy changes with it
+(home / ".config/headunit/settings.json").write_text(json.dumps({"theme": "after-midnight", "dayNight": True,
+                                                                  "dayTheme": "sunset-junction", "nightTheme": "after-midnight"}))
+n0 = len(got); print(run("after-midnight", "--live").stdout.strip()); time.sleep(0.6)
+d = json.loads(cfg.read_text())["theme"]
+assert d["darkThemeEnabled"] is True and d["dark"]["sourceColor"] == "#39FF88" and d["light"]["sourceColor"] == "#FF6A1A", d
+assert d["light"]["defaultBackground"].endswith("sunset-junction.jpg") and d["dark"]["defaultBackground"].endswith("after-midnight.jpg")
+live = [(m, p) for m, p in got[n0:] if m in (37, 54)]
+assert live[0] == (37, b"\x08\x01") and b"#39FF88" in live[1][1] and b"#FF6A1A" in live[1][1], live
+n0 = len(got); run("sunset-junction", "--live"); time.sleep(0.6)
+assert json.loads(cfg.read_text())["theme"]["darkThemeEnabled"] is False
+assert [(m, p) for m, p in got[n0:] if m == 37] == [(37, b"\x08\x00")], "sunrise: dark mode off"
 # switched off in Settings
 (home / ".config/headunit/settings.json").write_text(json.dumps({"theme": "street-heat", "syncHudiyColors": False}))
 print(run("--startup").stdout.strip())

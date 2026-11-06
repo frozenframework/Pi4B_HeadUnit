@@ -41,8 +41,11 @@ async function cards() {
   if (dn && !slot) slot = sun?.night ? 'night' : 'day';
   $('dayNight').textContent = onOff(dn); $('dayNight').classList.toggle('on', dn);
   $('slots').classList.toggle('hidden', !dn);
+  // where the sunrise / sunset is worked out for, so a wrong guess (no GPS yet) is visible
+  const where = sun && ({ gps: t('set.sun_gps'), last: t('set.sun_last'), home: t('set.sun_home'), timezone: t('set.sun_tz'),
+                          region: t('set.sun_region'), default: t('set.sun_region') })[sun.source];
   $('sunNow').textContent = dn && sun
-    ? t('set.daynight_on_sub', { rise: clock(sun.sunrise), set: clock(sun.sunset), now: sun.night ? t('set.night') : t('set.day') })
+    ? (sun.clock_ok === false ? t('set.sun_clock') : [t('set.daynight_on_sub', { rise: clock(sun.sunrise), set: clock(sun.sunset), now: sun.night ? t('set.night') : t('set.day') }), where].filter(Boolean).join(' · '))
     : t('set.daynight_off_sub');
   $('slotDay').innerHTML = `<span class="lbl">${esc(t('set.day_skin'))}</span><b>${esc(name(S.dayTheme))}</b>`;
   $('slotNight').innerHTML = `<span class="lbl">${esc(t('set.night_skin'))}</span><b>${esc(name(S.nightTheme))}</b>`;

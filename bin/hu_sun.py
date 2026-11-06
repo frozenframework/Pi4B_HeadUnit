@@ -6,8 +6,31 @@ the lower 48). No internet needed: only the time (the Pi's clock / RTC) and a po
     is_night(lat, lon, when)         sun below the horizon (incl. refraction, -0.833 deg)
     rise_set(lat, lon, day_start)    (sunrise, sunset) as epoch seconds for the 24 h from day_start,
                                      either can be None (polar day / night)
+    tz_position(tz)                  a rough position for a time zone name (when there's no GPS yet)
+    gps_epoch(iso)                   a GPS time ("2026-11-06T23:41:07.000Z") as epoch seconds
 """
-import math, time
+import calendar, math, re, time
+
+# Where the sun is worked out before the head unit has ever had a GPS fix: the middle of where people
+# live in each US time zone (a few minutes of sunrise / sunset at most for most of the zone)
+TZ_POS = {"America/New_York": (39.5, -78.5), "America/Detroit": (42.5, -84.0), "America/Indiana/Indianapolis": (39.8, -86.2),
+          "America/Kentucky/Louisville": (38.2, -85.7), "America/Chicago": (33.5, -94.0), "America/Indiana/Knox": (41.3, -86.6),
+          "America/Menominee": (45.1, -87.6), "America/North_Dakota/Center": (47.1, -101.3), "America/Denver": (39.0, -105.5),
+          "America/Boise": (43.6, -116.2), "America/Phoenix": (33.4, -112.0), "America/Los_Angeles": (36.5, -119.5),
+          "America/Anchorage": (61.2, -149.9), "America/Juneau": (58.3, -134.4), "Pacific/Honolulu": (21.3, -157.9),
+          "America/Puerto_Rico": (18.4, -66.1), "US/Central": (33.5, -94.0), "US/Eastern": (39.5, -78.5),
+          "US/Mountain": (39.0, -105.5), "US/Pacific": (36.5, -119.5), "America/Mexico_City": (19.4, -99.1),
+          "America/Toronto": (43.7, -79.4), "America/Vancouver": (49.3, -123.1), "Europe/London": (51.5, -0.1),
+          "Europe/Berlin": (52.5, 13.4), "Europe/Paris": (48.9, 2.35)}
+
+def tz_position(tz):
+    return TZ_POS.get(tz or "")
+
+def gps_epoch(iso):
+    m = re.match(r"(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d):(\d\d)(\.\d+)?Z?$", str(iso or ""))
+    if not m: return None
+    y, mo, d, h, mi, se = (int(x) for x in m.groups()[:6])
+    return calendar.timegm((y, mo, d, h, mi, se)) + float(m.group(7) or 0)
 
 HORIZON = -0.833      # degrees: the sun's upper edge touches the horizon, with refraction
 
@@ -66,3 +89,15 @@ def local_midnight(t=None):
     t = time.time() if t is None else t
     lt = time.localtime(t)
     return time.mktime((lt.tm_year, lt.tm_mon, lt.tm_mday, 0, 0, 0, 0, 0, -1))
+
+
+def corrected_now(fix, now, memo):
+    """The time to use: the Pi's clock, unless a GPS fix says it's more than 2 minutes off (no internet
+    and no clock battery: the Pi starts at the time it was switched off). memo keeps the offset for a
+    while after the GPS drops out (tunnels, garages). Returns (time, offset in seconds or 0)."""
+    g = gps_epoch(fix.get("time")) if (fix or {}).get("mode", 0) >= 2 else None
+    if g is not None:
+        memo["off"] = g - now if abs(g - now) > 120 else 0; memo["at"] = now
+    elif memo.get("off") and now - memo.get("at", 0) > 6 * 3600:
+        memo["off"] = 0
+    return now + memo.get("off", 0), memo.get("off", 0)
