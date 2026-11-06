@@ -10,7 +10,8 @@ What it changes in ~/.hudiy/share/config/main_configuration.json (keys from Hudi
   theme.darkThemeEnabled            dark or light, from the skin
   every theme section with a sourceColor (dark and light):
       sourceColor                   the skin's accent color (Hudiy builds its Material 3 palette from it)
-      colorOverwrite                surface / primary / text roles set to the skin's own colors
+      colorOverwrite                surface / primary / text roles set to the skin's own colors, and the
+                                    inverse / container roles Hudiy's notifications and toasts use
       defaultBackground             the skin's background picture (apps/styles/hudiy-bg/<skin>.jpg)
   androidAuto.dayNightMode, autobox.dayNightMode = "common"
                                     Android Auto and CarPlay follow the dark/light setting, so a dark skin
@@ -47,7 +48,16 @@ def roles(t):
             "surfaceVariant": u["panel"], "onSurfaceVariant": u["muted"],
             "surfaceContainerLowest": u["bg"], "surfaceContainerLow": u["panel"], "surfaceContainer": u["panel"],
             "surfaceContainerHigh": u["panel"], "surfaceContainerHighest": u["panel"],
-            "outline": u["muted"], "outlineVariant": u["muted"], "error": u["warn"]}
+            "outline": u["muted"], "outlineVariant": u["muted"], "error": u["warn"],
+            # Hudiy's notifications, toasts (volume, now playing, phone, Bluetooth) and pop-ups are drawn with
+            # the inverse and container roles: without these they keep Hudiy's default look on every skin
+            "inverseSurface": u["panel"], "inverseOnSurface": u["text"], "inversePrimary": u["accent"],
+            "primaryContainer": u["panel"], "onPrimaryContainer": u["accent"],
+            "secondaryContainer": u["panel"], "onSecondaryContainer": u["text"],
+            "tertiaryContainer": u["panel"], "onTertiaryContainer": u["accent2"],
+            "errorContainer": u["panel"], "onErrorContainer": u["warn"],
+            "onSecondary": u["bg"], "onTertiary": u["bg"], "onError": u["bg"],
+            "surfaceDim": u["bg"], "surfaceBright": u["panel"], "scrim": "#000000", "shadow": "#000000"}
 
 def background(t):
     src = STYLES / "hudiy-bg" / f"{t['id']}.jpg"

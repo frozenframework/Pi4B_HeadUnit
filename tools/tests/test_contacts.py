@@ -48,12 +48,16 @@ st = {str(T / "fake.json")!r}; s = json.load(open(st)) if os.path.exists(st) els
 out = lambda t, d: print(json.dumps({{"type": t, "data": d}}))
 if not user and a[:2] == ["call", "org.bluez"]:
     dev = {{"Address": {{"type": "s", "data": "AA:BB:CC:DD:EE:FF"}}, "Alias": {{"type": "s", "data": "Robert's iPhone"}},
-           "Connected": {{"type": "b", "data": s.get("connected", True)}},
+           "Connected": {{"type": "b", "data": s.get("connected", True)}}, "Paired": {{"type": "b", "data": True}},
            "UUIDs": {{"type": "as", "data": ["0000112F-0000-1000-8000-00805F9B34FB", "0000111e-0000-1000-8000-00805f9b34fb"]}}}}
     out("a{{oa{{sa{{sv}}}}}}", [{{"/org/bluez/hci0/dev_AA": {{"org.bluez.Device1": dev}}, "/org/bluez/hci0": {{"org.bluez.Adapter1": {{}}}}}}])
 elif a[3:5] == ["org.bluez.obex.Client1", "CreateSession"]:
     if s.get("refuse"): print("Call failed: Not Allowed", file=sys.stderr); sys.exit(1)
     out("o", ["/org/bluez/obex/client/session7"])
+elif a[4:5] == ["GetSize"]:
+    out("q", [3])
+elif a[3:5] == ["org.freedesktop.DBus", "ListNames"]:
+    out("as", [[":1.1"] + (["org.bluez.obex"] if not s.get("no_obexd") else [])])
 elif a[4:5] == ["PullAll"]:
     f = {str(T / "obexd-tmp.vcf")!r}; shutil.copy({str(VCF)!r}, f)
     out("oa{{sv}}", ["/org/bluez/obex/client/session7/transfer0", {{"Filename": {{"type": "s", "data": f}}, "Size": {{"type": "t", "data": 0}}}}])
@@ -95,12 +99,35 @@ print("3) found by name / part of a name / 'home'; address book A-Z; fetched onc
 # a refused sync (iPhone: Sync Contacts off, or not allowed yet) is retried later, not every 20 s
 ct2 = hu_contacts.Contacts(T / "user2", DB, bus=hu_contacts.Bus(str(FAKE)), lookup=hu_addr.lookup)
 fake(refuse=True); ct2.tick(); s0 = ct2.status()[0]
-assert s0["state"] == "error" and "Not Allowed" in s0["error"] and ct2.search("sean") == []
+assert s0["state"] == "error" and s0["error"] == "err_refused" and ct2.search("sean") == []
 n = len(LOG.read_text().splitlines()); ct2.tick()
 assert not any("CreateSession" in l for l in LOG.read_text().splitlines()[n:]), "waits before asking again"
 fake(); ct2.state["AA:BB:CC:DD:EE:FF"]["next_try"] = 0; ct2.tick(); assert ct2.status()[0]["state"] == "ok"
 assert ct2.forget() == 1 and ct2.search("sean") == [] and not list((T / "user2").glob("*.json"))
 print("4) refused sync retried later; Forget removes the saved contacts")
+
+# 6) progress, the step-by-step check and Import now (Settings > Developer)
+p = ct.progress["AA:BB:CC:DD:EE:FF"]
+assert p["phase"] == "done" and p["received"] == 3 and p["done"] == 2 and p["on_map"] >= 1 and p["phone"] == "Robert's iPhone", p
+phases = []
+class Spy(hu_contacts.Bus):
+    def pull_phonebook(self, address, **k):
+        cb = k["progress"]; return super().pull_phonebook(address, progress=lambda ph, d=0, t=0: (phases.append((ph, d, t)), cb(ph, d, t)))
+ct3 = hu_contacts.Contacts(T / "user3", DB, bus=Spy(str(FAKE)), lookup=hu_addr.lookup)
+rep3 = ct3.force_import()
+assert phases[0][0] == "connecting" and ("downloading", 0, 3) in phases, phases
+keys = [(r["ok"], r["key"]) for r in rep3]
+assert keys == [(True, "bt_ok"), (True, "obexd"), (True, "phone_ready"), (True, "imported")] or \
+       [k for k in keys if k[1] != "bt_group" and k[1] != "bt_group_reboot"] == [(True, "bt_ok"), (True, "obexd"), (True, "phone_ready"), (True, "imported")], keys
+assert rep3[-1]["vars"]["received"] == 3 and rep3[-1]["vars"]["n"] == 2
+n = len(LOG.read_text().splitlines()); ct3.force_import()
+assert any("PullAll" in l for l in LOG.read_text().splitlines()[n:]), "Import now fetches again even though it's fresh"
+fake(no_obexd=True, refuse=True); rep4 = ct3.force_import()
+assert (False, "obexd") in [(r["ok"], r["key"]) for r in rep4] and rep4[-1]["key"] == "import_failed" and rep4[-1]["vars"]["error"] == "err_refused", rep4
+assert ct3.progress["AA:BB:CC:DD:EE:FF"]["phase"] == "error"
+fake(connected=False); assert [r["key"] for r in ct3.diagnose() if r["key"].startswith("phone")] == ["phone_not_connected"]
+fake()
+print("5) progress (connecting -> receiving n of total -> placing -> done); check lists each step; Import now; errors in plain words")
 
 # 5) through the head unit's search and settings (bridge)
 s = socket.socket(); s.bind(("127.0.0.1", 0)); port = s.getsockname()[1]; s.close()
@@ -123,6 +150,15 @@ try:
         st = get("/api/contacts")
         if st["phones"] and st["phones"][0]["state"] == "ok": break
         time.sleep(0.25)
+    assert st["progress"][0]["phase"] == "done"
+    assert post("/api/contacts", {"op": "import"})["started"]
+    for _ in range(40):
+        st = get("/api/contacts")
+        if not st["importing"] and st["report"]: break
+        time.sleep(0.25)
+    assert st["report"][-1]["key"] == "imported" and st["report"][-1]["ok"], st["report"]
+    assert get("/api/status")["contactsSync"]["phase"] == "done", "the map's progress chip"
+    assert post("/api/contacts", {"op": "check"})["report"][0]["key"] == "bt_ok"
     p = st["phones"][0]; assert p["phone"] == "Robert's iPhone" and p["contacts"] == 2 and p["on_map"] == 1 and p["connected"], st
     assert [c["name"] for c in get("/api/contacts/book")["contacts"]] == ["Joe's, Tacos Shop", "Sean Q Example"]
     r = get("/api/search?q=" + urllib.parse.quote("sean") + "&near=-95.45,30.31")
@@ -143,5 +179,5 @@ try:
         "forgotten, and not fetched again while the phone stays connected"
 finally:
     b.terminate(); b.wait(5)
-print("5) head unit: contacts arrive by themselves, 'sean' finds his house first; into the address book on every connection; Forget")
+print("6) head unit: contacts arrive by themselves, 'sean' finds his house first; into the address book on every connection; Forget")
 print("contacts: all tests passed")

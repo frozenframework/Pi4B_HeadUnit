@@ -73,6 +73,20 @@ def parse_vcards(text):
 def address_text(a):
     return ", ".join(x for x in (a["street"], " ".join(y for y in (a["city"], a["state"], a["zip"]) if y)) if x)
 
+ERRORS = {"err_refused": "the phone said no: allow contact sync on the phone (iPhone: Settings > Bluetooth > (i) > Sync Contacts)",
+          "err_obexd": "the Bluetooth contacts service (bluez-obexd) isn't installed or running",
+          "err_no_answer": "the phone didn't answer: is it nearby, unlocked, and connected to the head unit?",
+          "err_permission": "no permission to use Bluetooth yet (restart the head unit once after the update)"}
+def friendly(e):
+    """busctl / obexd errors as a code Settings shows in words a driver can act on (else the message)."""
+    m = str(e)
+    for pat, code in (("ServiceUnknown|org.bluez.obex was not provided|not activatable", "err_obexd"),
+                      ("Failed to connect to bus|AccessDenied|Permission denied", "err_permission"),
+                      ("Not Allowed|Forbidden|Rejected|denied|stopped the transfer", "err_refused"),
+                      ("Unable to find service record|Host is down|Connection refused|br-connection|Timeout|timed out|didn't send|Page Timeout", "err_no_answer")):
+        if re.search(pat, m, re.I): return code
+    return m[:200]
+
 # ------------------------------------------------------------------ BlueZ through busctl
 class Bus:
     """busctl --json=short calls: the system bus for BlueZ (which phones are connected), the session bus
@@ -92,15 +106,30 @@ class Bus:
             if not d: continue
             v = lambda k, dflt=None: (d.get(k) or {}).get("data", dflt)
             out.append({"address": v("Address", ""), "name": v("Alias") or v("Name") or v("Address", ""),
-                        "connected": bool(v("Connected", False)), "pbap": PBAP_UUID in [u.lower() for u in v("UUIDs", [])]})
+                        "connected": bool(v("Connected", False)), "paired": bool(v("Paired", False)),
+                        "pbap": PBAP_UUID in [u.lower() for u in v("UUIDs", [])]})
         return out
-    def pull_phonebook(self, address, timeout=120):
-        """The phone's contacts as vCard text (PBAP over obexd)."""
+    def obexd_available(self):
+        """Is BlueZ's OBEX service (package bluez-obexd) on the session bus or startable there?"""
+        names = []
+        for m in ("ListNames", "ListActivatableNames"):
+            try: names += self._run(True, "call", "org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", m, timeout=10)[0]
+            except Exception: pass
+        return "org.bluez.obex" in names
+
+    def pull_phonebook(self, address, timeout=300, progress=lambda phase, done=0, total=0: None):
+        """The phone's contacts as vCard text (PBAP over obexd). progress(phase, done, total) along the way:
+        connecting (the phone may ask to allow it) -> downloading (contacts received of total)."""
+        progress("connecting")
         sess = self._run(True, "call", "org.bluez.obex", "/org/bluez/obex", "org.bluez.obex.Client1", "CreateSession",
-                         "sa{sv}", address, 1, "Target", "s", "pbap", timeout=60)[0]
+                         "sa{sv}", address, 1, "Target", "s", "pbap", timeout=90)[0]
         fname = None
         try:
             self._run(True, "call", "org.bluez.obex", sess, "org.bluez.obex.PhonebookAccess1", "Select", "ss", "int", "pb")
+            total = 0
+            try: total = int(self._run(True, "call", "org.bluez.obex", sess, "org.bluez.obex.PhonebookAccess1", "GetSize")[0])
+            except Exception: pass
+            progress("downloading", 0, total)
             res = self._run(True, "call", "org.bluez.obex", sess, "org.bluez.obex.PhonebookAccess1", "PullAll", "sa{sv}", "",
                             2, "Format", "s", "vcard30", "Fields", "as", 4, "VERSION", "FN", "N", "ADR")
             transfer, props = res[0], res[1]
@@ -113,6 +142,10 @@ class Bus:
                     st = "complete" if fname and os.path.exists(fname) else "error"
                 if st == "complete": break
                 if st == "error": raise RuntimeError("the phone stopped the transfer (allow contact sync on the phone)")
+                try:
+                    with open(fname, "rb") as fh: got = fh.read().upper().count(b"BEGIN:VCARD")
+                    progress("downloading", got, max(total, got))
+                except OSError: pass
                 time.sleep(0.5)
             else:
                 raise RuntimeError("the phone didn't send its contacts in time")
@@ -134,6 +167,7 @@ class Contacts:
         self.lookup = lookup                                  # hu_addr.lookup (offline address search)
         self.state = {}                                       # address -> {state, error, next_try, tries, seen_connected}
         self.connected = []; self.lock = threading.Lock()
+        self.progress = {}                                    # address -> {phase, done, total, phone, ...} (Settings shows a bar)
     def _info(self, *a):
         if self.log: self.log.info(*a)
 
@@ -184,10 +218,23 @@ class Contacts:
         cache[key] = hit
         return hit
 
+    def _progress(self, dev, phase, done=0, total=0, **kw):
+        p = self.progress.get(dev["address"], {})
+        if phase == "connecting": p = {"started": time.time()}
+        p.update(phone=dev["name"], address=dev["address"], phase=phase, done=done, total=total, at=time.time(), **kw)
+        self.progress[dev["address"]] = p
+
     def refresh(self, dev):
         """Pull one phone's contacts, keep the ones with an address, place them on the map, save."""
-        vcf = self.bus.pull_phonebook(dev["address"])
+        try:
+            vcf = self.bus.pull_phonebook(dev["address"], progress=lambda ph, d=0, t=0: self._progress(dev, ph, d, t))
+        except TypeError:                                    # a bus without progress reports
+            self._progress(dev, "connecting"); vcf = self.bus.pull_phonebook(dev["address"])
+        except Exception as e:
+            self._progress(dev, "error", error=friendly(e)); raise
         cards = parse_vcards(vcf)
+        n_addr = sum(len(c["addresses"]) for c in cards); done = 0
+        self._progress(dev, "placing", 0, n_addr, received=vcf.upper().count("BEGIN:VCARD"))
         old = next((d for d in self.saved() if d["address"] == dev["address"]), {})
         dbm = self.db.stat().st_mtime if self.db.exists() else 0
         cache = dict(old.get("places", {})) if old.get("search_db") == dbm else {}
@@ -195,17 +242,76 @@ class Contacts:
         for c in cards:
             addrs = []
             for a in c["addresses"]:
-                hit = self.locate(a, cache)
+                hit = self.locate(a, cache); done += 1
+                if done % 5 == 0: self._progress(dev, "placing", done, n_addr)
                 addrs.append({**a, "text": address_text(a), **({"lon": hit["lon"], "lat": hit["lat"], "found": hit["kind"]} if hit else {})})
             out.append({"name": c["name"], "addresses": addrs})
         data = {"address": dev["address"], "phone": dev["name"], "updated": time.time(), "count": len(out),
                 "contacts": out, "search_db": dbm, "places": {k: v for k, v in cache.items()}}
         self._save(data)
+        self._progress(dev, "done", len(out), len(out), on_map=sum(1 for c in out for a in c["addresses"] if "lon" in a),
+                       received=self.progress.get(dev["address"], {}).get("received", 0))
         self._info("contacts: %d with an address from %s", len(out), dev["name"])
         return data
 
+    # ---------------------------------------------------------------- Settings > Developer: check + import now
+    def diagnose(self):
+        """What stands between the phone and the address book, step by step: [{ok, key, vars}]."""
+        import grp, pwd, shutil as sh
+        out = []
+        add = lambda ok, key, **v: out.append({"ok": ok, "key": key, "vars": v})
+        if not sh.which(self.bus.busctl):
+            add(False, "busctl_missing"); return out
+        try:
+            devs = self.bus.devices(); add(True, "bt_ok")
+        except Exception as e:
+            add(False, "bt_off", error=friendly(e)); return out
+        try:                                                  # BlueZ only talks to the "bluetooth" group
+            g = grp.getgrnam("bluetooth")
+            if g.gr_gid not in os.getgroups() and g.gr_gid != os.getgid():
+                add(False, "bt_group_reboot" if pwd.getpwuid(os.getuid()).pw_name in g.gr_mem else "bt_group")
+        except (KeyError, OSError):
+            pass
+        add(self.bus.obexd_available(), "obexd")
+        phones = [d for d in devs if d["paired"] or d["connected"]]
+        if not phones: add(False, "no_phones")
+        for d in phones:
+            key = "phone_ready" if d["connected"] and d["pbap"] else "phone_no_pbap" if d["connected"] else "phone_not_connected"
+            add(key == "phone_ready", key, phone=d["name"])
+        return out
+
+    def force_import(self):
+        with self.lock: return self._force_import()
+
+    def _force_import(self):
+        """Import now from every paired phone that offers contacts (connected first), whatever was
+        fetched before. Returns the check list with each phone's result."""
+        report = self.diagnose()
+        if not all(r["ok"] for r in report if r["key"] in ("busctl_missing", "bt_off")):
+            return report
+        try: devs = [d for d in self.bus.devices() if (d["paired"] or d["connected"]) and (d["pbap"] or d["connected"])]
+        except Exception: devs = []
+        devs.sort(key=lambda d: not d["connected"])
+        for d in devs:
+            st = self.state.setdefault(d["address"], {"state": "new", "tries": 0, "next_try": 0, "fresh": False})
+            st.update(state="syncing", phone=d["name"])
+            try:
+                data = self.refresh(d); st.update(state="ok", tries=0, fresh=True, error="", next_try=0)
+                p = self.progress.get(d["address"], {})
+                report.append({"ok": True, "key": "imported", "vars": {"phone": d["name"], "n": data["count"], "m": p.get("on_map", 0),
+                                                                     "received": p.get("received", 0)}})
+            except Exception as e:
+                st.update(state="error", error=friendly(e))
+                report.append({"ok": False, "key": "import_failed", "vars": {"phone": d["name"], "error": friendly(e)}})
+        return report
+
     def tick(self):
         """One check (run every ~20 s, off the event loop): fetch for phones that just connected."""
+        if not self.lock.acquire(blocking=False): return     # an import from Settings is running
+        try: self._tick()
+        finally: self.lock.release()
+
+    def _tick(self):
         try:
             devs = [d for d in self.bus.devices() if d["connected"] and d["pbap"]]
         except Exception as e:
@@ -225,7 +331,7 @@ class Contacts:
                 self.refresh(d); st.update(state="ok", tries=0, fresh=True, error="")
             except Exception as e:
                 st["tries"] += 1; st["next_try"] = now + RETRY[min(st["tries"] - 1, len(RETRY) - 1)]
-                st.update(state="error", error=str(e)[:200])
+                st.update(state="error", error=friendly(e))
                 if self.log: self.log.warning("contacts from %s: %s", d["name"], e)
 
     def active(self):
@@ -284,3 +390,32 @@ class Contacts:
                 res.append({"address": addr, "phone": st.get("phone", addr), "contacts": 0, "addresses": 0, "on_map": 0, "updated": 0,
                             "connected": addr in self.connected, "state": st["state"], "error": st.get("error", "")})
         return res
+
+
+if __name__ == "__main__":                 # over SSH:  python3 /opt/headunit/bin/hu_contacts.py [--import]
+    import sys, logging
+    sys.path.insert(0, str(Path(__file__).resolve().parent)); import hu_addr
+    TEXT = {"busctl_missing": "busctl (systemd) not found", "bt_ok": "Bluetooth service reachable",
+            "bt_off": "Bluetooth service not reachable: {error}", "bt_group": "this user isn't in the bluetooth group (run the update setup again)",
+            "bt_group_reboot": "added to the bluetooth group: restart the head unit once", "obexd": "Bluetooth contacts service (bluez-obexd)",
+            "no_phones": "no paired phone: pair the phone with the head unit's Bluetooth (not only the CarPlay adapter)",
+            "phone_ready": "{phone}: connected, offers contacts", "phone_no_pbap": "{phone}: connected but doesn't offer contacts (turn on Sync Contacts on the phone)",
+            "phone_not_connected": "{phone}: paired, not connected now", "imported": "{phone}: {received} contacts received, {n} with an address, {m} on the map",
+            "import_failed": "{phone}: {error}"}
+    def words(r):
+        v = dict(r["vars"]); v["error"] = ERRORS.get(v.get("error"), v.get("error", ""))
+        return TEXT.get(r["key"] if r["key"] != "obexd" or r["ok"] else "obexd", r["key"]).format(**v)
+    home = Path.home() / ".config" / "headunit"
+    c = Contacts(home / "contacts", Path("/var/lib/headunit/search/search.sqlite"), lookup=hu_addr.lookup)
+    def show(r): print(("  ok   " if r["ok"] else "  FAIL ") + words(r))
+    if "--import" in sys.argv:
+        stop = threading.Event()
+        def bar():
+            while not stop.wait(1):
+                for p in c.progress.values():
+                    print(f"\r  {p['phone']}: {p['phase']} {p.get('done', 0)}/{p.get('total') or '?'}      ", end="", flush=True)
+        threading.Thread(target=bar, daemon=True).start()
+        rep = c.force_import(); stop.set(); print()
+    else:
+        rep = c.diagnose()
+    for r in rep: show(r)

@@ -53,6 +53,19 @@ input[type=range]::-moz-range-thumb { width: 40px; height: 40px; border-radius: 
 #mapPct { font-size: 34px; }
 .prog.stopped #mapBar { background: var(--muted); box-shadow: none; }
 
+/* contact import (Settings > Maps and Developer) */
+.cprog { margin: 4px 0 12px; }
+.cprog .pbar { height: 18px; }
+.cprog .cbar { height: 100%; width: 0; border-radius: 13px; background: linear-gradient(90deg, var(--accent2), var(--accent));
+  box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 50%, transparent); transition: width .8s ease; }
+.cprog.busy .cbar { width: 30% !important; animation: pbusy 1.6s ease-in-out infinite alternate; transition: none; }
+.cprog.err .cbar { background: var(--warn); box-shadow: none; }
+.cprog .ctext { margin-top: 6px; font-size: 18px; }
+.diag div { padding: 3px 0; font-size: 18px; }
+.diag .ok::before { content: '✓  '; color: var(--accent); font-weight: 700; }
+.diag .bad::before { content: '✕  '; color: var(--warn); font-weight: 700; }
+.diag .bad { color: var(--warn); }
+
 /* day and night skins */
 #skins:not(.hidden) { display: flex; flex-direction: column; gap: 10px; height: 100%; }
 #skins .opt.dn { min-height: 64px; }

@@ -114,6 +114,15 @@ body[data-app="nav"] { position: fixed; inset: 0 0 0 var(--rail); height: auto; 
 #bookBtn svg, .backBtn svg { width: 26px; height: 26px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .backBtn { width: 64px; padding: 0; display: grid; place-items: center; }
 #bookFrom { margin-inline-start: auto; font-size: 16px; }
+/* contact import running (from the phone over Bluetooth): a slim chip at the top of the map */
+#contactsChip { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 7; padding: 8px 16px 10px; min-width: 380px; max-width: 60%; }
+#contactsChip .ctext { font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#contactsChip .cbarw { height: 8px; margin-top: 6px; border-radius: 4px; overflow: hidden; background: color-mix(in srgb, var(--muted) 25%, transparent); }
+#contactsChip .cbar { height: 100%; width: 0; background: linear-gradient(90deg, var(--accent2), var(--accent)); transition: width .8s ease; }
+#contactsChip.busy .cbar { width: 30% !important; animation: chipbusy 1.6s ease-in-out infinite alternate; transition: none; }
+#contactsChip.err .cbar { background: var(--warn); }
+@keyframes chipbusy { from { margin-inline-start: 0; } to { margin-inline-start: 70%; } }
+#bookFrom .busy { color: var(--accent); }
 /* address book: a long list you scroll with a finger, letters on the side to jump */
 .bookSplit { flex: 1; display: grid; grid-template-columns: 1fr 84px; gap: 8px; min-height: 0; margin-top: 8px; }
 #bookList { min-height: 0; }

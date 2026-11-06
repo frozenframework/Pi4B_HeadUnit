@@ -1,5 +1,5 @@
 // Head-unit settings: map skin, display, driving, region & language, maps, updates, developer, test logs.
-import { api, getSettings, saveSettings, loadThemes, applyUiTheme, followTheme, logEvent, toast, icons } from '../common/hu.js';
+import { api, getSettings, saveSettings, loadThemes, applyUiTheme, followTheme, logEvent, toast, icons, contactsProgressText, contactsError, diagText } from '../common/hu.js';
 import { initI18n, t, LANGS, lang, langTag } from '../common/i18n.js';
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -28,6 +28,7 @@ function page(id) {
   document.querySelectorAll('.page').forEach(p => p.classList.toggle('hidden', p.id !== id));
   document.querySelectorAll('[data-page]').forEach(b => b.classList.toggle('on', b.dataset.page === id));
   ({ maps, about, display, updates, region, dev })[id]?.();
+  if (id === 'dev') contactsInfo();
 }
 // Day and night skins: with the switch on, the cards pick the skin for the selected slot (day or night);
 // the bridge changes skins at sunrise and sunset (bin/hu_sun.py), using the GPS position.
@@ -212,6 +213,30 @@ function wireContacts() {
     const r = await api('/api/contacts', { json: { op: 'forget' } }).catch(() => null);
     if (r?.ok) { toast(t('set.contacts_forgotten')); contactsInfo(); }
   };
+  $('contactsImport').onclick = async () => {
+    $('contactsImport').disabled = true; $('devContactsReport').innerHTML = '';
+    await api('/api/contacts', { json: { op: 'import' } }).catch(() => null); contactsInfo();
+  };
+  $('contactsCheck').onclick = async () => {
+    const r = await api('/api/contacts', { json: { op: 'check' } }).catch(() => null);
+    if (r) diagReport(r.report);
+  };
+}
+// the step-by-step check / import result (bin/hu_contacts.py Contacts.diagnose / force_import)
+function diagReport(rep) {
+  $('devContactsReport').innerHTML = (rep || []).map(r => {
+    const v = { ...r.vars, error: contactsError(r.vars?.error, t) };
+    return `<div class="${r.ok ? 'ok' : 'bad'}">${esc(diagText(r.key === 'obexd' ? (r.ok ? 'obexd_ok' : 'obexd_missing') : r.key, v, t))}</div>`;
+  }).join('');
+}
+function progressBars(box, list) {
+  box.innerHTML = '';
+  for (const p of list) {
+    const [text, frac] = contactsProgressText(p, t);
+    const d = document.createElement('div'); d.className = 'cprog' + (frac == null ? ' busy' : '') + (p.phase === 'error' ? ' err' : '');
+    d.innerHTML = `<div class="pbar"><div class="cbar" style="width:${Math.round((frac ?? 0) * 100)}%"></div></div><div class="ctext">${esc(text)}</div>`;
+    box.appendChild(d);
+  }
 }
 function wireDev() {
   $('termBtn').onclick = async () => { const r = await api('/api/dev/terminal', { json: {} }); if (!r.ok) toast(r.error || '?', 4000); };
@@ -234,7 +259,16 @@ async function contactsInfo() {
     : t('set.contacts_line', { phone: p.phone, n: p.contacts, m: p.on_map, date: day(p.updated) }));
   $('contactsInfo').textContent = lines.length ? lines.join(' · ') : t('set.contacts_none');
   $('contactsForget').classList.toggle('hidden', !(r.phones || []).some(p => p.updated));
+  // progress bars: what's running now, or finished in the last minute
+  const now = Date.now() / 1000;
+  const live = (r.progress || []).filter(p => ['connecting', 'downloading', 'placing'].includes(p.phase) || now - p.at < 60);
+  progressBars($('mapsContactsProg'), live); progressBars($('devContactsProg'), live);
+  $('contactsImport').disabled = !!r.importing;
+  $('contactsImport').textContent = r.importing ? t('set.contacts_importing') : t('set.contacts_import');
+  if (!r.importing && (r.report || []).length) diagReport(r.report);
+  contactsBusy = !!(r.importing || r.busy);
 }
+let contactsBusy = false;
 // ---- Map download progress bar (status from bin/hu-update-maps.sh + hu-maps-progress.py)
 const ACTIVE = ['preparing', 'downloading', 'retrying', 'checking'];
 function bytes(n) {
@@ -320,6 +354,7 @@ function askGoBack(v, cur) {
   $('exitBtn').onclick = exitSettings;
   wireVoice(); wireSkins(); cards(); switches(); wireDisplay(); followTheme((s) => { S = s; cards(); }); wireRegion(); wireDev(); wireContacts(); page(new URLSearchParams(location.search).get('page') || 'skins');
   setInterval(() => { if (!$('maps').classList.contains('hidden')) mapProgress(); }, 2000);
+  setInterval(() => { if ((contactsBusy && !$('maps').classList.contains('hidden')) || !$('dev').classList.contains('hidden')) contactsInfo(); }, 1500);
   setInterval(() => { if (!$('maps').classList.contains('hidden')) maps(); }, 15000);
   setInterval(() => { if (!$('display').classList.contains('hidden')) display(); }, 2000);
   setInterval(() => { if (!$('updates').classList.contains('hidden')) updates(); }, 3000);

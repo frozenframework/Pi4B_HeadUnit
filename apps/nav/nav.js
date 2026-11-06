@@ -2,7 +2,7 @@
 // Map: MapLibre + Protomaps PMTiles. Routing/search: hu-bridge (Valhalla + SQLite). GPS: gpsd via SSE.
 import * as maplibregl from '../lib/maplibre-gl.mjs';
 import { Protocol } from '../lib/pmtiles.mjs';
-import { api, getSettings, saveSettings, loadThemes, applyUiTheme, logEvent, fmtDist, fmtTime, toast, icons, onHudiy } from '../common/hu.js';
+import { api, getSettings, saveSettings, loadThemes, applyUiTheme, logEvent, fmtDist, fmtTime, toast, icons, onHudiy, contactsProgressText } from '../common/hu.js';
 import { initI18n, t, has, langTag } from '../common/i18n.js';
 
 const $ = (id) => document.getElementById(id);
@@ -491,6 +491,22 @@ async function openFavorites() {
   }
   $('favPanel').classList.remove('hidden');
 }
+// contacts coming in from the phone: a chip at the top of the map with a progress bar (and in the address book)
+let chipTimer = null, chipDoneAt = null;
+function showContactsChip(p) {
+  const chip = $('contactsChip');
+  if (!p) { chip.classList.add('hidden'); clearInterval(chipTimer); chipTimer = null; return; }
+  const [text, frac] = contactsProgressText(p, t);
+  chip.querySelector('.ctext').textContent = text;
+  chip.querySelector('.cbar').style.width = Math.round((frac ?? 0) * 100) + '%';
+  chip.classList.toggle('busy', frac == null); chip.classList.toggle('err', p.phase === 'error'); chip.classList.remove('hidden');
+  if (!$('bookPanel').classList.contains('hidden')) $('bookFrom').innerHTML = `<span class="busy">${esc(text)}</span>`;
+  if (!chipTimer) chipTimer = setInterval(async () => {          // quicker updates while it runs
+    const st = await api('/api/status').catch(() => null); showContactsChip(st?.contactsSync);
+    const c = st?.contactsSync;                                  // finished: refresh an open address book once
+    if (c?.phase === 'done' && c.at !== chipDoneAt && !$('bookPanel').classList.contains('hidden')) { chipDoneAt = c.at; openBook(state.bookAssign); }
+  }, 1500);
+}
 // ------------------------------------------------------------------ address book (the phone's contacts)
 // Everyone with an address from the phone (Settings > Maps > Phone contacts), A to Z: scroll, or tap a
 // letter on the side. A person with one address on the map goes straight to it (Go / save); with more,
@@ -722,6 +738,7 @@ async function main() {
   setInterval(async () => {
     const st = await api('/api/status').catch(() => null); if (!st) return;
     state.night = !!st.night; applyNight();
+    showContactsChip(st.contactsSync);
     if (st.theme && st.theme !== state.theme?.id && !PREVIEW && !params.get('theme')) setTheme(st.theme, false);   // day/night skins: sunrise/sunset
   }, 10000);
 

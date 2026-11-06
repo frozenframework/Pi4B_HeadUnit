@@ -664,6 +664,7 @@ places = Places(USER_DIR)
 import hu_contacts, hu_addr as _hu_addr
 contacts = hu_contacts.Contacts(USER_DIR / "contacts", SEARCH_DB, bus=hu_contacts.Bus(C("BUSCTL", "busctl")), log=log,
                                 lookup=_hu_addr.lookup)
+_contacts_importing = threading.Event(); _contacts_report = []
 _contacts_in_places = {}                     # phone -> when its contacts last went into the address book
 def contacts_to_places():
     """Settings > Maps > Add contacts to the address book: after every sync from a phone (each time it
@@ -699,8 +700,23 @@ async def contacts_api(request):
     if request.method == "GET" and request.match_info.get("what") == "book":
         return web.json_response(contacts.book())
     if request.method == "GET":
-        return web.json_response({"phones": contacts.status()})
+        busy = any(p.get("phase") in ("connecting", "downloading", "placing") and time.time() - p.get("at", 0) < 400
+                   for p in contacts.progress.values())
+        return web.json_response({"phones": contacts.status(), "progress": list(contacts.progress.values()), "busy": busy,
+                                  "report": _contacts_report, "importing": _contacts_importing.is_set()})
     body = await request.json()
+    if body.get("op") == "import":                     # Settings > Developer > Import contacts now
+        if not _contacts_importing.is_set():
+            _contacts_importing.set(); _contacts_report.clear()
+            def run():
+                try: _contacts_report.extend(contacts.force_import()); contacts_to_places()
+                except Exception as e: _contacts_report.append({"ok": False, "key": "import_failed", "vars": {"phone": "", "error": str(e)[:200]}})
+                finally: _contacts_importing.clear(); usage("contacts_import", ok=all(r["ok"] for r in _contacts_report))
+            threading.Thread(target=run, daemon=True).start()
+        return web.json_response({"ok": True, "started": True})
+    if body.get("op") == "check":
+        _contacts_report[:] = await asyncio.get_running_loop().run_in_executor(None, contacts.diagnose)
+        return web.json_response({"ok": True, "report": _contacts_report})
     if body.get("op") == "forget":
         n = contacts.forget(body.get("address")); usage("contacts_forget", n=n)
         places.remove_contacts(body.get("address")); _contacts_in_places.clear()   # out of the address book too
@@ -757,7 +773,14 @@ async def status(request):
         "maps": {"basemap": (MAPS_DIR / "basemap.pmtiles").exists(), "routing": ROUTING_TAR.exists(), "search": SEARCH_DB.exists(), **man},
         "gps": gps.fix, "power": st, "radio": radio.status(), "sources": sources(), "theme": settings().get("theme"),
         "vehicle": C("VEHICLE_NAME", ""), "night": st.get("illum", False), "version": VERSION,
-        "dayNight": settings().get("dayNight", False)})
+        "dayNight": settings().get("dayNight", False), "contactsSync": contacts_sync_now()})
+
+def contacts_sync_now():
+    """The contact import running now (or just finished), for the map's progress chip."""
+    now = time.time()
+    act = [p for p in contacts.progress.values() if (p.get("phase") in ("connecting", "downloading", "placing") and now - p.get("at", 0) < 400)
+           or (p.get("phase") in ("done", "error") and now - p.get("at", 0) < 8)]
+    return act[0] if act else None
 
 
 # ---------------------------------------------------------------- maps update + log summary

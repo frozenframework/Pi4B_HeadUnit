@@ -83,6 +83,40 @@ export function fmtTime(sec) {
   return h ? `${h} h ${m} min` : `${m} min`;
 }
 
+// Contact import progress (bin/hu_contacts.py): one line of text and a fill fraction (null = waiting)
+export function contactsProgressText(p, t) {
+  const v = { phone: p.phone || '', done: p.done || 0, total: p.total || 0, n: p.done || 0, m: p.on_map || 0 };
+  if (p.phase === 'connecting') return [t('set.cimp_connecting', v), null];
+  if (p.phase === 'downloading') return [p.total ? t('set.cimp_downloading', v) : t('set.cimp_downloading_n', v), p.total ? p.done / p.total * 0.8 : null];
+  if (p.phase === 'placing') return [t('set.cimp_placing', v), 0.8 + (p.total ? p.done / p.total : 0) * 0.2];
+  if (p.phase === 'done') return [t('set.cimp_done', v), 1];
+  if (p.phase === 'error') return [t('set.cimp_error', { phone: v.phone, error: contactsError(p.error, t) }), 0];
+  return ['', null];
+}
+// the contact check's steps and errors (bin/hu_contacts.py diagnose / friendly) in the screen language
+export function diagText(key, v, t) {
+  const m = {
+    busctl_missing: () => t('diag.busctl_missing', v),
+    bt_ok: () => t('diag.bt_ok', v),
+    bt_off: () => t('diag.bt_off', v),
+    bt_group: () => t('diag.bt_group', v),
+    bt_group_reboot: () => t('diag.bt_group_reboot', v),
+    obexd_ok: () => t('diag.obexd_ok', v),
+    obexd_missing: () => t('diag.obexd_missing', v),
+    no_phones: () => t('diag.no_phones', v),
+    phone_ready: () => t('diag.phone_ready', v),
+    phone_no_pbap: () => t('diag.phone_no_pbap', v),
+    phone_not_connected: () => t('diag.phone_not_connected', v),
+    imported: () => t('diag.imported', v),
+    import_failed: () => t('diag.import_failed', v),
+    err_refused: () => t('diag.err_refused', v),
+    err_obexd: () => t('diag.err_obexd', v),
+    err_no_answer: () => t('diag.err_no_answer', v),
+    err_permission: () => t('diag.err_permission', v),
+  };
+  return m[key] ? m[key]() : key;
+}
+export const contactsError = (e, t) => (/^err_/.test(e || '') ? diagText(e, {}, t) : (e || ''));
 export function toast(msg, ms = 2500) {
   let el = document.querySelector('.toast');
   if (!el) { el = document.createElement('div'); el.className = 'toast panel'; document.body.appendChild(el); }

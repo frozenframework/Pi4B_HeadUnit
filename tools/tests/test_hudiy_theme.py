@@ -27,6 +27,9 @@ assert d["theme"]["darkThemeEnabled"] is True
 for sec in ("dark", "light"):
     s = d["theme"][sec]
     assert s["sourceColor"] == "#00E5FF" and s["colorOverwrite"]["primary"] == "#00f0ff" and s["colorOverwrite"]["surface"] == "#07060d"
+    co = s["colorOverwrite"]                     # notifications / toasts follow the skin too
+    assert co["inverseSurface"] == co["surfaceContainer"] and co["inverseOnSurface"] == co["onSurface"] and co["inversePrimary"] == co["primary"], co
+    assert {"primaryContainer", "onPrimaryContainer", "secondaryContainer", "onSecondaryContainer"} <= set(co)
     assert s["defaultBackground"].endswith("neon-overdrive.jpg") and Path(s["defaultBackground"]).exists()
 assert d["theme"]["dark"]["colorOverwrite"]["surfaceTint"] == "#010101", "existing overwrite kept"
 assert d["androidAuto"]["dayNightMode"] == "common" and d["autobox"]["dayNightMode"] == "COMMON"   # keeps Hudiy's spelling
