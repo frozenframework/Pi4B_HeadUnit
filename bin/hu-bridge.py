@@ -208,6 +208,49 @@ def do_route(body):
     s = res["trip"]["summary"]
     return {"shape": shape, "maneuvers": man, "summary": {"length": s["length"], "time": s["time"], "units": units}}
 
+# ---------------------------------------------------------------- routing: fast first route
+ROUTING_STATUS = ROUTING_TAR.parent / "index-status.json"
+_routing_prep = {"mtime": None, "busy": False}
+def routing_prepare():
+    """In the background, after start-up and whenever new routing data arrives: (1) give a tar from an
+    older map build an index.bin (bin/hu_valhalla_tar.py; without it Valhalla reads every tile header on
+    the SD card before its first route), at low priority so the screens stay smooth; (2) load the router
+    and work out a short route near where the car is, so the tiles around it are already in memory when
+    you pick a destination."""
+    if not ROUTING_TAR.exists() or _routing_prep["busy"]: return
+    mt = ROUTING_TAR.stat().st_mtime
+    if _routing_prep["mtime"] == mt: return
+    _routing_prep["busy"] = True
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent)); import hu_valhalla_tar
+        if not hu_valhalla_tar.has_index(ROUTING_TAR):
+            log.info("routing: adding index.bin to %s (one time)", ROUTING_TAR)
+            t = time.time()
+            r = subprocess.run(["nice", "-n", "15", "ionice", "-c", "3", sys.executable, str(Path(__file__).resolve().parent / "hu_valhalla_tar.py"),
+                                str(ROUTING_TAR)], env={**os.environ, "HU_INDEX_STATUS": str(ROUTING_STATUS)}, capture_output=True, text=True)
+            log.info("routing index: %s (%.0f s)", (r.stdout or r.stderr).strip()[-200:], time.time() - t)
+            usage("routing_index", ok=r.returncode == 0, s=int(time.time() - t))
+        t = time.time(); actor = get_actor()
+        if actor is None: return
+        lat, lon, _ = sun_position()                        # GPS / last position / Home / time zone
+        try:
+            actor.route(json.dumps({"locations": [{"lat": lat, "lon": lon}, {"lat": lat + 0.03, "lon": lon + 0.03}], "costing": "auto"}))
+        except Exception:
+            pass                                            # nothing routable there: the router is loaded anyway
+        log.info("routing ready in %.1f s", time.time() - t); usage("routing_warm", ms=int((time.time() - t) * 1000))
+        _routing_prep["mtime"] = ROUTING_TAR.stat().st_mtime if ROUTING_TAR.exists() else None
+    except Exception as e:
+        log.warning("routing prepare: %s", e)
+    finally:
+        _routing_prep["busy"] = False
+
+async def routing_watch():
+    loop = asyncio.get_running_loop()
+    await asyncio.sleep(float(C("ROUTING_WARM_DELAY", "20")))   # let the screens start first
+    while True:
+        await loop.run_in_executor(None, routing_prepare)
+        await asyncio.sleep(60)
+
 async def route(request):
     body = await request.json()
     t0 = time.time()
@@ -818,7 +861,8 @@ async def status(request):
     man = read_json(MAPS_DIR / "manifest.json", {})
     st = read_json(STATE_FILE, {})
     return web.json_response({
-        "maps": {"basemap": (MAPS_DIR / "basemap.pmtiles").exists(), "routing": ROUTING_TAR.exists(), "search": SEARCH_DB.exists(), **man},
+        "maps": {"basemap": (MAPS_DIR / "basemap.pmtiles").exists(), "routing": ROUTING_TAR.exists(), "search": SEARCH_DB.exists(), **man,
+                 "routingPrep": read_json(ROUTING_STATUS, {}) if ROUTING_TAR.exists() else {}},
         "gps": gps.fix, "power": st, "radio": radio.status(), "sources": sources(), "theme": settings().get("theme"),
         "vehicle": C("VEHICLE_NAME", ""), "night": st.get("illum", False), "version": VERSION,
         "dayNight": settings().get("dayNight", False), "contactsSync": contacts_sync_now()})
@@ -1014,9 +1058,21 @@ async def export_watch(app):
 # ---------------------------------------------------------------- app
 @web.middleware
 async def nocache(request, handler):
+    """Caching that's quick and can't mix versions: /api never cached; screen files with ?v=<version>
+    (every script through the import map, every css/js in the pages) kept for good - a new version has
+    new addresses - so the map opens without re-reading and re-compiling 1.6 MB of map code each time;
+    other /apps files (styles, sprites, fonts, the pages themselves) checked with the bridge each time,
+    which answers "not modified" when they haven't changed."""
     resp = await handler(request)
-    if request.path.startswith(("/api/", "/apps/")):   # /apps too: after an update (or going back) the
-        resp.headers["Cache-Control"] = "no-store"         # web view must not mix in cached old files
+    if request.path.startswith("/api/"):
+        resp.headers["Cache-Control"] = "no-store"
+    elif request.path.startswith("/apps/"):
+        if request.query.get("v") == VERSION and resp.status == 200 and not request.path.endswith(".html"):
+            resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        elif request.path.endswith(".html"):
+            resp.headers["Cache-Control"] = "no-store"
+        else:
+            resp.headers["Cache-Control"] = "no-cache"
     return resp
 
 async def index(request):
@@ -1070,6 +1126,7 @@ async def on_start(app):
     app["voices"] = asyncio.create_task(voice_watch())
     app["parked"] = asyncio.create_task(parked_watch())
     app["contacts"] = asyncio.create_task(contacts_watch())
+    app["routing"] = asyncio.create_task(routing_watch())
     ZIPS.get()                                       # ZIP centres for older search data, in the background
     usage("bridge_start", vehicle=C("VEHICLE_ID", ""))
     asyncio.get_running_loop().run_in_executor(None, hudiy_hotspot_guard)

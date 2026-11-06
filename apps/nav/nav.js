@@ -2,7 +2,7 @@
 // Map: MapLibre + Protomaps PMTiles. Routing/search: hu-bridge (Valhalla + SQLite). GPS: gpsd via SSE.
 import * as maplibregl from '../lib/maplibre-gl.mjs';
 import { Protocol } from '../lib/pmtiles.mjs';
-import { api, getSettings, saveSettings, loadThemes, applyUiTheme, logEvent, fmtDist, fmtTime, toast, icons, onHudiy, contactsProgressText } from '../common/hu.js';
+import { api, getSettings, saveSettings, loadThemes, applyUiTheme, logEvent, fmtDist, fmtTime, toast, icons, onHudiy, contactsProgressText, hideToast } from '../common/hu.js';
 import { initI18n, t, has, langTag } from '../common/i18n.js';
 
 const $ = (id) => document.getElementById(id);
@@ -185,7 +185,12 @@ function camera() {
 async function routeTo(dest, reason = 'new') {
   const from = state.pos || state.map.getCenter().toArray();
   const t0 = performance.now();
-  const r = await api('/api/route', { json: { from, to: dest.lnglat, heading: state.speed > 3 ? state.heading : null } });
+  // the Go button answers at once; "Finding route" only shows if it takes a moment (first route after start-up)
+  const busy = setTimeout(() => { toast(t('nav.finding_route'), 60000); $('destGo').disabled = true; }, 350);
+  const r = await api('/api/route', { json: { from, to: dest.lnglat, heading: state.speed > 3 ? state.heading : null } })
+    .catch(() => ({ error: 'route_failed' }));
+  clearTimeout(busy); $('destGo').disabled = false;
+  if (performance.now() - t0 > 350) hideToast();
   if (r.error) { toast(r.message || t('nav.no_route')); logEvent('route_fail', { reason, err: r.error }); return false; }
   state.route = { ...r, cum: cumulative(r.shape) };
   state.dest = dest; state.progress = 0; state.offCount = 0; state.spoken.clear();

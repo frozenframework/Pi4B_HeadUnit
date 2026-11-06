@@ -251,7 +251,7 @@ function wireDev() {
 async function maps() {
   const st = await api('/api/status'); const m = st.maps;
   const yes = (v) => v ? `<span class="accent">${esc(t('set.installed'))}</span>` : `<span style="color:var(--warn)">${esc(t('set.missing'))}</span>`;
-  $('mapInfo').innerHTML = `${esc(t('set.map_region'))}: <b>${esc(m.name || m.region || t('set.not_set'))}</b><br>${esc(t('set.map_display'))}: ${yes(m.basemap)} ${m.basemap_date ? '(' + esc(m.basemap_date) + ')' : ''}<br>${esc(t('set.routing'))}: ${yes(m.routing)} · ${esc(t('set.search'))}: ${yes(m.search)} ${m.built ? '(' + esc(t('set.built', { date: m.built.slice(0, 10) })) + ')' : ''}`;
+  $('mapInfo').innerHTML = `${esc(t('set.map_region'))}: <b>${esc(m.name || m.region || t('set.not_set'))}</b><br>${esc(t('set.map_display'))}: ${yes(m.basemap)} ${m.basemap_date ? '(' + esc(m.basemap_date) + ')' : ''}<br>${esc(t('set.routing'))}: ${yes(m.routing)}${routingPrep(m.routingPrep)} · ${esc(t('set.search'))}: ${yes(m.search)} ${m.built ? '(' + esc(t('set.built', { date: m.built.slice(0, 10) })) + ')' : ''}`;
   mapProgress(); contactsInfo();
 }
 // Phone contacts (bin/hu_contacts.py): which phones shared contacts, how many have an address on the map
@@ -273,6 +273,12 @@ async function contactsInfo() {
   contactsBusy = !!(r.importing || r.busy);
 }
 let contactsBusy = false;
+// routing data from an older build gets index.bin once, in the background (bin/hu_valhalla_tar.py)
+function routingPrep(p) {
+  if (!p || p.phase === 'done' || !p.phase) return '';
+  if (p.phase === 'no_space') return ` <span style="color:var(--warn)">(${esc(t('set.routing_no_space'))})</span>`;
+  return ` <span class="muted">(${esc(t('set.routing_preparing', { pct: p.total ? Math.floor(p.done / p.total * 100) : 0 }))})</span>`;
+}
 // ---- Map download progress bar (status from bin/hu-update-maps.sh + hu-maps-progress.py)
 const ACTIVE = ['preparing', 'downloading', 'retrying', 'checking'];
 function bytes(n) {

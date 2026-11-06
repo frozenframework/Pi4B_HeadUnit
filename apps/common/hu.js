@@ -120,6 +120,9 @@ export function diagText(key, v, t) {
   return m[key] ? m[key]() : key;
 }
 export const contactsError = (e, t) => (/^err_/.test(e || '') ? diagText(e, {}, t) : (e || ''));
+export function hideToast() {
+  const el = document.querySelector('.toast'); if (el) { clearTimeout(el._t); el.classList.add('hidden'); }
+}
 export function toast(msg, ms = 2500) {
   let el = document.querySelector('.toast');
   if (!el) { el = document.createElement('div'); el.className = 'toast panel'; document.body.appendChild(el); }

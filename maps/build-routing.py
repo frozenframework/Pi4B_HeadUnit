@@ -119,12 +119,10 @@ def build_routing(pbfs, work, out):
     log("building routing graph (this is the slow part)")
     subprocess.run([valhalla_bin("valhalla_build_tiles"), "-c", str(cfg_path), *map(str, pbfs)], check=True, env=valhalla_env())
     tar_path = out / "valhalla_tiles.tar"
-    log("packing", tar_path.name)
-    part = tar_path.with_suffix(".tar.part")
-    with tarfile.open(part, "w") as t:
-        for f in sorted(tiles.rglob("*.gph")):
-            t.add(f, arcname=str(f.relative_to(tiles)).replace(os.sep, "/"))
-    os.replace(part, tar_path)                    # only a completely packed file gets the real name
+    log("packing", tar_path.name, "(with index.bin, so the head unit's router starts in a second)")
+    sys.path.insert(0, str(HERE.parent / "bin")); import hu_valhalla_tar
+    n = hu_valhalla_tar.pack(tiles, tar_path)     # written as .part, renamed when complete
+    log(f"packed {n:,} routing tiles")
     return tar_path
 
 def routing_already_built(pbfs, work, out):
@@ -135,10 +133,15 @@ def routing_already_built(pbfs, work, out):
     if not tar_path.exists() or not tiles.exists(): return False
     if tar_path.stat().st_mtime < max(Path(p).stat().st_mtime for p in pbfs): return False
     try:
-        with tarfile.open(tar_path) as t: n = sum(1 for m in t if m.isfile())
+        with tarfile.open(tar_path) as t: n = sum(1 for m in t if m.isfile() and m.name.endswith(".gph"))
     except (tarfile.TarError, OSError):
         return False
-    return n > 0 and n == sum(1 for _ in tiles.rglob("*.gph"))
+    if n == 0 or n != sum(1 for _ in tiles.rglob("*.gph")): return False
+    sys.path.insert(0, str(HERE.parent / "bin")); import hu_valhalla_tar
+    if not hu_valhalla_tar.has_index(tar_path):   # packed by an older version: give it index.bin (fast start)
+        log("adding index.bin to the routing data (fast start on the head unit)")
+        hu_valhalla_tar.pack(tiles, tar_path)
+    return True
 
 BIG_PBF = 2 * 2**30      # above this much OpenStreetMap data, node positions go to a file on disk
 KIND_KEYS = ("amenity", "shop", "tourism", "leisure", "aeroway", "railway", "office", "healthcare", "craft", "historic")
