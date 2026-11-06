@@ -73,13 +73,15 @@ def parse_vcards(text):
 def address_text(a):
     return ", ".join(x for x in (a["street"], " ".join(y for y in (a["city"], a["state"], a["zip"]) if y)) if x)
 
-ERRORS = {"err_refused": "the phone said no: allow contact sync on the phone (iPhone: Settings > Bluetooth > (i) > Sync Contacts)",
+ERRORS = {"err_no_dbuslib": "a Python D-Bus library (python3-jeepney) is missing: connect to Wi-Fi and check for updates",
+          "err_refused": "the phone said no: allow contact sync on the phone (iPhone: Settings > Bluetooth > (i) > Sync Contacts)",
           "err_obexd": "the Bluetooth contacts service (bluez-obexd) isn't installed or running",
           "err_no_answer": "the phone didn't answer: is it nearby, unlocked, and connected to the head unit?",
           "err_permission": "no permission to use Bluetooth yet (restart the head unit once after the update)"}
 def friendly(e):
     """busctl / obexd errors as a code Settings shows in words a driver can act on (else the message)."""
     m = str(e)
+    if m == "err_no_dbuslib": return m
     for pat, code in (("ServiceUnknown|org.bluez.obex was not provided|not activatable", "err_obexd"),
                       ("Failed to connect to bus|AccessDenied|Permission denied", "err_permission"),
                       ("Not Allowed|Forbidden|Rejected|denied|stopped the transfer", "err_refused"),
@@ -119,25 +121,29 @@ class Bus:
 
     def pull_phonebook(self, address, timeout=300, progress=lambda phase, done=0, total=0: None):
         """The phone's contacts as vCard text (PBAP over obexd). progress(phase, done, total) along the way:
-        connecting (the phone may ask to allow it) -> downloading (contacts received of total)."""
+        connecting (the phone may ask to allow it) -> downloading (contacts received of total).
+        Everything goes over ONE session-bus connection (ObexLink): obexd ends a session the moment the
+        program that created it disconnects, so separate busctl calls can't do this."""
         progress("connecting")
-        sess = self._run(True, "call", "org.bluez.obex", "/org/bluez/obex", "org.bluez.obex.Client1", "CreateSession",
-                         "sa{sv}", address, 1, "Target", "s", "pbap", timeout=90)[0]
-        fname = None
+        link = ObexLink()
+        sess = fname = None
         try:
-            self._run(True, "call", "org.bluez.obex", sess, "org.bluez.obex.PhonebookAccess1", "Select", "ss", "int", "pb")
+            sess = link.call("/org/bluez/obex", "org.bluez.obex.Client1", "CreateSession", "sa{sv}",
+                             (address, {"Target": ("s", "pbap")}), timeout=90)[0]
+            PB = "org.bluez.obex.PhonebookAccess1"
+            link.call(sess, PB, "Select", "ss", ("int", "pb"))
             total = 0
-            try: total = int(self._run(True, "call", "org.bluez.obex", sess, "org.bluez.obex.PhonebookAccess1", "GetSize")[0])
+            try: total = int(link.call(sess, PB, "GetSize")[0])
             except Exception: pass
             progress("downloading", 0, total)
-            res = self._run(True, "call", "org.bluez.obex", sess, "org.bluez.obex.PhonebookAccess1", "PullAll", "sa{sv}", "",
-                            2, "Format", "s", "vcard30", "Fields", "as", 4, "VERSION", "FN", "N", "ADR")
-            transfer, props = res[0], res[1]
-            fname = (props.get("Filename") or {}).get("data")
-            t0, size = time.time(), -1
+            transfer, props = link.call(sess, PB, "PullAll", "sa{sv}",
+                                        ("", {"Format": ("s", "vcard30"), "Fields": ("as", ["VERSION", "FN", "N", "ADR"])}))
+            fname = link.plain(props.get("Filename"))
+            t0 = time.time()
             while time.time() - t0 < timeout:
                 try:
-                    st = self._run(True, "get-property", "org.bluez.obex", transfer, "org.bluez.obex.Transfer1", "Status")
+                    st = link.plain(link.call(transfer, "org.freedesktop.DBus.Properties", "Get", "ss",
+                                              ("org.bluez.obex.Transfer1", "Status"))[0])
                 except RuntimeError:                         # obexd drops the transfer once it's finished
                     st = "complete" if fname and os.path.exists(fname) else "error"
                 if st == "complete": break
@@ -155,8 +161,56 @@ class Bus:
             if fname:
                 try: os.remove(fname)                          # the full phonebook isn't left lying around
                 except OSError: pass
-            try: self._run(True, "call", "org.bluez.obex", "/org/bluez/obex", "org.bluez.obex.Client1", "RemoveSession", "o", sess)
-            except Exception: pass
+            if sess:
+                try: link.call("/org/bluez/obex", "org.bluez.obex.Client1", "RemoveSession", "o", (sess,), timeout=10)
+                except Exception: pass
+            link.close()
+
+class ObexLink:
+    """One connection to the session bus for a whole phonebook transfer (jeepney, pure Python; or
+    dbus-python). Arguments are given jeepney-style: a variant is (signature, value)."""
+    SERVICE = "org.bluez.obex"
+    def __init__(self, address=None):
+        address = address or os.environ.get("DBUS_SESSION_BUS_ADDRESS") or f"unix:path=/run/user/{os.getuid()}/bus"
+        try:
+            from jeepney.io.blocking import open_dbus_connection
+            self.kind, self.conn = "jeepney", open_dbus_connection(bus=address)
+        except ImportError:
+            try:
+                import dbus
+            except ImportError:
+                raise RuntimeError("err_no_dbuslib")
+            self.kind, self.conn = "dbus", dbus.bus.BusConnection(address)
+
+    def call(self, path, iface, method, sig="", args=(), timeout=60):
+        if self.kind == "jeepney":
+            from jeepney import new_method_call, DBusAddress, MessageType, HeaderFields
+            msg = new_method_call(DBusAddress(path, bus_name=self.SERVICE, interface=iface), method, sig or None, tuple(args))
+            rep = self.conn.send_and_get_reply(msg, timeout=timeout)
+            if rep.header.message_type == MessageType.error:
+                name = rep.header.fields.get(HeaderFields.error_name, "error")
+                raise RuntimeError(f"{name}: {rep.body[0] if rep.body else ''}")
+            return list(rep.body)
+        import dbus
+        def conv(a):
+            if isinstance(a, dict):
+                return dbus.Dictionary({k: (dbus.Array(v[1], signature="s") if v[0] == "as" else v[1]) for k, v in a.items()}, signature="sv")
+            return a
+        obj = self.conn.get_object(self.SERVICE, path, introspect=False)
+        try:
+            r = getattr(dbus.Interface(obj, iface), method)(*[conv(a) for a in args], timeout=timeout)
+        except dbus.exceptions.DBusException as e:
+            raise RuntimeError(f"{e.get_dbus_name()}: {e.get_dbus_message()}")
+        return list(r) if isinstance(r, tuple) else [r]
+
+    @staticmethod
+    def plain(v):
+        """A variant's value: jeepney gives (signature, value), dbus-python the value itself."""
+        return v[1] if isinstance(v, tuple) and len(v) == 2 and isinstance(v[0], str) else (str(v) if v is not None else None)
+
+    def close(self):
+        try: self.conn.close()
+        except Exception: pass
 
 # ------------------------------------------------------------------ contacts store + search
 def _slug(addr): return re.sub(r"[^0-9a-f]", "", addr.lower())
@@ -273,6 +327,10 @@ class Contacts:
         except (KeyError, OSError):
             pass
         add(self.bus.obexd_available(), "obexd")
+        try: import jeepney                                   # noqa: F401 - the transfer's D-Bus connection
+        except ImportError:
+            try: import dbus                                  # noqa: F401
+            except ImportError: add(False, "no_dbuslib")
         phones = [d for d in devs if d["paired"] or d["connected"]]
         if not phones: add(False, "no_phones")
         for d in phones:
@@ -401,7 +459,7 @@ if __name__ == "__main__":                 # over SSH:  python3 /opt/headunit/bi
             "no_phones": "no paired phone: pair the phone with the head unit's Bluetooth (not only the CarPlay adapter)",
             "phone_ready": "{phone}: connected, offers contacts", "phone_no_pbap": "{phone}: connected but doesn't offer contacts (turn on Sync Contacts on the phone)",
             "phone_not_connected": "{phone}: paired, not connected now", "imported": "{phone}: {received} contacts received, {n} with an address, {m} on the map",
-            "import_failed": "{phone}: {error}"}
+            "import_failed": "{phone}: {error}", "no_dbuslib": ERRORS["err_no_dbuslib"]}
     def words(r):
         v = dict(r["vars"]); v["error"] = ERRORS.get(v.get("error"), v.get("error", ""))
         return TEXT.get(r["key"] if r["key"] != "obexd" or r["ok"] else "obexd", r["key"]).format(**v)

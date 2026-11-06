@@ -25,6 +25,7 @@ locales
 python3-pil
 plymouth
 bluez-obexd
+python3-jeepney
 rtl-sdr
 ddcutil
 python3-gi

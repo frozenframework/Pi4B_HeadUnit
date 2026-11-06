@@ -67,6 +67,21 @@ elif a[0] == "get-property":
 FAKE.chmod(0o755)
 fake = lambda **k: (T / "fake.json").write_text(json.dumps(k))
 fake()
+# obexd itself on a private session bus (tools/tests/fake_obexd.py): ends a session when its creator disconnects
+BUS = f"unix:path={T}/bus"
+daemon = subprocess.Popen(["dbus-daemon", "--config-file=/usr/share/dbus-1/session.conf", f"--address={BUS}", "--nofork", "--print-address=1"],
+                          stdout=subprocess.PIPE, text=True)
+daemon.stdout.readline(); os.environ["DBUS_SESSION_BUS_ADDRESS"] = BUS
+obexd = subprocess.Popen([sys.executable, str(Path(__file__).resolve().parent / "fake_obexd.py"), BUS, str(LOG), str(VCF),
+                          str(T / "fake.json"), str(T / "obexd-tmp.vcf")], stdout=subprocess.PIPE, text=True)
+assert obexd.stdout.readline().strip() == "ready"
+import atexit; atexit.register(lambda: (obexd.terminate(), daemon.terminate()))
+# the bug this guards against: each busctl call is its own connection, so the session was gone by Select
+a = hu_contacts.ObexLink(); sp = a.call("/org/bluez/obex", "org.bluez.obex.Client1", "CreateSession", "sa{sv}", ("AA", {"Target": ("s", "pbap")}))[0]
+a.close(); time.sleep(0.3); b2 = hu_contacts.ObexLink()
+try: b2.call(sp, "org.bluez.obex.PhonebookAccess1", "Select", "ss", ("int", "pb")); raise AssertionError("session should be gone")
+except RuntimeError as e: assert "doesn't exist" in str(e), e
+b2.close(); LOG.write_text("")
 store = T / "user" / "contacts"
 ct = hu_contacts.Contacts(store, DB, bus=hu_contacts.Bus(str(FAKE)), lookup=hu_addr.lookup)
 ct.tick()
@@ -80,7 +95,8 @@ saved = f.read_text(); assert "555" not in saved and "No Address" not in saved, 
 d = json.loads(saved); assert d["count"] == 2 and d["phone"] == "Robert's iPhone" and "lon" not in d["contacts"][1]["addresses"][0]
 sean = d["contacts"][0]["addresses"]
 assert sean[0]["found"] == "address" and abs(sean[0]["lat"] - 30.3120) < 1e-6, sean
-print("2) phonebook pulled through obexd, session closed and the file removed; saved 0600 with names + addresses only")
+assert [c[1] for c in calls if c[0] == "obex"][:5] == ["CreateSession", "Select", "GetSize", "PullAll", "Get"], calls
+print("2) phonebook pulled through obexd on one connection, session closed and the file removed; saved 0600 with names + addresses only")
 
 r = ct.search("sean"); assert r[0]["name"] == "Sean Example" and r[0]["label"] == "home" and r[0]["kind"] == "contact", r
 assert ct.search("sea ex")[0]["name"] == "Sean Example" and ct.search("sean home")[0]["label"] == "home"

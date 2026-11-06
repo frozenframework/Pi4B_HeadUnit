@@ -113,6 +113,8 @@ export function diagText(key, v, t) {
     err_obexd: () => t('diag.err_obexd', v),
     err_no_answer: () => t('diag.err_no_answer', v),
     err_permission: () => t('diag.err_permission', v),
+    err_no_dbuslib: () => t('diag.err_no_dbuslib', v),
+    no_dbuslib: () => t('diag.err_no_dbuslib', v),
   };
   return m[key] ? m[key]() : key;
 }
