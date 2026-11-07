@@ -212,8 +212,16 @@ async function bootInfo() {
     sys: n(last.system), desk: n(last.desktop), bridge: n(last.bridge), hudiy: n(last.hudiy), map: n(last.map) }))}` +
     (prev ? `<br>${esc(t('set.boot_before', { list: prev }))}` : '') + '</span>';
 }
+// diagnostics bundles (bin/hu-diag.sh --bundle): collect one, show what's saved and how to get it off
+async function diagInfo(r) {
+  r = r || await api('/api/diag').catch(() => null); if (!r) return;
+  const b = r.bundles || [], mb = (n) => (n / 2 ** 20).toLocaleString(langTag(), { maximumFractionDigits: 1 }) + ' MB';
+  $('diagBtn').disabled = !!r.busy; $('diagBtn').textContent = r.busy ? t('set.diag_busy') : t('set.diag_collect');
+  $('diagInfo').textContent = r.error ? t('set.diag_failed', { error: r.error })
+    : b.length ? t('set.diag_saved', { name: b[0].name, size: mb(b[0].size) }) : '';
+}
 async function dev() {
-  bootInfo();
+  bootInfo(); diagInfo();
   SYS = await api('/api/system').catch(() => null) || SYS || {};
   const b = $('sshBtn'); b.textContent = onOff(SYS.ssh); b.classList.toggle('on', !!SYS.ssh);
   $('pwWarn').classList.toggle('hidden', !SYS.default_password);
@@ -222,6 +230,13 @@ async function dev() {
     `${esc(t('set.ip'))}: <b>${esc((SYS.addresses || []).join(', ') || t('set.no_network'))}</b>`,
     `${esc(t('set.version'))}: <b>${esc(SYS.version || '?')}</b>`,
   ].join('<br>');
+}
+function wireDiag() {
+  $('diagBtn').onclick = async () => {
+    $('diagBtn').disabled = true; $('diagBtn').textContent = t('set.diag_busy'); $('diagInfo').textContent = '';
+    const r = await api('/api/diag', { json: { op: 'collect' } }).catch(() => null);
+    diagInfo(r ? { ...r, busy: false } : null);
+  };
 }
 function wireContacts() {
   $('contactsForget').onclick = async () => {
@@ -374,7 +389,7 @@ function askGoBack(v, cur) {
   $('update').onclick = async () => { const r = await api('/api/maps/update', { json: {} }); toast(r.message || ''); setTimeout(mapProgress, 1500); };
   $('updCheck').onclick = async () => { const r = await api('/api/update/check', { json: {} }); toast(r.message || ''); setTimeout(updates, 2000); };
   $('exitBtn').onclick = exitSettings;
-  wireVoice(); wireSkins(); cards(); switches(); wireDisplay(); followTheme((s) => { S = s; cards(); }); wireRegion(); wireDev(); wireContacts(); page(new URLSearchParams(location.search).get('page') || 'skins');
+  wireVoice(); wireSkins(); cards(); switches(); wireDisplay(); followTheme((s) => { S = s; cards(); }); wireRegion(); wireDev(); wireContacts(); wireDiag(); page(new URLSearchParams(location.search).get('page') || 'skins');
   setInterval(() => { if (!$('maps').classList.contains('hidden')) mapProgress(); }, 2000);
   setInterval(() => { if ((contactsBusy && !$('maps').classList.contains('hidden')) || !$('dev').classList.contains('hidden')) contactsInfo(); }, 1500);
   setInterval(() => { if (!$('maps').classList.contains('hidden')) maps(); }, 15000);

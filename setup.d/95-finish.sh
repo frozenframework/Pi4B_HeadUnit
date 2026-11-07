@@ -14,7 +14,9 @@ for u in apt-daily.timer apt-daily-upgrade.timer man-db.timer e2scrub_all.timer 
 done
 # Keep the system log small (fewer SD-card writes, faster boots)
 install -d /etc/systemd/journald.conf.d
-printf '[Journal]\nSystemMaxUse=64M\nRuntimeMaxUse=24M\n' > /etc/systemd/journald.conf.d/headunit.conf
+# ...but kept across starts (the diagnostics bundle includes the start before - a drive that went wrong)
+printf '[Journal]\nStorage=persistent\nSystemMaxUse=64M\nRuntimeMaxUse=24M\n' > /etc/systemd/journald.conf.d/headunit.conf
+install -d -m 2755 -g systemd-journal /var/log/journal 2>/dev/null || install -d /var/log/journal
 say "lighter system: printing, modem and daily apt/man-db jobs off; system log capped at 64 MB"
 
 # Diagnostics report on the SD card (bootfs/headunit/diag.txt) at boot, when asked for with an empty

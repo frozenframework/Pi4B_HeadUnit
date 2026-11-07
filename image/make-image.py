@@ -28,7 +28,7 @@ import argparse, datetime, hashlib, lzma, os, shutil, struct, subprocess, sys, t
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent.parent
-SKIP_DIRS = {".git", "out", "node_modules", "__pycache__", "docs", "hudiy", "private"}   # hudiy/, private/: your licensed / personal files
+SKIP_DIRS = {".git", "out", "node_modules", "__pycache__", "docs", "hudiy", "private", "diag"}   # hudiy/, private/: your licensed / personal files
 SKIP_EXT = {".stl", ".step", ".img", ".xz"}
 
 FIRSTRUN = r"""#!/bin/bash

@@ -208,6 +208,54 @@ def do_route(body):
     s = res["trip"]["summary"]
     return {"shape": shape, "maneuvers": man, "summary": {"length": s["length"], "time": s["time"], "units": units}}
 
+# ---------------------------------------------------------------- diagnostics bundles (bin/hu-diag.sh --bundle)
+DIAG_DIR = Path(C("DIAG_DIR", "/var/lib/headunit/diag"))
+DIAG_CMD = C("DIAG_CMD", "sudo -n /opt/headunit/bin/hu-diag.sh --bundle")
+_diag = {"busy": False, "last": None, "error": ""}
+def diag_list():
+    fs = sorted(DIAG_DIR.glob("headunit-diag-*.tar.gz"), key=lambda p: p.stat().st_mtime, reverse=True) if DIAG_DIR.exists() else []
+    return [{"name": f.name, "size": f.stat().st_size, "t": int(f.stat().st_mtime)} for f in fs]
+
+def diag_collect(why):
+    """One bundle at a time, at low priority; returns its file name (or None)."""
+    if _diag["busy"]: return None
+    _diag["busy"] = True; _diag["error"] = ""
+    try:
+        r = subprocess.run(DIAG_CMD.split() + [why], capture_output=True, text=True, timeout=600)
+        path = (r.stdout.strip().splitlines() or [""])[-1]
+        if r.returncode != 0 or not path.endswith(".tar.gz"):
+            _diag["error"] = (r.stderr or r.stdout).strip()[-300:] or f"exit {r.returncode}"; return None
+        _diag["last"] = Path(path).name; usage("diag_collected", why=why)
+        log.info("diagnostics: %s (%s)", path, why); return _diag["last"]
+    except Exception as e:
+        _diag["error"] = str(e)[:300]; return None
+    finally:
+        _diag["busy"] = False
+
+async def diag_api(request):
+    """GET: the bundles on the head unit; POST {op: collect}: make one now (Settings > Developer);
+    GET /api/diag/<name>: download one (from the head unit's own screen apps; the bridge only listens
+    on the head unit itself, so over Wi-Fi tools/get-diag.sh fetches them with SSH)."""
+    name = request.match_info.get("name")
+    if name:
+        f = DIAG_DIR / name
+        if not re.fullmatch(r"headunit-diag-[\w.-]+\.tar\.gz", name) or not f.is_file(): raise web.HTTPNotFound()
+        return web.FileResponse(f, headers={"Content-Disposition": f'attachment; filename="{name}"'})
+    if request.method == "POST":
+        body = await request.json()
+        if body.get("op") != "collect": raise web.HTTPBadRequest(text="unknown op")
+        if _diag["busy"]: return web.json_response({"ok": False, "busy": True})
+        name = await asyncio.get_running_loop().run_in_executor(None, diag_collect, "settings")
+        return web.json_response({"ok": bool(name), "name": name, "error": _diag["error"], "bundles": diag_list()})
+    return web.json_response({"busy": _diag["busy"], "last": _diag["last"], "error": _diag["error"], "bundles": diag_list()})
+
+async def diag_watch():
+    """By itself, once per start: a bundle when the map wasn't on screen 3 minutes after the bridge
+    started (a slow or failed start is caught with its logs while they're fresh)."""
+    await asyncio.sleep(float(C("DIAG_SLOW_START", "180")))
+    if C("DIAG_AUTO", "1") == "1" and settings().get("startOnMap", True) and "map" not in hu_boot.marks():
+        await asyncio.get_running_loop().run_in_executor(None, diag_collect, "slow-start")
+
 # ---------------------------------------------------------------- start-up timeline (bin/hu_boot.py)
 import hu_boot
 BOOT_LOG = USER_DIR / "boot-times.json"
@@ -1065,6 +1113,8 @@ async def export_watch(app):
                     for f in LOG_DIR.glob("*.jsonl"): shutil.copy2(f, dest / f.name)
                     for f in (USER_DIR / "settings.json", MAPS_DIR / "manifest.json"):
                         if f.exists(): shutil.copy2(f, dest / f.name)
+                    for b in diag_list()[:3]:                # the newest diagnostics bundles too
+                        shutil.copy2(DIAG_DIR / b["name"], dest / b["name"])
                     subprocess.run(["sync"]); usage("logs_exported", to=str(dest))
                 except Exception as e:
                     usage("logs_export_failed", err=str(e)[:200])
@@ -1144,6 +1194,7 @@ async def on_start(app):
     app["parked"] = asyncio.create_task(parked_watch())
     app["contacts"] = asyncio.create_task(contacts_watch())
     app["routing"] = asyncio.create_task(routing_watch())
+    app["diag"] = asyncio.create_task(diag_watch())
     try: hu_boot.mark("bridge")                     # start-up timeline (Settings > Developer)
     except Exception: pass
     ZIPS.get()                                       # ZIP centres for older search data, in the background
@@ -1233,6 +1284,8 @@ def make_app():
     app.router.add_route("*", "/api/places", places_api)
     app.router.add_route("*", "/api/contacts", contacts_api)
     app.router.add_route("*", "/api/boot", boot_api)
+    app.router.add_route("*", "/api/diag", diag_api)
+    app.router.add_get("/api/diag/{name}", diag_api)
     app.router.add_get("/api/contacts/{what}", contacts_api)
     app.router.add_post("/api/log", log_api)
     app.router.add_post("/api/maps/update", maps_update)

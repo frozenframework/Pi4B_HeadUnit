@@ -1,5 +1,7 @@
 # Built images and caches
 out/
+# Diagnostics bundles fetched from a head unit (tools/get-diag.sh)
+diag/
 *.img
 *.img.xz
 *.part

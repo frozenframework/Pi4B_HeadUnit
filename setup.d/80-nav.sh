@@ -12,9 +12,11 @@ cat > /etc/sudoers.d/headunit <<S
 $U ALL=(root) NOPASSWD: /usr/bin/systemctl start --no-block headunit-update-maps.service
 $U ALL=(root) NOPASSWD: /opt/headunit/bin/hu-import-maps.sh *
 $U ALL=(root) NOPASSWD: /opt/headunit/bin/hu-system.sh *
+$U ALL=(root) NOPASSWD: /opt/headunit/bin/hu-diag.sh --bundle *
 S
 chmod 440 /etc/sudoers.d/headunit
 visudo -cf /etc/sudoers.d/headunit >/dev/null
+install -d -o "$U" -g "$U" /var/lib/headunit/diag              # diagnostics bundles (bin/hu-diag.sh --bundle)
 enable_user_unit /opt/headunit/systemd/headunit-bridge.service
 usermod -aG gpio,bluetooth "$U" 2>/dev/null || usermod -aG gpio "$U" 2>/dev/null || true   # bluetooth: phone contacts
 say "nav: bridge enabled for $U; data in /var/lib/headunit"
