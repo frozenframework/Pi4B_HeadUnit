@@ -20,6 +20,9 @@ Output: out/headunit-<vehicle>-<date>.img.xz + .sha256
    so the card starts on exactly the version the cars update from; "-with-hudiy" in the name when the
    Hudiy installer is inside - that one is yours only, never share or upload it)
 Run it on a fresh copy of the base image each time (it does that for you); don't re-patch a patched image.
+With xz installed, only the first few xz blocks of the official image (the ones holding the boot
+partition) are decompressed, patched and compressed again, and the rest is copied as it is
+(image/xz_splice.py): about a minute per image instead of 10-15.
 """
 import argparse, datetime, hashlib, lzma, os, shutil, struct, subprocess, sys, tempfile, urllib.request
 from pathlib import Path
@@ -275,12 +278,60 @@ def build(base_img, vehicle, tier, region, hudiy, out, do_compress=True, sets=No
     img = out / f"headunit-{vehicle}-{tag}{'-with-hudiy' if hudiy else ''}.img"
     region = region or tier_region(vehicle, tier)
     log(f"{vehicle}: tier {tier}, maps {region}, version {(PACKAGE_ROOT / 'VERSION').read_text().strip()}" + (", with Hudiy" if hudiy else ""))
+    if do_compress and build_fast(base_img, img, vehicle, tier, region, hudiy, sets, splash):
+        return
     decompress(base_img, img)
     patch_boot(img, vehicle, tier, region, hudiy, sets, splash)
     if do_compress:
         compress(img)
     else:
         log("done (uncompressed):", img)
+
+def build_fast(base_img, img, vehicle, tier, region, hudiy, sets, splash):
+    """Only the start of the image changes: decompress, patch and recompress just the xz blocks that hold
+    the boot partition and copy the rest of the official .xz as it is (image/xz_splice.py). About a
+    minute instead of 10-15. False (full rebuild) when the base isn't a multi-block .xz or xz is missing."""
+    base_img = Path(base_img)
+    if base_img.suffix != ".xz" or not shutil.which("xz"): return False
+    sys.path.insert(0, str(Path(__file__).resolve().parent)); import xz_splice as X
+    with open(base_img, "rb") as bf:
+        lay = X.layout(bf)
+    if not lay: return False
+    flags, blocks, _ = lay
+    head = img.with_suffix(".head")
+    p = subprocess.Popen(["xz", "-dc", str(base_img)], stdout=subprocess.PIPE)
+    try:
+        mbr = p.stdout.read(512)
+        end = 0
+        for i in range(4):
+            e = mbr[446 + 16 * i: 462 + 16 * i]; start, size = struct.unpack("<II", e[8:16])
+            if e[4] in (0x0B, 0x0C, 0x0E) and size: end = (start + size) * 512
+        hl = X.head_length(blocks, end) if end else None
+        if not hl or hl[0] >= len(blocks): return False
+        k, length = hl
+        log(f"fast build: the boot partition is in the first {k} of {len(blocks)} xz blocks ({length / 2**20:.0f} MB to redo)")
+        with open(head, "wb") as fo:
+            fo.write(mbr); left = length - 512
+            while left:
+                b = p.stdout.read(min(left, 1 << 22))
+                if not b: raise IOError("base image ended early")
+                fo.write(b); left -= len(b)
+    finally:
+        p.kill(); p.wait()
+    patch_boot(head, vehicle, tier, region, hudiy, sets, splash)
+    log("compressing the changed part")
+    data, recs = X.compress_head(head, flags, blocks[0][2])
+    if sum(u for _, u in recs) != length: raise RuntimeError("recompressed piece has the wrong size")
+    xz = Path(str(img) + ".xz"); part = Path(str(xz) + ".part")
+    with open(base_img, "rb") as bf, open(part, "wb") as fo:
+        X.assemble(fo, flags, data, recs, bf, blocks[k:])
+    os.replace(part, xz); head.unlink()
+    h = hashlib.sha256()
+    with open(xz, "rb") as f:
+        for b in iter(lambda: f.read(1 << 22), b""): h.update(b)
+    xz.with_name(xz.name + ".sha256").write_text(f"{h.hexdigest()}  {xz.name}\n")
+    log("done:", xz, f"({xz.stat().st_size / 2**30:.2f} GB)")
+    return True
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)

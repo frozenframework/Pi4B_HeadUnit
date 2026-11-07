@@ -12,7 +12,8 @@
 #   out/headunit-<vehicle>-<version>.img.xz             public: fine to share / attach to the GitHub release
 #   out/headunit-<vehicle>-<version>-with-hudiy.img.xz  PRIVATE: has your licensed Hudiy installer - keep it
 #                                                       to yourself, never upload or commit it
-# The Raspberry Pi OS download is kept in out/cache, so later builds skip it. About 10-15 minutes per image.
+# The Raspberry Pi OS download is kept in out/cache, so later builds skip it. About a minute per image: only
+# the part of the official image holding the boot partition is redone (image/xz_splice.py).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 V=${1:?usage: tools/build-images.sh X.Y.Z [--hudiy installer] [--tier N] [--vehicles "miata f250 frontier"]}; shift
