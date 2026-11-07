@@ -16,6 +16,9 @@ How it works (only the FAT "bootfs" partition is touched; the Linux partition st
      keyboard, all set in headunit.conf and changeable later in Settings > Region & language.
   4. second boot: the normal first-boot flow (Wi-Fi -> Hudiy -> setup.sh -> maps -> reboot)
 Output: out/headunit-<vehicle>-<date>.img.xz + .sha256
+  (with --release X.Y.Z: out/headunit-<vehicle>-X.Y.Z.img.xz, built from the signed release tag vX.Y.Z,
+   so the card starts on exactly the version the cars update from; "-with-hudiy" in the name when the
+   Hudiy installer is inside - that one is yours only, never share or upload it)
 Run it on a fresh copy of the base image each time (it does that for you); don't re-patch a patched image.
 """
 import argparse, datetime, hashlib, lzma, os, shutil, struct, subprocess, sys, tempfile, urllib.request
@@ -169,14 +172,44 @@ def fat_write(fs, path, data: bytes):
     with fs.openbin(path, "w") as f:
         f.write(data)
 
+PACKAGE_ROOT = HERE                     # the project folder, or a release tag's files (--release)
+
+def release_tree(version, dest):
+    """The files of release tag vX.Y.Z (git archive), so an image is exactly that release - not whatever
+    is in the folder right now."""
+    tag = f"v{version}"
+    if subprocess.run(["git", "-C", str(HERE), "rev-parse", "-q", "--verify", f"refs/tags/{tag}"], capture_output=True).returncode != 0:
+        sys.exit(f"No release tag {tag} here. Make the release first (tools/release.sh {version} ...), or build without --release.")
+    dest.mkdir(parents=True, exist_ok=True)
+    tar = subprocess.run(["git", "-C", str(HERE), "archive", "--format=tar", tag], capture_output=True, check=True).stdout
+    import io, tarfile
+    with tarfile.open(fileobj=io.BytesIO(tar)) as t:
+        t.extractall(dest, filter="data") if hasattr(tarfile, "data_filter") else t.extractall(dest)
+    got = (dest / "VERSION").read_text().strip()
+    if got != version: sys.exit(f"{tag} says VERSION {got}, not {version}")
+    return dest
+
+def tier_region(vehicle, tier):
+    """The map region the vehicle's tier comes with (config/tiers.conf, then the vehicle profile)."""
+    lines = (PACKAGE_ROOT / "config" / "tiers.conf").read_text().splitlines()
+    tiers = {}
+    for l in lines:
+        if "=" in l and not l.lstrip().startswith("#"):
+            k, v = l.split("=", 1); tiers[k.strip()] = v.strip().strip('"')
+    line = tiers.get(f"{vehicle.upper()}_TIER{tier}") or tiers.get(f"TIER{tier}", "")
+    kv = dict(x.split("=", 1) for x in line.split() if "=" in x)
+    if "MAP_REGION" in kv: return kv["MAP_REGION"]
+    prof = (PACKAGE_ROOT / "config" / f"{vehicle}.conf").read_text().splitlines()
+    return next((l.split("=", 1)[1].strip() for l in prof if l.startswith("MAP_REGION=")), "texas-plus")
+
 def package_files():
-    for root, dirs, files in os.walk(HERE):
+    for root, dirs, files in os.walk(PACKAGE_ROOT):
         dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
         for n in files:
             p = Path(root) / n
             if p.suffix.lower() in SKIP_EXT or n == ".DS_Store":
                 continue
-            yield p, p.relative_to(HERE).as_posix()
+            yield p, p.relative_to(PACKAGE_ROOT).as_posix()
 
 def patch_boot(img, vehicle, tier, region, hudiy, sets=None, splash=None):
     """Write the head-unit files + first-run hook into the image's FAT boot partition (in place)."""
@@ -193,7 +226,7 @@ def patch_boot(img, vehicle, tier, region, hudiy, sets=None, splash=None):
         if "headunit/firstrun.sh" not in cmd:
             fat_write(fs, "/" + cmd_name, (cmd + HOOK + "\n").encode())
         fat_write(fs, "/headunit/firstrun.sh", FIRSTRUN.encode())
-        conf = (HERE / "config" / "headunit.conf.example").read_text()
+        conf = (PACKAGE_ROOT / "config" / "headunit.conf.example").read_text()
         sets = {"VEHICLE": vehicle, "TIER": tier, "MAP_REGION": region, **(sets or {})}
         lines = conf.splitlines()
         for k, v in sets.items():                      # replace KEY=... in place, or add it at the end
@@ -202,7 +235,7 @@ def patch_boot(img, vehicle, tier, region, hudiy, sets=None, splash=None):
             else: lines[i] = f"{k}={v}"
         conf = "\n".join(lines) + "\n"
         fat_write(fs, "/headunit/headunit.conf", conf.encode())
-        vname = next((l.split('"')[1] for l in (HERE / "config" / f"{vehicle}.conf").read_text().splitlines() if l.startswith("VEHICLE_NAME")), vehicle)
+        vname = next((l.split('"')[1] for l in (PACKAGE_ROOT / "config" / f"{vehicle}.conf").read_text().splitlines() if l.startswith("VEHICLE_NAME")), vehicle)
         fat_write(fs, "/headunit/README-FIRST.txt", (
             f"Head unit image for: {vname}\r\n"
             "1. Edit headunit.conf in this folder if needed (tier, map region, Wi-Fi).\r\n"
@@ -237,8 +270,11 @@ def compress(img, preset="6"):
     xz.with_name(xz.name + ".sha256").write_text(f"{h.hexdigest()}  {xz.name}\n")
     log("done:", xz, f"({xz.stat().st_size / 2**30:.2f} GB)")
 
-def build(base_img, vehicle, tier, region, hudiy, out, do_compress=True, sets=None, splash=None):
-    img = out / f"headunit-{vehicle}-{datetime.date.today():%Y%m%d}.img"
+def build(base_img, vehicle, tier, region, hudiy, out, do_compress=True, sets=None, splash=None, version=None):
+    tag = version or f"{datetime.date.today():%Y%m%d}"
+    img = out / f"headunit-{vehicle}-{tag}{'-with-hudiy' if hudiy else ''}.img"
+    region = region or tier_region(vehicle, tier)
+    log(f"{vehicle}: tier {tier}, maps {region}, version {(PACKAGE_ROOT / 'VERSION').read_text().strip()}" + (", with Hudiy" if hudiy else ""))
     decompress(base_img, img)
     patch_boot(img, vehicle, tier, region, hudiy, sets, splash)
     if do_compress:
@@ -251,7 +287,9 @@ def main():
     ap.add_argument("--base", help="official Raspberry Pi OS 64-bit Desktop .img.xz (downloads the latest if omitted)")
     ap.add_argument("--sha256", help="expected SHA-256 of --base (from raspberrypi.com)")
     ap.add_argument("--vehicle", default="both", help="f250, miata, frontier, both (f250+miata) or all")
-    ap.add_argument("--tier", default="2"); ap.add_argument("--region", default="texas-plus")
+    ap.add_argument("--tier", default="2")
+    ap.add_argument("--region", help="map region (default: what the vehicle's tier comes with, e.g. us for tier 3)")
+    ap.add_argument("--release", metavar="X.Y.Z", help="build from release tag vX.Y.Z (and name the image after it)")
     ap.add_argument("--hudiy", help="Hudiy installer file to include")
     ap.add_argument("--splash", help="PNG to show while the Pi boots, instead of the Raspberry Pi logo")
     ap.add_argument("--out", default=str(HERE / "out"))
@@ -260,12 +298,16 @@ def main():
                     help="preset a line in the card's headunit.conf, e.g. --set DISPLAY_TYPE=monitor (repeatable)")
     a = ap.parse_args()
     out = Path(a.out); (out / "cache").mkdir(parents=True, exist_ok=True)
+    global PACKAGE_ROOT
+    if a.release:
+        PACKAGE_ROOT = release_tree(a.release, Path(tempfile.mkdtemp(prefix="hu-release-")))
+        log(f"package: release v{a.release} (from its tag)")
     base = Path(a.base).expanduser() if a.base else download_latest(out / "cache")
     if a.sha256:
         check_sha(base, a.sha256)
     for v in {"both": ["f250", "miata"], "all": ["f250", "miata", "frontier"]}.get(a.vehicle, [a.vehicle]):
         sets = dict(kv.split("=", 1) for kv in a.set)
-        build(base, v, a.tier, a.region, a.hudiy, out, do_compress=not a.no_compress, sets=sets, splash=a.splash)
+        build(base, v, a.tier, a.region, a.hudiy, out, do_compress=not a.no_compress, sets=sets, splash=a.splash, version=a.release)
 
 if __name__ == "__main__":
     main()
