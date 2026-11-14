@@ -172,13 +172,43 @@ function onFix(p, track, speed) {
   if (state.follow) camera();
 }
 
-function camera() {
+// Two ways to look at the road (the view button, top left; Settings > Driving > Map view):
+//   bird   straight down from above, the direction of travel up
+//   chase  3rd person: from behind and above the car, looking ahead down the road; the car sits low on
+//          the screen so most of it shows what's coming, and the view pulls back as speed goes up
+const CHASE_PITCH = 58;                             // (the horizon stays just off-screen: no far tiles to load)
+function cameraFor(view, nav, speed, mapH, curZoom, curBearing, heading) {
+  if (view === 'chase') {
+    return { pitch: CHASE_PITCH, bearing: heading, zoom: speed > 25 ? 15.7 : speed > 13 ? 16.1 : 16.4,   // (under 16.5: no shop / cafe labels while driving)
+             padding: { left: nav ? 340 : 0, right: nav ? 80 : 0, top: Math.round(mapH * 0.4), bottom: 0 } };
+  }
+  return { pitch: 0, bearing: speed > 2 || nav ? heading : curBearing,
+           zoom: nav ? (speed > 25 ? 15.2 : speed > 13 ? 15.8 : 16.4) : Math.max(curZoom, 14.5),
+           padding: nav ? { left: 340, top: 60, bottom: 0, right: 80 } : { left: 0, top: 0, bottom: 0, right: 0 } };
+}
+function camera(ms) {
   if (currentApp !== 'map') return;                // covered by Music / Radio / Settings: no map animation work
-  const nav = !!state.route;
-  const z = nav ? (state.speed > 25 ? 15.2 : state.speed > 13 ? 15.8 : 16.4) : Math.max(state.map.getZoom(), 14.5);
-  state.map.easeTo({ center: state.pos, bearing: state.speed > 2 || nav ? state.heading : state.map.getBearing(),
-    pitch: nav ? 55 : 0, zoom: z, padding: nav ? { left: 340, top: 60, bottom: 0, right: 80 } : { left: 0, top: 0, bottom: 0, right: 0 },
-    duration: SIM ? 900 : 950, easing: (x) => x });
+  const m = state.map, c = cameraFor(state.view, !!state.route, state.speed, m.getContainer().clientHeight, m.getZoom(), m.getBearing(), state.heading);
+  m.easeTo({ center: state.pos, ...c, ...(ms ? { duration: ms } : { duration: SIM ? 900 : 950, easing: (x) => x }) });   // steady glide between fixes
+}
+const VIEW_ICONS = {
+  bird: '<svg class="icon" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M12 8l3.5 8-3.5-2-3.5 2z"/></svg>',
+  chase: '<svg class="icon" viewBox="0 0 24 24"><path d="M9 4h6l5 16H4z"/><path d="M12 11l2.5 6-2.5-1.5L9.5 17z"/></svg>',
+};
+function applyView(view, announce = false) {
+  state.view = view === 'chase' ? 'chase' : 'bird';
+  document.body.classList.toggle('view-chase', state.view === 'chase');
+  const b = $('viewBtn'); b.innerHTML = VIEW_ICONS[state.view]; b.classList.toggle('on', state.view === 'chase');
+  if (announce) toast(t(state.view === 'chase' ? 'nav.view_chase' : 'nav.view_bird'), 1800);
+  if (!state.map) return;
+  state.follow = true;
+  if (state.pos) camera(700);
+  else state.map.easeTo({ pitch: state.view === 'chase' ? CHASE_PITCH : 0, duration: 700 });
+}
+async function toggleView() {
+  applyView(state.view === 'chase' ? 'bird' : 'chase', true);
+  logEvent('map_view', { view: state.view, nav: !!state.route });
+  state.settings = await saveSettings({ mapView: state.view }).catch(() => state.settings);
 }
 
 // ------------------------------------------------------------------ routing + guidance
@@ -655,6 +685,7 @@ async function showMap() {
   const s = await getSettings().catch(() => null); if (!s) return;     // pick up what changed in Settings
   if (s.language !== settingsLang) { location.reload(); return; }      // new language: redraw everything
   state.settings = s; state.units = s.units || 'imperial';
+  if ((s.mapView || 'bird') !== state.view) applyView(s.mapView);
   $('speedUnit').textContent = state.units === 'imperial' ? 'mph' : 'km/h';
   if (s.theme && s.theme !== state.theme?.id) await setTheme(s.theme, false); else applyNight();
   if (state.route) guide();
@@ -735,6 +766,7 @@ function setupPhone() {
 async function main() {
   state.settings = await getSettings().catch(() => ({ theme: 'neon-overdrive', units: 'imperial', voice: false }));
   state.units = state.settings.units || 'imperial';
+  applyView(state.settings.mapView);
   await initI18n(state.settings.language);
   $('speedUnit').textContent = state.units === 'imperial' ? 'mph' : 'km/h';
   const themes = await loadThemes();
@@ -745,7 +777,7 @@ async function main() {
   const t0 = performance.now();
   state.map = new maplibregl.Map({
     container: 'map', style: `/apps/styles/${state.theme.id}.json`, center, zoom: +(params.get('zoom') || (state.settings.lastPos ? 15 : 5.5)),
-    bearing: +(params.get('bearing') || 0), pitch: +(params.get('pitch') || 0), maxPitch: 60, attributionControl: { compact: true },
+    bearing: +(params.get('bearing') || 0), pitch: +(params.get('pitch') || (!PREVIEW && state.view === 'chase' ? CHASE_PITCH : 0)), maxPitch: 60, attributionControl: { compact: true },
     fadeDuration: 0, pixelRatio: 1, renderWorldCopies: false, canvasContextAttributes: { antialias: false, preserveDrawingBuffer: PREVIEW },
   });
   window.huMap = state.map;
@@ -770,7 +802,7 @@ async function main() {
   state.map.on('error', (e) => logEvent('map_error', { msg: String(e.error?.message || e.error).slice(0, 160) }));
   // frame-rate sampling, so test drives show whether the Pi keeps up with a given skin
   let frames = 0; state.map.on('render', () => frames++);
-  setInterval(() => { if (frames) logEvent('fps', { fps: Math.round(frames / 30), theme: state.theme.id, nav: !!state.route }); frames = 0; }, 30000);
+  setInterval(() => { if (frames) logEvent('fps', { fps: Math.round(frames / 30), theme: state.theme.id, nav: !!state.route, view: state.view }); frames = 0; }, 30000);
   setInterval(() => { if (state.pos && !SIM) saveSettings({ lastPos: state.pos }).catch(() => {}); }, 120000);
   setInterval(async () => {
     const st = await api('/api/status').catch(() => null); if (!st) return;
@@ -788,6 +820,7 @@ async function main() {
   $('bookBack').innerHTML = BACK_ICON; $('bookBack').onclick = () => { state.bookAssign = null; $('bookPanel').classList.add('hidden'); openFavorites(); };
   $('themeBtn').onclick = openThemes;
   $('moreSettings').onclick = openSettings;
+  $('viewBtn').onclick = toggleView;
   $('centerBtn').onclick = () => { state.follow = true; if (state.pos) camera(); else toast(t('nav.waiting_gps')); };
   $('endBtn').onclick = () => endRoute(false);
   $('destCancel').onclick = () => $('destSheet').classList.add('hidden');

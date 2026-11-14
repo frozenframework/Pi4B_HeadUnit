@@ -82,6 +82,9 @@ function switches() {
   ps.textContent = onMap ? t('set.phone_map') : t('set.phone_carplay'); ps.classList.toggle('on', onMap);
   ps.onclick = async () => { S = await saveSettings({ phoneScreen: onMap ? 'carplay' : 'map' }); logEvent('setting', { k: 'phoneScreen', v: S.phoneScreen }); switches(); };
   voiceRow();
+  const mv = $('mapView'), chase = S.mapView === 'chase';
+  mv.textContent = chase ? t('nav.view_chase') : t('nav.view_bird'); mv.classList.add('on');
+  mv.onclick = async () => { S = await saveSettings({ mapView: chase ? 'bird' : 'chase' }); logEvent('setting', { k: 'mapView', v: S.mapView }); switches(); };
   const u = $('units'); u.textContent = S.units === 'imperial' ? t('set.miles') : t('set.kilometers'); u.classList.add('on');
   u.onclick = async () => { S = await saveSettings({ units: S.units === 'imperial' ? 'metric' : 'imperial' }); switches(); };
 }

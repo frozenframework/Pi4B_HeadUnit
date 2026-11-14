@@ -59,10 +59,17 @@ body.navigating #speedo { left: 352px; }
 #nomaps p { margin: 0; font-size: 20px; }
 
 .hu-vehicle { width: 54px; height: 54px; }
+.hu-vehicle svg { transition: transform .5s ease; }
+body.view-chase .hu-vehicle svg { transform: scale(1.45); }       /* lying on a tilted map it looks smaller: make up for it */
+/* bird's-eye / 3rd-person view button (top left of the map; right of the guide panel when navigating) */
+#viewBtn { position: absolute; left: 12px; top: 12px; z-index: 5; width: 74px; height: 74px; padding: 0; display: grid; place-items: center;
+  background: color-mix(in srgb, var(--panel) 88%, transparent); }
+#viewBtn.on { border-color: var(--accent); color: var(--accent); }
+body.navigating #viewBtn { left: 352px; }
 .hu-vehicle svg { width: 100%; height: 100%; }
 .hu-dest { width: 34px; height: 34px; }
 
-.clean #speedo, .clean #fabs, .clean .maplibregl-ctrl-attrib, .clean #guide { display: none !important; }
+.clean #speedo, .clean #fabs, .clean #viewBtn, .clean .maplibregl-ctrl-attrib, .clean #guide { display: none !important; }
 
 /* from the phone: next turn (top), now playing (bottom right), call chip, phone button */
 #phoneTurn { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 6; width: min(560px, calc(100% - 220px));
