@@ -763,13 +763,17 @@ function setupPhone() {
   if (!PREVIEW) { phoneTick(); setInterval(() => { if (currentApp === 'map') phoneTick(); }, 1000); }
 }
 
+const bootMark = (mark) => { if (!PREVIEW && !SIM) api('/api/boot', { json: { mark } }).catch(() => {}); };   // start-up timeline
 async function main() {
-  state.settings = await getSettings().catch(() => ({ theme: 'neon-overdrive', units: 'imperial', voice: false }));
+  bootMark('page');
+  // settings, skins and screen text are asked for together (not one after the other)
+  const [settings, themes] = await Promise.all([
+    getSettings().catch(() => ({ theme: 'neon-overdrive', units: 'imperial', voice: false })), loadThemes(), initI18n(null, false)]);
+  state.settings = settings;
   state.units = state.settings.units || 'imperial';
   applyView(state.settings.mapView);
   await initI18n(state.settings.language);
   $('speedUnit').textContent = state.units === 'imperial' ? 'mph' : 'km/h';
-  const themes = await loadThemes();
   const startTheme = params.get('theme') || state.settings.theme;
   state.theme = themes.find(t => t.id === startTheme) || themes[0];
   await applyUiTheme(state.theme.id);
@@ -782,6 +786,10 @@ async function main() {
   });
   window.huMap = state.map;
   state.map.on('load', async () => {
+    bootMark('drawn');
+    // "everything is loaded": asked for right here - the map can go idle while the requests below are still
+    // out, and an 'idle' that already happened is never reported again (then no greeting, no start-up time)
+    const settled = Promise.race([new Promise(r => state.map.once('idle', r)), new Promise(r => setTimeout(r, 10000))]);
     logEvent('map_load', { ms: Math.round(performance.now() - t0), theme: state.theme.id });
     addRouteLayers(); resetMarkers();
     const st = await api('/api/status').catch(() => null);
@@ -794,9 +802,10 @@ async function main() {
         state.pos = p; state.heading = bearing(state.route.shape[i], state.route.shape[i + 1]); state.progress = i; guide(); refreshRoute(); resetMarkers();
         state.map.jumpTo({ center: p, bearing: state.heading, pitch: 55, zoom: +(params.get('zoom') || 16), padding: { left: 340, top: 60, right: 80, bottom: 0 } }); }
     }
-    state.map.once('idle', () => {
+    settled.then(() => {
       document.body.dataset.ready = '1';
-      if (!PREVIEW && !SIM) { say('', 'greet'); api('/api/boot', { json: { mark: 'map' } }).catch(() => {}); }   // start-up timeline
+      if (!PREVIEW && !SIM) say('', 'greet');
+      bootMark('map');
     });
   });
   state.map.on('error', (e) => logEvent('map_error', { msg: String(e.error?.message || e.error).slice(0, 160) }));

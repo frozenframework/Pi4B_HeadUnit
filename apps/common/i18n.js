@@ -15,9 +15,12 @@ export const LANGS = [
 ];
 let all = null, cur = 'en';
 
-export async function initI18n(code) {
+let loading = null;
+export async function initI18n(code, apply = true) {
   // always the installed version's phrases, never a copy the web view kept from an older version
-  if (!all) all = await fetch('/apps/common/i18n.json', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ en: {} }));
+  // (apply = false: only fetch them, so a page can start this alongside its other requests)
+  if (!all) { loading = loading || fetch('/apps/common/i18n.json', { cache: 'no-store' }).then(r => r.json()).catch(() => ({ en: {} })); all = await loading; }
+  if (!apply) return null;
   cur = LANGS.some(l => l.code === code) ? code : 'en';
   const L = LANGS.find(l => l.code === cur);
   document.documentElement.lang = L.tag;

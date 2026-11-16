@@ -154,7 +154,7 @@ print("5) progress (connecting -> receiving n of total -> placing -> done); chec
 
 # 5) through the head unit's search and settings (bridge)
 s = socket.socket(); s.bind(("127.0.0.1", 0)); port = s.getsockname()[1]; s.close()
-(T / "hu.conf").write_text(f"BRIDGE_PORT={port}\nPHONE_LINK=0\nBUSCTL={FAKE}\nCONTACTS_EVERY=0.3\n")
+(T / "hu.conf").write_text(f"BRIDGE_PORT={port}\nPHONE_LINK=0\nBUSCTL={FAKE}\nCONTACTS_EVERY=0.3\nCONTACTS_START_WAIT=0\n")
 (T / "usage").mkdir()
 env = {**os.environ, "HU_CONF": str(T / "hu.conf"), "USER_DIR": str(T / "user"), "DATA_DIR": str(data), "APP_DIR": str(ROOT / "apps"),
        "USAGE_LOG_DIR": str(T / "usage"), "MEDIA_ROOT": str(T / "media"), "POWER_STATE_FILE": str(T / "st.json"), "HOME": str(T),

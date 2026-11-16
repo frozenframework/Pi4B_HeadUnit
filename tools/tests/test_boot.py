@@ -16,7 +16,10 @@ home = T / "home"; (home / ".config").mkdir(parents=True)
 lib = T / "lib"; lib.mkdir()
 common = (ROOT / "lib/common.sh").read_text().replace("BOOT_CFG=/boot/firmware/config.txt", f"BOOT_CFG={boot}/config.txt") \
     .replace("BOOT_CMDLINE=/boot/firmware/cmdline.txt", f"BOOT_CMDLINE={boot}/cmdline.txt").replace("HU_LOG=/var/log/headunit-setup.log", f"HU_LOG={T}/setup.log")
-(lib / "common.sh").write_text(common + f'\nhu_user() {{ echo "$(id -un)"; }}\nhu_home() {{ echo "{home}"; }}\nudir() {{ mkdir -p "$@"; }}\nchown() {{ :; }}\nloginctl() {{ echo "linger $*" >> {T}/linger.log; }}\n')
+sysroot = T / "sys"; (sysroot / "etc/cloud").mkdir(parents=True); (home / ".hudiy").mkdir()
+common = common.replace("HU_ROOT=/opt/headunit", f"HU_ROOT={ROOT}")
+(lib / "common.sh").write_text(common + f'\nexport HU_SYSROOT={sysroot}\nhu_user() {{ echo "$(id -un)"; }}\nhu_home() {{ echo "{home}"; }}\nudir() {{ mkdir -p "$@"; }}\nchown() {{ :; }}\n'
+                               f'loginctl() {{ echo "linger $*" >> {T}/linger.log; }}\nsystemctl() {{ echo "$*" >> {T}/systemctl.log; }}\n')
 stage = T / "setup.d"; stage.mkdir()
 (stage / "22-fastboot.sh").write_text((ROOT / "setup.d/22-fastboot.sh").read_text())
 for _ in range(2):
@@ -24,10 +27,14 @@ for _ in range(2):
 cfg = (boot / "config.txt").read_text(); cmd = (boot / "cmdline.txt").read_text()
 assert cfg.count("boot_delay=0") == 1 and "disable_splash=1" in cfg and "camera_auto_detect=0" in cfg, cfg
 assert cmd.count("\n") == 1 and cmd.count("quiet") == 1 and cmd.count("loglevel=3") == 1 and "vt.global_cursor_default=0" in cmd and "logo.nologo" in cmd, cmd
-assert "enable-linger" in (T / "linger.log").read_text()
+assert "enable-linger" in (T / "linger.log").read_text() and len(list((sysroot / "var/lib/systemd/linger").iterdir())) == 1
+sc = (T / "systemctl.log").read_text()
+assert "enable headunit-preload.service" in sc and "mask NetworkManager-wait-online.service" in sc and "mask rpi-eeprom-update.service" in sc, sc
+assert (sysroot / "etc/systemd/system/headunit-preload.service").exists() and (sysroot / "etc/cloud/cloud-init.disabled").exists()
+assert list((ROOT / "bin/__pycache__").glob("hu_addr.*.pyc")), "Python compiled once at setup"
 assert "desktop_bg=#000000" in (home / ".config/pcmanfm/default/desktop-items-HDMI-A-1.conf").read_text()
 assert "autohide = true" in (home / ".config/wf-panel-pi.ini").read_text()
-print("1) boot settings once (no pause, no rainbow, no boot text), services with the system, black desktop, taskbar hidden")
+print("1) boot settings once; services with the system; read-ahead service on; slow-start services off; Python precompiled; black desktop")
 
 # 2) the one pre-Hudiy program: Hudiy's config only written when something changed; a desktop mark
 run = T / "run"; run.mkdir()
@@ -62,7 +69,8 @@ print("3) systemd's kernel / boot RAM disk / system times read")
 
 # 4) through the bridge: its own mark, the map's, a history of starts
 s = socket.socket(); s.bind(("127.0.0.1", 0)); port = s.getsockname()[1]; s.close()
-(T / "hu.conf").write_text(f"BRIDGE_PORT={port}\nPHONE_LINK=0\nCONTACTS=0\nROUTING_WARM_DELAY=9999\n")
+(T / "pre.json").write_text(json.dumps({"mode": "preload", "mb": 212, "s": 6.4}))
+(T / "hu.conf").write_text(f"BRIDGE_PORT={port}\nPHONE_LINK=0\nCONTACTS=0\nROUTING_WARM_DELAY=9999\nDIAG_AUTO=0\nPRELOAD_STATUS={T}/pre.json\n")
 (T / "user").mkdir(); (T / "usage").mkdir(); (T / "data").mkdir()
 benv = {**os.environ, "HU_CONF": str(T / "hu.conf"), "USER_DIR": str(T / "user"), "DATA_DIR": str(T / "data"), "APP_DIR": str(ROOT / "apps"),
         "USAGE_LOG_DIR": str(T / "usage"), "MEDIA_ROOT": str(T / "media"), "POWER_STATE_FILE": str(T / "st.json"), "HOME": str(T), "XDG_RUNTIME_DIR": str(run)}
@@ -76,9 +84,11 @@ try:
         try: r = call("/api/boot"); break
         except OSError: time.sleep(0.25)
     assert "bridge" in r["now"] and "desktop" in r["now"] and "map" not in r["now"], r
+    call("/api/boot", {"mark": "page"}); call("/api/boot", {"mark": "drawn"}); assert call("/api/boot")["history"] == [], "only the map completes a start"
     call("/api/boot", {"mark": "map"}); call("/api/boot", {"mark": "map"})        # a second one (reload) doesn't count again
-    r = call("/api/boot"); assert r["now"]["map"] >= r["now"]["bridge"] and len(r["history"]) == 1 and r["history"][0]["map"] == r["now"]["map"], r
+    r = call("/api/boot"); assert r["now"]["map"] >= r["now"]["drawn"] >= r["now"]["page"] >= r["now"]["bridge"], r
+    h = r["history"]; assert len(h) == 1 and h[0]["map"] == r["now"]["map"] and h[0]["preload"] == "preload" and h[0]["preload_mb"] == 212, r
 finally:
     b.terminate(); b.wait(5)
-print("4) bridge and map marks; one history entry per start")
+print("4) bridge, page, first-picture and map marks; one history entry per start, with what the read-ahead did")
 print("boot: all tests passed")

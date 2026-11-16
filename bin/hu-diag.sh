@@ -40,6 +40,9 @@ report() {
   sec "boot settings"; cat /boot/firmware/cmdline.txt; sed -n '/>>> headunit/,/<<< headunit/p' /boot/firmware/config.txt
   sec "head-unit settings"; grep -vE '^\s*#|^\s*$' /etc/headunit/headunit.conf
   sec "start-up timeline (seconds since Linux started)"; cat "/run/user/$UID_/headunit-boot.json" 2>&1; echo
+  echo "read-ahead this start: $(cat /run/headunit-preload.json 2>&1)"
+  python3 -c "import json; d=json.load(open('/var/lib/headunit/preload.json')); print('read-ahead list:', len(d['files']), 'files,', d['bytes']>>20, 'MB, starts counted', d.get('boots'), 'version', d.get('version')); [print('  ', f[1]>>20, 'MB file,', sum(r[1] for r in f[3])>>20, 'MB listed', f[0]) for f in sorted(d['files'], key=lambda f: -sum(r[1] for r in f[3]))[:25]]" 2>&1
+  echo "last starts:"; python3 -c "import json; [print('  ', h) for h in json.load(open('$H/.config/headunit/boot-times.json'))[-10:]]" 2>&1
   systemd-analyze 2>&1; systemd-analyze blame 2>/dev/null | head -25
   systemd-analyze critical-chain graphical.target 2>/dev/null | head -30
   sec "desktop autostart"; echo "-- $H/.config/labwc/autostart"; cat "$H/.config/labwc/autostart" 2>&1; echo "-- /etc/xdg/labwc/autostart"; cat /etc/xdg/labwc/autostart 2>&1

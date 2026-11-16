@@ -259,25 +259,34 @@ async def diag_watch():
 # ---------------------------------------------------------------- start-up timeline (bin/hu_boot.py)
 import hu_boot
 BOOT_LOG = USER_DIR / "boot-times.json"
+PRELOAD_STATUS = Path(C("PRELOAD_STATUS", "/run/headunit-preload.json"))
+async def map_up(limit):
+    """Wait until the map is on screen this start (or `limit` seconds): background jobs that read a lot
+    from the SD card or keep a CPU core busy start after it, so they don't slow the start down."""
+    end = time.time() + limit
+    while time.time() < end and "map" not in hu_boot.marks():
+        await asyncio.sleep(1)
 async def boot_api(request):
     """GET: this start's timeline and the last ones. POST {mark: "map"}: the map is on screen (the nav
     page, once its first picture is drawn) - this start is complete and goes into the history."""
     loop = asyncio.get_running_loop()
     if request.method == "POST":
         name = (await request.json()).get("mark")
-        if name not in ("map",): raise web.HTTPBadRequest(text="unknown mark")
-        first = name not in hu_boot.marks()
-        hu_boot.mark(name)
-        if first:
+        if name not in ("page", "drawn", "map"): raise web.HTTPBadRequest(text="unknown mark")
+        first = name not in hu_boot.marks()                 # page: the map screen's code runs; drawn: first picture;
+        hu_boot.mark(name)                                  # map: everything loaded
+        if first and name == "map":
             s = await loop.run_in_executor(None, hu_boot.summary)
-            hist = [h for h in read_json(BOOT_LOG, []) if h.get("boot") != hu_boot.boot_id()][-9:]
+            pre = read_json(PRELOAD_STATUS, {})             # what the read-ahead did this start (bin/hu-preload.py)
+            if pre.get("mode"): s["preload"] = pre["mode"]; s["preload_mb"] = pre.get("mb"); s["preload_s"] = pre.get("s")
+            hist = [h for h in read_json(BOOT_LOG, []) if h.get("boot") != hu_boot.boot_id()][-19:]
             hist.append({"boot": hu_boot.boot_id(), "t": int(time.time()), "version": VERSION, **s})
             try: write_json(BOOT_LOG, hist)
             except OSError: pass
             usage("boot", **{k: v for k, v in s.items()})
         return web.json_response({"ok": True})
     now = await loop.run_in_executor(None, hu_boot.summary)
-    return web.json_response({"now": now, "history": read_json(BOOT_LOG, [])})
+    return web.json_response({"now": now, "history": read_json(BOOT_LOG, []), "preload": read_json(PRELOAD_STATUS, {})})
 
 # ---------------------------------------------------------------- routing: fast first route
 ROUTING_STATUS = ROUTING_TAR.parent / "index-status.json"
@@ -317,7 +326,9 @@ def routing_prepare():
 
 async def routing_watch():
     loop = asyncio.get_running_loop()
-    await asyncio.sleep(float(C("ROUTING_WARM_DELAY", "20")))   # let the screens start first
+    d = C("ROUTING_WARM_DELAY", "")                 # the screens first: the SD card and CPU are theirs until the map is up
+    if d: await asyncio.sleep(float(d))
+    else: await map_up(120); await asyncio.sleep(5)
     while True:
         await loop.run_in_executor(None, routing_prepare)
         await asyncio.sleep(60)
@@ -842,6 +853,7 @@ async def contacts_watch():
     if C("CONTACTS", "1") != "1" or not shutil.which(C("BUSCTL", "busctl")):
         return
     loop = asyncio.get_running_loop()
+    await map_up(float(C("CONTACTS_START_WAIT", "45")))        # not while Hudiy and the map are starting
     while True:
         try:
             await loop.run_in_executor(None, contacts.tick)
@@ -1197,7 +1209,9 @@ async def on_start(app):
     app["diag"] = asyncio.create_task(diag_watch())
     try: hu_boot.mark("bridge")                     # start-up timeline (Settings > Developer)
     except Exception: pass
-    ZIPS.get()                                       # ZIP centres for older search data, in the background
+    async def later():                               # ZIP centres for older search data: after the map is up
+        await map_up(120); ZIPS.get()
+    app["zips"] = asyncio.create_task(later())
     usage("bridge_start", vehicle=C("VEHICLE_ID", ""))
     asyncio.get_running_loop().run_in_executor(None, hudiy_hotspot_guard)
     if C("PHONE_LINK", "1") == "1":
