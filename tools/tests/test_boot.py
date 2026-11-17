@@ -70,7 +70,8 @@ print("3) systemd's kernel / boot RAM disk / system times read")
 # 4) through the bridge: its own mark, the map's, a history of starts
 s = socket.socket(); s.bind(("127.0.0.1", 0)); port = s.getsockname()[1]; s.close()
 (T / "pre.json").write_text(json.dumps({"mode": "preload", "mb": 212, "s": 6.4}))
-(T / "hu.conf").write_text(f"BRIDGE_PORT={port}\nPHONE_LINK=0\nCONTACTS=0\nROUTING_WARM_DELAY=9999\nDIAG_AUTO=0\nPRELOAD_STATUS={T}/pre.json\n")
+(T / "upd.json").write_text(json.dumps({"version": "9.9.9", "from": "9.9.8", "ok": True, "s": 14.2}))
+(T / "hu.conf").write_text(f"BRIDGE_PORT={port}\nPHONE_LINK=0\nCONTACTS=0\nROUTING_WARM_DELAY=9999\nDIAG_AUTO=0\nPRELOAD_STATUS={T}/pre.json\nUPDATE_APPLIED={T}/upd.json\n")
 (T / "user").mkdir(); (T / "usage").mkdir(); (T / "data").mkdir()
 benv = {**os.environ, "HU_CONF": str(T / "hu.conf"), "USER_DIR": str(T / "user"), "DATA_DIR": str(T / "data"), "APP_DIR": str(ROOT / "apps"),
         "USAGE_LOG_DIR": str(T / "usage"), "MEDIA_ROOT": str(T / "media"), "POWER_STATE_FILE": str(T / "st.json"), "HOME": str(T), "XDG_RUNTIME_DIR": str(run)}
@@ -88,7 +89,8 @@ try:
     call("/api/boot", {"mark": "map"}); call("/api/boot", {"mark": "map"})        # a second one (reload) doesn't count again
     r = call("/api/boot"); assert r["now"]["map"] >= r["now"]["drawn"] >= r["now"]["page"] >= r["now"]["bridge"], r
     h = r["history"]; assert len(h) == 1 and h[0]["map"] == r["now"]["map"] and h[0]["preload"] == "preload" and h[0]["preload_mb"] == 212, r
+    assert h[0]["update"] == "9.9.9" and h[0]["update_s"] == 14.2 and r["update"]["version"] == "9.9.9", "a start that installed an update first is marked"
 finally:
     b.terminate(); b.wait(5)
-print("4) bridge, page, first-picture and map marks; one history entry per start, with what the read-ahead did")
+print("4) bridge, page, first-picture and map marks; one history entry per start, with what the read-ahead did and any update installed first")
 print("boot: all tests passed")

@@ -15,7 +15,7 @@ def release(v, setup_ok=True):
 for v in ("1.2.6", "1.2.7", "1.2.8"): release(v)
 (REL / ".1.2.9.incoming").mkdir()
 LINK.symlink_to(REL / "1.2.8")
-env = {**os.environ, "HU_LINK": str(LINK), "HU_RELEASES": str(REL), "HU_UPDATE_STATE": str(ST), "HU_UPDATE_LIB": str(T / "lib"),
+env = {**os.environ, "HU_LINK": str(LINK), "HU_RELEASES": str(REL), "HU_UPDATE_STATE": str(ST), "HU_UPDATE_APPLIED": str(T / "applied.json"), "HU_UPDATE_LIB": str(T / "lib"),
        "HU_UPDATE_LOG": str(T / "update.log"), "HU_NO_REBOOT": "1", "HU_CONF": str(T / "none.conf")}
 def up(*a): return subprocess.run([sys.executable, str(ROOT / "bin/hu-update.py"), *a], env=env, capture_output=True, text=True)
 rj = lambda p: json.loads(Path(p).read_text())

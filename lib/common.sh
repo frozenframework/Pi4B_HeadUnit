@@ -42,3 +42,23 @@ enable_user_unit() {  # unit-file-path
   ln -sf "$target" "$d/default.target.wants/$unit"
   chown -h "$(hu_user):$(hu_user)" "$d/default.target.wants/$unit"
 }
+
+# systemd re-reads every unit file after each enable / disable / mask / daemon-reload - about 1.2 s on
+# a Pi 4, and setup makes some 40 of them. While setup.sh runs (HU_DEFER_RELOAD set) they're made with
+# --no-reload and systemd re-reads once at the end - or just before something is started, so a unit
+# file that was just installed is the one that starts.
+systemctl() {
+  if [ -n "${HU_DEFER_RELOAD:-}" ]; then
+    case "${1:-}" in
+      daemon-reload) : > "$HU_DEFER_RELOAD"; return 0;;
+      enable|disable|reenable|mask|unmask|preset)
+        if [ "$1" = enable ] && [[ " $* " == *" --now "* ]] && [ -e "$HU_DEFER_RELOAD" ]; then
+          rm -f "$HU_DEFER_RELOAD"; command systemctl daemon-reload || true
+        fi
+        : > "$HU_DEFER_RELOAD"; command systemctl --no-reload "$@"; return;;
+      start|restart|try-restart|reload-or-restart)
+        if [ -e "$HU_DEFER_RELOAD" ]; then rm -f "$HU_DEFER_RELOAD"; command systemctl daemon-reload || true; fi;;
+    esac
+  fi
+  command systemctl "$@"
+}

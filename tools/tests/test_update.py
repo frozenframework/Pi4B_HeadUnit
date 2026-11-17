@@ -66,7 +66,7 @@ class H(BaseHTTPRequestHandler):
         self.send_response(200); self.end_headers(); self.wfile.write(b)
     def log_message(self, *a): pass
 srv = HTTPServer(("127.0.0.1", 0), H); threading.Thread(target=srv.serve_forever, daemon=True).start()
-ENV = dict(HU_LINK=str(LINK), HU_RELEASES=str(REL), HU_UPDATE_STATE=str(STATE), HU_UPDATE_LIB=str(LIB),
+ENV = dict(HU_LINK=str(LINK), HU_RELEASES=str(REL), HU_UPDATE_STATE=str(STATE), HU_UPDATE_APPLIED=str(STATE / "applied.json"), HU_UPDATE_LIB=str(LIB),
            HU_CONF=str(T / "headunit.conf"), HU_UPDATE_LOG=str(T / "update.log"), HU_PREFETCH="0",
            HU_HEALTH_URL=f"http://127.0.0.1:{srv.server_port}/", HU_VERIFY_SECONDS="4", HU_NO_REBOOT="1",
            SETUP_MARK=str(T / "setup.mark"))
@@ -97,6 +97,7 @@ print("1) only the release signed with your key was downloaded; 5 bad tags refus
 upd("apply")
 assert cur() == "1.2.0" and state()["trial"] == "1.2.0" and "1.2.0 1" in marks(), (state(), marks())
 assert "# build 1.1.0" in (LIB / "hu-update.py").read_text(), "not promoted before it proves itself"
+ap = json.loads((STATE / "applied.json").read_text()); assert ap["version"] == "1.2.0" and ap["ok"] and ap["s"] >= 0, ap
 HEALTH["version"] = "1.2.0"; upd("verify")
 assert state() == {} and status()["state"] == "updated", status()
 assert "# build 1.2.0" in (LIB / "hu-update.py").read_text(), "promoted after a good start"

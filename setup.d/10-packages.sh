@@ -16,23 +16,33 @@ PKGS=(
   bluez-obexd python3-jeepney    # contacts' addresses from the phone over Bluetooth (bin/hu_contacts.py)
 )
 [ "$(conf_get RADIO 0)" = 1 ] && PKGS+=(rtl-sdr)
-say "installing: ${PKGS[*]}"
-# Offline is fine when everything is already installed (or was pre-downloaded by the updater).
-apt-get update -qq || warn "no internet: using the package lists already on the Pi"
-apt-get install -y -qq --no-install-recommends "${PKGS[@]}"
+# Already all installed (every software update after the first): no package-list download, no apt run -
+# that's 15-20 s of a software update's start saved (updates install before the screen comes up).
+have=$(dpkg-query -W -f='${db:Status-Abbrev}\n' "${PKGS[@]}" 2>/dev/null | grep -c '^ii' || true)
+if [ "$have" -eq "${#PKGS[@]}" ] && [ "${HU_FORCE_APT:-0}" != 1 ]; then
+  say "packages: all ${#PKGS[@]} installed"
+else
+  say "installing: ${PKGS[*]}"
+  # Offline is fine when everything is already installed (or was pre-downloaded by the updater).
+  apt-get update -qq || warn "no internet: using the package lists already on the Pi"
+  apt-get install -y -qq --no-install-recommends "${PKGS[@]}"
+fi
 
 # Valhalla (routing) isn't packaged for Debian 13, but an official arm64 wheel exists on PyPI.
 # The venv lives outside the version folders so software updates don't have to rebuild it.
-VENV=/opt/headunit-venv
+VENV=${HU_VENV:-/opt/headunit-venv}
 if [ ! -x $VENV/bin/python ]; then
   python3 -m venv --system-site-packages $VENV
 fi
 [ -d "$HU_ROOT/venv" ] && [ ! -L "$HU_ROOT/venv" ] || ln -sfn $VENV "$HU_ROOT/venv"
+fresh=0
 for spec in $(sed -n 's/^pip://p' "$HU_ROOT/config/packages.txt"); do
   name=${spec%%==*} want=${spec#*==}
   have=$($VENV/bin/python -c "import importlib.metadata as m; print(m.version('$name'))" 2>/dev/null || true)
   [ "$have" = "$want" ] && continue
+  fresh=1
   $VENV/bin/pip install -q --no-index --find-links /var/cache/headunit/wheels "$spec" 2>/dev/null \
     || { $VENV/bin/pip install -q --upgrade pip || true; $VENV/bin/pip install -q "$spec"; }
 done
-$VENV/bin/python -c "import valhalla; print('valhalla ok')"
+# (loading the router itself takes seconds on a Pi: only after it was just installed)
+if [ "$fresh" = 1 ]; then $VENV/bin/python -c "import valhalla; print('valhalla ok')"; else echo "valhalla ok"; fi

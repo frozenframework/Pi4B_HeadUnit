@@ -260,6 +260,7 @@ async def diag_watch():
 import hu_boot
 BOOT_LOG = USER_DIR / "boot-times.json"
 PRELOAD_STATUS = Path(C("PRELOAD_STATUS", "/run/headunit-preload.json"))
+UPDATE_APPLIED = Path(C("UPDATE_APPLIED", "/run/headunit-update-applied.json"))   # (bin/hu-update.py apply)
 async def map_up(limit):
     """Wait until the map is on screen this start (or `limit` seconds): background jobs that read a lot
     from the SD card or keep a CPU core busy start after it, so they don't slow the start down."""
@@ -279,6 +280,8 @@ async def boot_api(request):
             s = await loop.run_in_executor(None, hu_boot.summary)
             pre = read_json(PRELOAD_STATUS, {})             # what the read-ahead did this start (bin/hu-preload.py)
             if pre.get("mode"): s["preload"] = pre["mode"]; s["preload_mb"] = pre.get("mb"); s["preload_s"] = pre.get("s")
+            upd = read_json(UPDATE_APPLIED, {})             # a software update was installed first, before the screen
+            if upd.get("version"): s["update"] = upd["version"]; s["update_s"] = upd.get("s")
             hist = [h for h in read_json(BOOT_LOG, []) if h.get("boot") != hu_boot.boot_id()][-19:]
             hist.append({"boot": hu_boot.boot_id(), "t": int(time.time()), "version": VERSION, **s})
             try: write_json(BOOT_LOG, hist)
@@ -286,7 +289,8 @@ async def boot_api(request):
             usage("boot", **{k: v for k, v in s.items()})
         return web.json_response({"ok": True})
     now = await loop.run_in_executor(None, hu_boot.summary)
-    return web.json_response({"now": now, "history": read_json(BOOT_LOG, []), "preload": read_json(PRELOAD_STATUS, {})})
+    return web.json_response({"now": now, "history": read_json(BOOT_LOG, []), "preload": read_json(PRELOAD_STATUS, {}),
+                              "update": read_json(UPDATE_APPLIED, {})})
 
 # ---------------------------------------------------------------- routing: fast first route
 ROUTING_STATUS = ROUTING_TAR.parent / "index-status.json"

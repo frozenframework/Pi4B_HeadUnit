@@ -84,6 +84,7 @@ PY
 if [ "${1:-}" != "--bundle" ]; then                       # ---- the boot report on the SD card
   OUT=$B/diag.txt
   sleep "${1:-90}"     # let the desktop and Hudiy start (or fail) first
+  renice -n 15 $$ >/dev/null 2>&1; ionice -c 3 -p $$ >/dev/null 2>&1   # and never slow the screens down
   report 2>&1 | redact > "$OUT.tmp"; mv "$OUT.tmp" "$OUT"; sync
   exit 0
 fi

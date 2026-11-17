@@ -38,6 +38,7 @@ CONF = Path(E("HU_CONF", "/etc/headunit/headunit.conf"))
 HEALTH_URL = E("HU_HEALTH_URL", "http://127.0.0.1:8765/api/status")
 DEFAULT_REPO = "https://github.com/frozenframework/Pi4B_HeadUnit.git"
 LOG = Path(E("HU_UPDATE_LOG", "/var/log/headunit-update.log"))
+APPLIED = Path(E("HU_UPDATE_APPLIED", "/run/headunit-update-applied.json"))   # this start installed an update first
 STATE = STATE_DIR / "state.json"      # {"pending": v} | {"trial": v, "previous": v, "boots": n}
 STATUS = STATE_DIR / "status.json"    # what Settings > Updates shows
 BAD = STATE_DIR / "bad.json"          # {version: reason} never retried
@@ -278,8 +279,12 @@ def apply():
     prev = current()
     prev_dir = LINK.resolve()
     status("installing", f"Installing version {v}…")
+    t0 = time.monotonic()
     switch(rel)
-    if not run_setup():
+    ok = run_setup()
+    try: wj(APPLIED, {"version": v, "from": prev, "ok": ok, "s": round(time.monotonic() - t0, 1)})   # (Settings > Developer:
+    except OSError: pass                                                                               #  why this start was slower)
+    if not ok:
         n = st.get("tries", 0) + 1
         switch(prev_dir); run_setup()
         if n >= 2:

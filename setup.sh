@@ -83,7 +83,9 @@ if [ "$YES" -ne 1 ] && [ -t 0 ]; then
   read -r -p "Continue? [Y/n] " a; [[ "${a:-Y}" =~ ^[Yy] ]] || exit 0
 fi
 
-# 3) Run the stages in order.
+# 3) Run the stages in order. systemd re-reads its unit files once, at the end (lib/common.sh: systemctl).
+export HU_DEFER_RELOAD; HU_DEFER_RELOAD=$(mktemp -u "${TMPDIR:-/tmp}/headunit-reload.XXXXXX")
+trap 'if [ -e "$HU_DEFER_RELOAD" ]; then rm -f "$HU_DEFER_RELOAD"; command systemctl daemon-reload 2>/dev/null || true; fi' EXIT
 for stage in "$HU_ROOT"/setup.d/[0-9]*.sh; do
   name=$(basename "$stage" .sh)
   if [ -n "$ONLY" ] && [[ ",$ONLY," != *",$name,"* ]]; then continue; fi

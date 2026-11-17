@@ -210,14 +210,16 @@ async function bootInfo() {
   const h = r.history || [], last = r.now?.map ? r.now : h.at(-1);
   const n = (x) => x == null ? '–' : x.toLocaleString(langTag(), { maximumFractionDigits: 1 });
   if (!last?.map) { $('bootInfo').textContent = t('set.boot_none'); return; }
-  // earlier starts, marked: * = read ahead from the SD card, m = measuring start (nothing read ahead)
-  const tag = (x) => n(x.map) + (x.preload === 'preload' ? '*' : x.preload === 'measuring' || x.preload === 'learning' ? ' m' : '');
+  // earlier starts, marked: * = read ahead from the SD card, m = measuring start (nothing read ahead),
+  // u = a software update was installed first (before the screen came up)
+  const tag = (x) => n(x.map) + (x.update ? ' u' : x.preload === 'preload' ? '*' : x.preload === 'measuring' || x.preload === 'learning' ? ' m' : '');
   const prev = h.filter(x => x.map).slice(-8, -1).map(tag).join(', ');
   const pre = last.preload === 'preload' ? t('set.boot_preload', { mb: n(last.preload_mb), s: n(last.preload_s) })
     : last.preload === 'measuring' ? t('set.boot_measuring') : last.preload === 'learning' ? t('set.boot_learning') : '';
   $('bootInfo').innerHTML = `${esc(t('set.boot_line', { s: n(last.map) }))}<br><span class="muted">${esc(t('set.boot_parts', {
     sys: n(last.system), desk: n(last.desktop), bridge: n(last.bridge), hudiy: n(last.hudiy), map: n(last.map) }))}` +
     (last.page != null ? `<br>${esc(t('set.boot_page', { page: n(last.page), drawn: n(last.drawn) }))}` : '') +
+    (last.update ? `<br>${esc(t('set.boot_update', { v: last.update, s: n(last.update_s) }))}` : '') +
     (pre ? `<br>${esc(pre)}` : '') + (prev ? `<br>${esc(t('set.boot_before', { list: prev }))}` : '') + '</span>';
 }
 // diagnostics bundles (bin/hu-diag.sh --bundle): collect one, show what's saved and how to get it off
