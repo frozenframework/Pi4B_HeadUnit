@@ -258,6 +258,13 @@ closed, aux fan off, and let the part cool in the chamber. Put the inserts in at
 `cad/headunit_mount.py` are estimates from comparable panels. Change them and re-run
 `python headunit_mount.py`, or edit the STEP files in Inventor.
 
+**Dimensioned drawings** (for checking a print, reverse engineering or changes) are in
+`cad/drawings/<profile>/`: `<profile>_drawings.pdf` (A3 sheets: stack-up with the parameter table, then
+every part in third-angle views with sections, dimensions and hole / slot tables) and `dxf/<part>.dxf`
+(every view at 1:1 in mm with real, editable dimensions, to import into Inventor / Fusion and sketch over).
+They're made from the same model as the STEP files: after changing `headunit_mount.py`, re-run it and
+then `python cad/make_drawings.py` (needs `pip install cadquery ezdxf matplotlib`).
+
 ---
 
 ## 5. Test drives and tuning
