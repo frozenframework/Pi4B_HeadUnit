@@ -248,7 +248,7 @@ All four parts print **without supports** on the P1S in ASA:
 |---|---|---|
 | `1_bezel` | Face **down** on the textured PEI plate | The visible finish. Six M3 heat-set inserts in the back |
 | `2_spacer_ring` | Flat | Room for the screen's driver board; clamps the glass |
-| `3_back_and_sled` | Plate down, tube straight up | Add a 5 mm brim (tall ASA part). M5 slots for your dash bracket |
+| `3_back_and_sled` | Plate down, tube straight up | Add a 5 mm brim (tall ASA part). M5 slots for your dash bracket. Six M3 screws from the back into the bezel's inserts, heads in counterbores: M3 x 16 single-DIN, M3 x 14 double-DIN (printed when you run the script) |
 | `4_pi_tray` | Flat | Pi 4 standoffs (M2.5), strap slots for an armor case, M3 grid for the relay/converter modules |
 
 Print settings: Bambu ASA profile, 0.2 mm layers, 6 walls (2.4 mm), 25% gyroid infill, enclosure

@@ -6,7 +6,8 @@ Units: mm. Built for ASA on a Bambu Lab P1S (enclosed), no supports needed.
   2_spacer_ring    room behind the screen for its driver board; clamps the glass into the bezel
   3_back_and_sled  plate + single-DIN tube; prints plate-down, tube straight up
   4_pi_tray        flat tray for the Pi 4 + power/relay modules; slides into the tube
-  Stack: bezel <- screen <- spacer ring <- back plate, six M3 screws from the back into bezel inserts.
+  Stack: bezel <- screen <- spacer ring <- back plate, six M3 screws from the back into bezel inserts
+  (screw length is worked out below and printed when you run this).
 
 !! The screen numbers below are estimates from comparable 7.84"/7.9" 1280x400 panels. Measure your
 !! screen with calipers when it arrives and edit SCREEN_* (or edit the STEP in Inventor).
@@ -49,11 +50,17 @@ WALL = 2.4         # 6 perimeters of a 0.4 nozzle
 # ---------------- single DIN (ISO 7736) ----------------
 DIN_W, DIN_H = P["DIN_W"], P["DIN_H"]  # tube outer: single-DIN opening 182 x 53, double-DIN 182 x 103
 SLED_L = 110.0                         # tube depth behind the screen
-PLATE_T = 3.0
+PLATE_T = 5.0      # back plate: thick enough that the screw heads sit in a counterbore and still clamp it
+SCREW_FLOOR = 1.5  # least plastic left under a screw head
 
 GLASS_POCKET_W, GLASS_POCKET_H = SCREEN_W + 2 * CLR, SCREEN_H + 2 * CLR
 OUT_W, OUT_H = GLASS_POCKET_W + 2 * BORDER, GLASS_POCKET_H + 2 * BORDER
 BEZEL_D = LIP + SCREEN_T + 0.3
+assert PLATE_T - M3_HEAD_H >= SCREW_FLOOR, "screw counterbore would go through the back plate (nothing left to clamp)"
+# M3 screw length: under the head (plate floor) + spacer ring, then 4 - 5.5 mm into the bezel's insert
+GRIP = (PLATE_T - M3_HEAD_H) + P["PCB_DEPTH"]
+SCREW_L = next(L for L in (8, 10, 12, 14, 16, 18, 20, 25) if L >= GRIP + 4)
+assert SCREW_L <= GRIP + INSERT_L - 0.5, "no standard M3 length fits the insert depth"
 assert SCREEN_W - 2 * LIP_OVER > VIEW_W and SCREEN_H - 2 * LIP_OVER > VIEW_H, "lip would cover the picture"
 
 # six screw positions (corners + middle of the long sides), on the frame centerline
@@ -143,6 +150,8 @@ for gx in range(5):
 for x, zc in TRAY_HOLES:
     tray = tray.cut(cq.Workplane("XY").center(x, zc - SLED_L / 2 - 2).circle(M3_CLR / 2).extrude(TRAY_T))
 
+TRAY_LOC = cq.Location(cq.Vector(0, -DIN_H / 2 + WALL + 0.2, tz + SLED_L / 2 + 2), cq.Vector(0, 1, 1), 180)
+
 if __name__ == "__main__":
     import os
     od = os.path.join("print", PROFILE); os.makedirs(od, exist_ok=True)
@@ -152,9 +161,11 @@ if __name__ == "__main__":
         cq.exporters.export(p, f"{od}/{name}.stl", tolerance=0.02, angularTolerance=0.1)
         bb = p.val().BoundingBox()
         print(f"[{PROFILE}] {name}: {bb.xlen:.1f} x {bb.ylen:.1f} x {bb.zlen:.1f} mm  volume {p.val().Volume()/1000:.0f} cm3")
+    print(f"[{PROFILE}] screws: 6x M3 x {SCREW_L} (socket or button head), from the back into the bezel's inserts")
     asm = cq.Assembly()
     asm.add(bezel, name="bezel", color=cq.Color(0.1, 0.1, 0.1))
     asm.add(ring, name="spacer_ring", color=cq.Color(0.15, 0.15, 0.15))
     asm.add(back, name="back_and_sled", color=cq.Color(0.2, 0.2, 0.25))
-    asm.add(tray, name="pi_tray", loc=cq.Location((0, -DIN_H / 2 + WALL + 0.2, tz + SLED_L / 2 + 2), (1, 0, 0), -90), color=cq.Color(0.0, 0.6, 0.7))
+    # tray standoffs up, its +Y end toward the open back of the sleeve (Pi USB / Ethernet end): its 4 holes over the floor's
+    asm.add(tray, name="pi_tray", loc=TRAY_LOC, color=cq.Color(0.0, 0.6, 0.7))
     asm.save(f"{od}/headunit_mount_assembly.step")

@@ -146,12 +146,18 @@ def holes(solid):
         d, c = np.array(d), np.array(c)
         typ = kind
         if kind == "hole":
-            ends = [c + (a0 - 0.05) * d, c + (a1 + 0.05) * d]
+            perp = unit(np.cross(d, [1, 0, 0] if abs(d[0]) < 0.9 else [0, 1, 0]))
+            off = perp * (dia / 2) * 0.85                               # just inside the hole's wall: a counterbore's floor is material
+            ends = [c + (a0 - 0.05) * d + off, c + (a1 + 0.05) * d + off]
             inside = [solid.isInside(cq.Vector(*e), 1e-4) for e in ends]
             typ = "THRU" if not any(inside) else f"BLIND {a1 - a0:.1f} deep"
         else:
             typ = f"BOSS {a1 - a0:.1f} tall"
         out.append(dict(dia=dia, axis="XYZ"[int(np.argmax(np.abs(d)))], c=c, a0=a0, a1=a1, type=typ))
+    for h in out:                                                      # blind and on the axis of a smaller hole: a counterbore
+        if h["type"].startswith("BLIND") and any(o is not h and o["dia"] < h["dia"] and o["axis"] == h["axis"] and np.allclose(o["c"], h["c"], atol=0.02)
+                                                 for o in out):
+            h["type"] = "C'BORE " + h["type"][6:]
     return out
 
 def fmt(x):
@@ -555,7 +561,7 @@ def build(profile):
     zr, zb = BD, BD + rd
     tz = zb + PT
     # tray in its place: +Y of the tray toward the open back of the sleeve, standoffs up
-    tray_in = tray.moved(cq.Location(cq.Vector(0, -DH / 2 + WALL + 0.2, tz + SL / 2 + 2), cq.Vector(0, 1, 1), 180))
+    tray_in = tray.moved(g("TRAY_LOC"))
     parts = [bezel, ring.translate(cq.Vector(0, 0, zr)), back.translate(cq.Vector(0, 0, zb)), tray_in]
     asm = cq.Compound.makeCompound(parts)
     glass = [[(0, -SH / 2, LIP), (0, SH / 2, LIP), (0, SH / 2, LIP + g("SCREEN_T")), (0, -SH / 2, LIP + g("SCREEN_T"))]]
@@ -579,7 +585,7 @@ def build(profile):
               ["3", "Back plate + DIN sleeve", "1", "plate down, sleeve straight up", "3_back_and_sled.step / .stl", "4-5"],
               ["4", "Pi tray", "1", "flat, standoffs up", "4_pi_tray.step / .stl", "6"],
               ["5", "M3 heat-set insert, M3 x 5.7 x 4.6 OD", "6", "pressed into the bezel's Ø4.0 holes", "-", "2"],
-              ["6", "M3 screw, from the back into the inserts", "6", "length: see note 4", "-", "-"],
+              ["6", f"M3 x {g('SCREW_L')} screw (socket / button head)", "6", "from the back into the inserts", "-", "2-4"],
               ["7", "M2.5 screw / insert, Pi on the standoffs", "4", "-", "-", "6"],
               ["8", "M3 screw + nut, tray to sleeve floor", "4", "-", "-", "5-6"]], [11, 62, 10, 52, 46, 12])
     prm = [("SCREEN_W x SCREEN_H x SCREEN_T", f"{fmt(SW)} x {fmt(SH)} x {fmt(g('SCREEN_T'))}", "screen module outline (estimate - verify)"),
@@ -595,8 +601,8 @@ def build(profile):
            ("derived: bezel depth", fmt(BD), "LIP + SCREEN_T + 0.3"),
            ("derived: screw X / Y", f"±{fmt(sx)} (and 0) / ±{fmt(sy)}", "6 screws on the frame centerline")]
     sh.table("PARAMETERS (headunit_mount.py)", ["NAME", "VALUE", "MEANING"], [list(r) for r in prm], [52, 34, 72])
-    sh.notes = common + ["4. M3 screw length: bezel insert 6.0 + ring {r} + plate {p} - see the back-plate note on sheet 4 about the",
-                         "    counterbore ({h} deep in a {p} plate).".format(r=fmt(rd), p=fmt(PT), h=fmt(g("M3_HEAD_H")))]
+    sh.notes = common + [f"4. Screws M3 x {g('SCREW_L')}: under the head {fmt(PT - g('M3_HEAD_H'))} (plate below the counterbore) + ring {fmt(rd)},",
+                         f"    then {fmt(g('SCREW_L') - g('GRIP'))} into the bezel's insert (insert hole {fmt(g('INSERT_L'))} deep)."]
     sheets.append(sh)
 
     # ------------------------------------------------------------------ 1: bezel
@@ -675,7 +681,7 @@ def build(profile):
     sh.vdim("front", (-IW / 2, -IH / 2, 0), (-IW / 2, IH / 2, 0), "r", 0, "{}  opening")
     sh.hdim("front", (-sx, sy, 0), (sx, sy, 0), "t", 0)
     sh.vdim("front", (W / 2 - 1, -sy, 0), (W / 2 - 1, sy, 0), "l", 1)
-    sh.note("front", (sx, sy, 0), f"6x Ø{fmt(g('M3_HEAD'))} THRU\n(see note 4)", -14, 13)
+    sh.note("front", (sx, sy, 0), f"6x Ø{fmt(g('M3_CLR'))} THRU\nC'BORE Ø{fmt(g('M3_HEAD'))} ↧{fmt(g('M3_HEAD_H'))} from the back", -14, 13)
     sh.vdim("top", (0, H / 2, 0), (0, H / 2, PT), "l", 0)
     sh.vdim("top", (0, H / 2, PT), (0, H / 2, PT + SL), "l", 1, "{}  sleeve")
     sh.vdim("top", (DW / 2, DH / 2, PT), (DW / 2, DH / 2, PT + 30), "r", 0)
@@ -689,8 +695,8 @@ def build(profile):
     sh.vdim("right", (-W / 2, -H / 2, 0), (-W / 2, H / 2, 0), "l", 0)
     sh.note("right", (-DW / 2, 2.75, PT + 80 + 12.25), "4x slots 5.5 x 30 (M5)\nboth sides, for a DIN cage bracket", 18, 22)
     sh.notes = common + [
-        f"4. AS MODELED the screw counterbore (Ø{fmt(g('M3_HEAD'))} x {fmt(g('M3_HEAD_H'))} deep) is deeper than the {fmt(PT)} plate, so it is a",
-        f"    Ø{fmt(g('M3_HEAD'))} through-hole and the screw heads bear on the spacer ring, not on this plate. Fix: PLATE_T >= 5 or M3_HEAD_H <= {fmt(PT - 1.2)}.",
+        f"4. Screw holes: Ø{fmt(g('M3_CLR'))} through, counterbored Ø{fmt(g('M3_HEAD'))} x {fmt(g('M3_HEAD_H'))} from the back (sleeve side), leaving",
+        f"    {fmt(PT - g('M3_HEAD_H'))} under the head. M3 x {g('SCREW_L')} screws; heads sit below the plate's back face.",
         "5. Gussets 10 x 12 x 2.4: top and bottom at X = -55, 0, +55; one each side when the plate is >= 10 wider than the sleeve."]
     sheets.append(sh)
 
