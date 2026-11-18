@@ -125,4 +125,32 @@ nav = (ROOT / "apps/nav/nav.js").read_text()
 assert "addFuelLayer(); addRouteLayers(); refreshRoute();" in nav, "the icons come back after a skin change"
 assert "map.on('click', 'hu-fuel'" in nav and "fuelColors(state.theme)" in nav
 print("6) each skin colours its own gas icons; they're redrawn with every skin change")
+# 7) maps/add-fuel.py: every station into existing search data (areas placed at their middle), run twice
+try:
+    import osmium  # noqa
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("af", ROOT / "maps/add-fuel.py"); af = importlib.util.module_from_spec(spec); spec.loader.exec_module(af)
+    osm = T / "area.osm"
+    osm.write_text("""<?xml version='1.0' encoding='UTF-8'?><osm version="0.6">
+<node id="1" lat="30.31" lon="-95.46" version="1"><tag k="amenity" v="fuel"/><tag k="brand" v="Shell"/><tag k="fuel:diesel" v="yes"/></node>
+<node id="10" lat="30.400" lon="-95.500" version="1"/><node id="11" lat="30.400" lon="-95.498" version="1"/>
+<node id="12" lat="30.402" lon="-95.498" version="1"/><node id="13" lat="30.402" lon="-95.500" version="1"/>
+<node id="20" lat="30.5" lon="-95.5" version="1"><tag k="amenity" v="cafe"/><tag k="name" v="Cafe"/></node>
+<way id="5" version="1"><nd ref="10"/><nd ref="11"/><nd ref="12"/><nd ref="13"/><nd ref="10"/><tag k="amenity" v="fuel"/><tag k="name" v="Big Stop"/><tag k="brand" v="Love's"/></way>
+</osm>""")
+    maps = T / "HM"; maps.mkdir(); new_db(maps / "search.sqlite", with_table=False)
+    con = sqlite3.connect(maps / "search.sqlite"); before = con.execute("SELECT count(*) FROM places").fetchone()[0]; con.close()
+    for _ in range(2):
+        rows = af.read_fuel([osm]); n_extra = af.add_to_db(maps / "search.sqlite", rows)
+    con = sqlite3.connect(maps / "search.sqlite")
+    fuel = sorted(con.execute("SELECT name, brand, diesel, round(lon, 4), round(lat, 4) FROM fuel").fetchall())
+    after = con.execute("SELECT count(*) FROM places").fetchone()[0]
+    found = con.execute("SELECT kind FROM places WHERE places MATCH 'shell'").fetchall()
+    con.close()
+    assert fuel == [("", "Shell", 1, -95.46, 30.31), ("Big Stop", "Love's", 0, -95.499, 30.401)], fuel
+    assert after == before + 1 and n_extra == 1, (before, after)          # the unnamed Shell once, even after two runs
+    assert ("fuel",) in found
+    print("7) add-fuel.py: every station (areas at their middle) into existing search data; running it again replaces them")
+except ImportError:
+    print("7) (osmium not installed here: add-fuel.py check skipped)")
 print("fuel: all tests passed")

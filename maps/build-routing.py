@@ -238,6 +238,18 @@ def build_search(pbfs, out, addresses, work=Path(".")):
     log(f"search index: {n:,} places and streets, {na:,} street addresses")
     return db_path
 
+def check_packages(routing, search):
+    """Stop at once (not after a multi-GB download) when a needed package is missing - usually because
+    the script was started outside the map-building environment."""
+    missing = []
+    if search and importlib.util.find_spec("osmium") is None: missing.append("osmium")
+    if routing and importlib.util.find_spec("valhalla") is None: missing.append("pyvalhalla==3.9.1")
+    if missing:
+        sys.exit("Missing Python packages: " + ", ".join(missing) + ". Run it inside the map-building environment:\n"
+                 "    source hu-maps/bin/activate          (Windows: hu-maps\\Scripts\\activate)\n"
+                 "    pip install " + " ".join(missing) + "\n"
+                 "then run this again (anything already downloaded is kept).")
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--region", default="texas-plus", choices=sorted(k for k in REGIONS if not k.startswith("_")))
@@ -250,6 +262,7 @@ def main():
     ap.add_argument("--all-texas-addresses", action="store_true", help="add Texas 911 house numbers for every county")
     ap.add_argument("--skip-routing", action="store_true"); ap.add_argument("--skip-search", action="store_true")
     a = ap.parse_args()
+    check_packages(routing=not a.skip_routing, search=not a.skip_search)
     reg = REGIONS[a.region]
     out = Path(a.out); work = Path(a.work); out.mkdir(parents=True, exist_ok=True); work.mkdir(parents=True, exist_ok=True)
     if a.pbf:
@@ -265,6 +278,8 @@ def main():
             files["routing"] = build_routing(pbfs, work, out).name
     elif (out / "valhalla_tiles.tar").exists():
         files["routing"] = "valhalla_tiles.tar"
+    if a.skip_search and (out / "search.sqlite").exists():
+        files["search"] = "search.sqlite"
     if not a.skip_search:
         files["search"] = build_search(pbfs, out, addresses=not a.no_addresses, work=work).name
         if (a.texas_county or a.all_texas_addresses) and not a.no_addresses:   # house numbers OpenStreetMap lacks

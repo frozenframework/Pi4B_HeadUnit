@@ -147,8 +147,9 @@ in the skin's own colours; a small **D** = known to sell diesel). Tap one for Go
 typing *gas* in Search) lists the ones along the route ahead, then the nearest; going to one while on a
 route offers *Continue to …* when you get there. The F-250 profile has `FUEL=diesel`, which lists
 stations known to sell diesel first. Search data built before this has only the *named* stations
-(they work right away); rebuild it with `maps/build-routing.py --skip-routing` to get every station
-with its brand and diesel.
+(they work right away). To get every station with its brand and diesel without rebuilding search,
+inside the map-building environment (`source hu-maps/bin/activate`, `pip install osmium`):
+`python3 maps/add-fuel.py HEADUNIT_MAPS`, then `python3 tools/push-maps.py HEADUNIT_MAPS --only search --host ...`.
 
 Send the resulting `HEADUNIT_MAPS` folder to the head unit over Wi-Fi (same network as the computer;
 on the head unit turn on *Settings → Developer → SSH login over Wi-Fi* first):
