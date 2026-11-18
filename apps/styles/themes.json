@@ -23,7 +23,14 @@
   },
   "font": "Rajdhani",
   "inspiredBy": "cyberpunk neon night city",
-  "hudiyColor": "#00E5FF"
+  "hudiyColor": "#00E5FF",
+  "fuel": {
+   "bg": "#120f22",
+   "ring": "#ff2fb3",
+   "fg": "#ff2fb3",
+   "badge": "#00f0ff",
+   "badgeText": "#07060d"
+  }
  },
  {
   "id": "sunset-junction",
@@ -49,7 +56,14 @@
   },
   "font": "Barlow Condensed",
   "inspiredBy": "sun-soaked open-world crash racer map",
-  "hudiyColor": "#FF6A1A"
+  "hudiyColor": "#FF6A1A",
+  "fuel": {
+   "bg": "#ffffff",
+   "ring": "#ff6a1a",
+   "fg": "#ff6a1a",
+   "badge": "#1aa6b7",
+   "badgeText": "#ffffff"
+  }
  },
  {
   "id": "street-heat",
@@ -75,7 +89,14 @@
   },
   "font": "Saira Condensed",
   "inspiredBy": "high-contrast underground street-racing map",
-  "hudiyColor": "#FF6B00"
+  "hudiyColor": "#FF6B00",
+  "fuel": {
+   "bg": "#171a1f",
+   "ring": "#ff6b00",
+   "fg": "#ff6b00",
+   "badge": "#00b3ff",
+   "badgeText": "#0d0f12"
+  }
  },
  {
   "id": "after-midnight",
@@ -101,6 +122,13 @@
   },
   "font": "Exo 2",
   "inspiredBy": "deep-blue night-time city racer map",
-  "hudiyColor": "#39FF88"
+  "hudiyColor": "#39FF88",
+  "fuel": {
+   "bg": "#0b1636",
+   "ring": "#ffd166",
+   "fg": "#ffd166",
+   "badge": "#39ff88",
+   "badgeText": "#050b1f"
+  }
  }
 ]

@@ -106,4 +106,4 @@ for (const t of themes) {
   writeFileSync(join(outDir, `${t.id}.json`), JSON.stringify(style));
   console.log(`styles/${t.id}.json  ${L.length} layers`);
 }
-writeFileSync(join(outDir, 'themes.json'), JSON.stringify(themes.map(t => ({ id: t.id, name: t.name, dark: t.dark, ui: t.ui, route: t.route, vehicle: t.vehicle, font: t.font, inspiredBy: t.inspiredBy, hudiyColor: t.hudiyColor })), null, 1));
+writeFileSync(join(outDir, 'themes.json'), JSON.stringify(themes.map(t => ({ id: t.id, name: t.name, dark: t.dark, ui: t.ui, route: t.route, vehicle: t.vehicle, font: t.font, inspiredBy: t.inspiredBy, hudiyColor: t.hudiyColor, fuel: t.fuel })), null, 1));

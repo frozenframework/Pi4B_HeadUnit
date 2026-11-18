@@ -4,7 +4,8 @@ Build the offline ROUTING + SEARCH data for the head unit on a computer (Mac, Wi
 The Pi downloads the map *picture* data (basemap) itself; this script makes the heavier parts:
 
   valhalla_tiles.tar   turn-by-turn routing graph (Valhalla)
-  search.sqlite        offline search: places, POIs, streets (and optionally addresses)
+  search.sqlite        offline search: places, POIs, streets (and optionally addresses), and every
+                       gas station (fuel table: the map's gas icons, Places > Gas)
 
 Output goes into a folder named HEADUNIT_MAPS. Copy that folder onto any USB stick and plug it
 into the head unit: it imports itself. Or copy it over the network with scp (see README).
@@ -156,15 +157,25 @@ def build_search(pbfs, out, addresses, work=Path(".")):
     sys.path.insert(0, str(HERE.parent / "bin"))
     import hu_addr
     con.executescript(hu_addr.SCHEMA)
-    rows = []; addr_rows = []; street_rows = []; seen_streets = set(); seen_pts = set()
+    # gas stations, named or not (bin/hu_fuel.py): diesel 1 = sells it, -1 = doesn't, 0 = not mapped
+    con.execute("CREATE TABLE fuel(lon REAL, lat REAL, name TEXT, brand TEXT, diesel INTEGER, detail TEXT)")
+    rows = []; addr_rows = []; street_rows = []; fuel_rows = []; seen_streets = set(); seen_pts = set()
     def flush():
         con.executemany("INSERT INTO places VALUES (?,?,?,?,?)", rows); rows.clear()
         con.executemany("INSERT INTO addr VALUES (?,?,?,?,?,?,?,?)", addr_rows); addr_rows.clear()
         con.executemany("INSERT INTO street_pts VALUES (?,?,?,?,?)", street_rows); street_rows.clear()
+        con.executemany("INSERT INTO fuel VALUES (?,?,?,?,?,?)", fuel_rows); fuel_rows.clear()
     class H(osmium.SimpleHandler):
         def place(self, tags, lon, lat, is_way):
             name = tags.get("name")
             city = tags.get("addr:city", "")
+            if tags.get("amenity") == "fuel":
+                brand = tags.get("brand") or tags.get("operator") or ""
+                dz = tags.get("fuel:diesel", "")
+                diesel = 1 if dz in ("yes", "only") else -1 if dz == "no" else 0
+                detail = " ".join(x for x in (tags.get("addr:housenumber", ""), tags.get("addr:street", ""), city) if x)
+                fuel_rows.append((lon, lat, name or "", brand, diesel, detail))
+                if not name and brand: name = brand              # "Shell" finds the unnamed Shell stations too
             if name:
                 kind = tags.get("place") and "place:" + tags["place"]
                 if not kind:

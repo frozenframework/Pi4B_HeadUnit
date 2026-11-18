@@ -123,13 +123,122 @@ function routeGeo() {
 }
 function refreshRoute() { state.map?.getSource('hu-route')?.setData(routeGeo()); }
 
+// ------------------------------------------------------------------ gas stations (bin/hu_fuel.py)
+// Every gas station in the offline search data, as an icon in the skin's own colours (themes.json "fuel",
+// or the skin's panel / accent colours): tap one for Go. "D" on the icon: known to sell diesel.
+// Places > Gas (and "gas" in Search) lists the nearest ones, or the ones along the route ahead.
+const FUEL_MINZOOM = 11;
+const FUEL_PUMP = 'M5 21V5.5A1.5 1.5 0 0 1 6.5 4h6A1.5 1.5 0 0 1 14 5.5V21M3.5 21h12M7.5 7.5h4v3.5h-4zM14 10.5h1.5a1.5 1.5 0 0 1 1.5 1.5v4.5a1.25 1.25 0 0 0 2.5 0V8.5L17 6';
+const FUEL_ICON = `<svg viewBox="0 0 24 24"><path d="${FUEL_PUMP}"/></svg>`;
+const EMPTY_FC = { type: 'FeatureCollection', features: [] };
+let fuelData = null, fuelBox = null, fuelTimer = null, fuelSeq = 0;
+function fuelColors(t) {
+  const f = t.fuel || {};
+  return { bg: f.bg || t.ui.panel, fg: f.fg || t.ui.accent, ring: f.ring || t.ui.accent, badge: f.badge || t.ui.accent2, badgeText: f.badgeText || t.ui.bg };
+}
+// the same badge in lists (Places > Gas, Search), in the skin's fuel colours
+const fuelBadge = () => { const c = fuelColors(state.theme); return `<span class="fico" style="background:${c.bg};border-color:${c.ring};color:${c.fg}">${FUEL_ICON}</span>`; };
+function fuelImage(t, diesel) {
+  const px = 2, S = 34, c = document.createElement('canvas'); c.width = c.height = S * px;
+  const g = c.getContext('2d'); g.scale(px, px);
+  const col = fuelColors(t);
+  g.shadowColor = 'rgba(0,0,0,.45)'; g.shadowBlur = 3; g.shadowOffsetY = 1;
+  g.beginPath(); g.roundRect(3, 3, 28, 28, 7); g.fillStyle = col.bg; g.fill();
+  g.shadowColor = 'transparent'; g.lineWidth = 2.2; g.strokeStyle = col.ring; g.stroke();
+  g.save(); g.translate(5.5, 5.5); g.scale(0.96, 0.96);
+  g.strokeStyle = col.fg; g.lineWidth = 1.9; g.lineCap = 'round'; g.lineJoin = 'round'; g.stroke(new Path2D(FUEL_PUMP)); g.restore();
+  if (diesel) {
+    g.beginPath(); g.arc(27, 7, 6.2, 0, 2 * Math.PI); g.fillStyle = col.badge; g.fill();
+    g.lineWidth = 1.4; g.strokeStyle = col.bg; g.stroke();
+    g.fillStyle = col.badgeText; g.font = 'bold 8.5px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('D', 27, 7.4);
+  }
+  const img = g.getImageData(0, 0, S * px, S * px);
+  return { width: img.width, height: img.height, data: new Uint8Array(img.data.buffer) };
+}
+function addFuelLayer() {
+  const map = state.map, t = state.theme;
+  if (!map || map.getLayer('hu-fuel')) return;
+  for (const [id, d] of [['hu-fuel', false], ['hu-fuel-d', true]]) {
+    if (map.hasImage(id)) map.removeImage(id);
+    map.addImage(id, fuelImage(t, d), { pixelRatio: 2 });
+  }
+  if (!map.getSource('hu-fuel')) map.addSource('hu-fuel', { type: 'geojson', data: fuelData || EMPTY_FC });
+  // names in the skin's place-label font, in the icon's colour (the skin's own POI colours hide unknown kinds)
+  const font = (map.getLayer('pois') && map.getLayoutProperty('pois', 'text-font')) || ['Saira Condensed Regular'];
+  const color = fuelColors(t).fg, halo = t.ui.bg;
+  const before = map.getLayer('places_subplace') ? 'places_subplace' : undefined;
+  map.addLayer({ id: 'hu-fuel', type: 'symbol', source: 'hu-fuel', minzoom: FUEL_MINZOOM,
+    layout: { 'icon-image': ['case', ['==', ['get', 'diesel'], 1], 'hu-fuel-d', 'hu-fuel'],
+      'icon-size': ['interpolate', ['linear'], ['zoom'], FUEL_MINZOOM, 0.72, 14, 0.9, 17, 1.1], 'icon-padding': 2,
+      'symbol-sort-key': ['case', ['==', ['get', 'diesel'], 1], 0, 1],
+      'text-field': ['step', ['zoom'], '', 15, ['get', 'name']], 'text-font': font, 'text-size': 13,
+      'text-anchor': 'top', 'text-offset': [0, 1.3], 'text-optional': true, 'text-max-width': 8 },
+    paint: { 'text-color': color, 'text-halo-color': halo, 'text-halo-width': 1.6 } }, before);
+}
+// the stations around the view (a margin around it, so driving on doesn't ask again every moment)
+function refreshFuel(force = false) {
+  const map = state.map; if (!map || map.getZoom() < FUEL_MINZOOM - 0.5) return;
+  const b = map.getBounds(), box = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()];
+  if (!force && fuelBox && box[0] >= fuelBox[0] && box[1] >= fuelBox[1] && box[2] <= fuelBox[2] && box[3] <= fuelBox[3]) return;
+  const dx = (box[2] - box[0]) * 0.5, dy = (box[3] - box[1]) * 0.5, want = [box[0] - dx, box[1] - dy, box[2] + dx, box[3] + dy];
+  const seq = ++fuelSeq;
+  api(`/api/fuel?bbox=${want.map(v => v.toFixed(4)).join(',')}`).then(r => {
+    if (!r || seq !== fuelSeq) return;
+    fuelData = r; map.getSource('hu-fuel')?.setData(r);
+    if (r.ready) fuelBox = want;
+    else setTimeout(() => refreshFuel(true), 5000);          // still being worked out (first start after a map update)
+  }).catch(() => {});
+}
+const fuelSub = (s, extra = []) => [s.brand && s.brand !== s.name ? s.brand : '', s.diesel === 1 ? t('nav.diesel') : '', ...extra].filter(Boolean).join(' · ');
+function showFuel(s) {
+  const lnglat = [s.lon, s.lat];
+  const dist = state.pos ? t('nav.away', { dist: fmtDist(hav(state.pos, lnglat), state.units) }) : '';
+  showDest({ name: s.name || s.brand || t('nav.gas_station'), sub: fuelSub(s, [s.detail, dist]), lnglat, fuel: true });
+  logEvent('fuel_pick', { diesel: s.diesel === 1 });
+}
+// Places > Gas: along the route ahead (when there's one), then the nearest
+async function openFuel() {
+  closeSheets();
+  const list = $('fuelList'); $('fuelPanel').classList.remove('hidden');
+  list.innerHTML = `<div class="item muted">${esc(t('nav.fuel_looking'))}</div>`;
+  const near = state.pos || state.map.getCenter().toArray();
+  const body = { near };
+  if (state.route) {                                  // the rest of the route, thinned to at most ~1500 points
+    const rest = state.route.shape.slice(Math.max(0, state.progress)), k = Math.ceil(rest.length / 1500);
+    body.route = rest.filter((_, i) => i % k === 0 || i === rest.length - 1);
+  }
+  const r = await api('/api/fuel', { json: body }).catch(() => null);
+  if ($('fuelPanel').classList.contains('hidden')) return;
+  list.innerHTML = '';
+  if (!r) { list.innerHTML = `<div class="item muted">${esc(t('nav.fuel_none'))}</div>`; return; }
+  if (!r.ready && !r.count) { list.innerHTML = `<div class="item muted">${esc(t('nav.fuel_building'))}</div>`; setTimeout(() => { if (!$('fuelPanel').classList.contains('hidden')) openFuel(); }, 4000); return; }
+  $('fuelNote').textContent = r.fuel === 'diesel' ? t('nav.fuel_diesel_first') : '';
+  const sect = (txt) => { const d = document.createElement('div'); d.className = 'item sect'; d.textContent = txt; list.appendChild(d); };
+  const row = (s, extra) => {
+    const el = document.createElement('div'); el.className = 'item fuel';
+    el.innerHTML = `${fuelBadge()}<div class="grow"><div>${esc(s.name || s.brand || t('nav.gas_station'))}</div><div class="sub">${esc(fuelSub(s, extra))}</div></div>`;
+    el.onclick = () => { closeSheets(); state.map.flyTo({ center: [s.lon, s.lat], zoom: 16, pitch: 0 }); state.follow = false; showFuel(s); };
+    list.appendChild(el);
+  };
+  if (r.along.length) {
+    sect(t('nav.fuel_along'));
+    for (const s of r.along) row(s, [t('nav.fuel_ahead', { dist: fmtDist(s.ahead, state.units) }), s.off > 150 ? t('nav.fuel_off', { dist: fmtDist(s.off, state.units) }) : '']);
+  }
+  if (r.near.length) {
+    sect(t('nav.fuel_near'));
+    for (const s of r.near) row(s, [s.detail, fmtDist(s.dist, state.units)]);
+  }
+  if (!r.along.length && !r.near.length) list.innerHTML = `<div class="item muted">${esc(r.count ? t('nav.fuel_none_near') : t('nav.fuel_none'))}</div>`;
+  logEvent('fuel_list', { along: r.along.length, near: r.near.length, nav: !!state.route });
+}
+
 async function setTheme(id, persist = true) {
   const themes = await loadThemes();
   state.theme = themes.find(t => t.id === id) || themes[0];
   await applyUiTheme(state.theme.id);
   if (state.map) {
     state.map.setStyle(`/apps/styles/${state.theme.id}.json`, { diff: false });
-    state.map.once('style.load', () => { addRouteLayers(); refreshRoute(); });
+    state.map.once('style.load', () => { addFuelLayer(); addRouteLayers(); refreshRoute(); });
     resetMarkers();
   }
   if (persist) { state.settings = await saveSettings({ theme: state.theme.id }); }
@@ -248,6 +357,8 @@ function endRoute(arrived = false) {
   refreshRoute(); clearInterval(state.simTimer);
   document.body.classList.remove('navigating'); $('guide').classList.add('hidden');
   if (arrived) { say(t('nav.arrived'), 'arrived'); toast(t('nav.arrived')); if (state.lastDest) placesApi({ op: 'arrive', ...state.lastDest }).catch(() => {}); }
+  const resume = arrived ? state.resumeDest : null; state.resumeDest = null;
+  if (resume) showDest({ ...resume, sub: t('nav.resume_to', { name: resume.name }) });   // after the gas stop: Go to continue
   if (state.pos) camera();
 }
 
@@ -323,9 +434,13 @@ function setupLongPress() {
   map.on('touchmove', (e) => { if (startPt && Math.hypot(e.point.x - startPt.x, e.point.y - startPt.y) > 12) clearTimeout(timer); });
   map.on('touchend', () => clearTimeout(timer));
   map.on('contextmenu', (e) => pick(e.lngLat));
+  map.on('click', 'hu-fuel', (e) => { const f = e.features?.[0]; if (f) showFuel({ ...f.properties, lon: f.geometry.coordinates[0], lat: f.geometry.coordinates[1] }); });
+  map.on('moveend', () => { clearTimeout(fuelTimer); fuelTimer = setTimeout(refreshFuel, 300); });
   map.on('dragstart', () => { state.follow = false; });
 }
 function pick(lngLat) {
+  const gas = state.map.getLayer('hu-fuel') && state.map.queryRenderedFeatures(state.map.project(lngLat), { layers: ['hu-fuel'] })[0];
+  if (gas) { showFuel({ ...gas.properties, lon: gas.geometry.coordinates[0], lat: gas.geometry.coordinates[1] }); return; }
   const feats = state.map.queryRenderedFeatures(state.map.project(lngLat), { layers: ['pois', 'roads_labels_major', 'roads_labels_minor'].filter(l => state.map.getLayer(l)) });
   const name = feats.find(f => f.properties.name)?.properties.name || t('nav.dropped_pin');
   const dist = state.pos ? t('nav.away', { dist: fmtDist(hav(state.pos, lngLat.toArray()), state.units) }) : '';
@@ -371,7 +486,7 @@ document.addEventListener('keydown', (e) => {
 });
 // a contact's address: Home / Work / Contact, and a note when only the street was found on the map
 const contactKind = (r) => [({ home: t('nav.home'), work: t('nav.work') })[r.label] || t('nav.k_contact'), r.found === 'street_only' ? t('nav.k_contact_street') : ''].filter(Boolean).join(' · ');
-const kindName = (k) => ({ address: t('nav.k_address'), address_approx: t('nav.k_address_approx'), street_only: t('nav.k_street_only'), street: t('nav.k_street'), area: t('nav.k_area') })[k] || k;
+const kindName = (k) => ({ fuel: t('nav.gas_station'), address: t('nav.k_address'), address_approx: t('nav.k_address_approx'), street_only: t('nav.k_street_only'), street: t('nav.k_street'), area: t('nav.k_area') })[k] || k;
 async function pickResult(r, near) {
   const dist = fmtDist(hav(near, [r.lon, r.lat]), state.units);
   if (state.assign) {                                // finding Home / Work / ... from the Places panel
@@ -380,12 +495,13 @@ async function pickResult(r, near) {
     return;
   }
   closeSheets(); state.map.flyTo({ center: [r.lon, r.lat], zoom: 16, pitch: 0 }); state.follow = false;
+  if (r.kind === 'fuel') { showFuel(r); return; }
   const sub = [r.kind === 'contact' ? contactKind(r) : r.kind === 'address' || r.kind === 'address_approx' || r.kind === 'street_only' ? kindName(r.kind) : '', r.detail, t('nav.away', { dist })].filter(Boolean).join(' · ');
   showDest({ name: r.name, sub, lnglat: [r.lon, r.lat] }); logEvent('search_pick', { kind: r.kind });
 }
 async function runSearch() {
   const list = $('results'); list.innerHTML = '';
-  if (query.trim().length < 2) { lastResults = { q: query, res: [], near: null }; return []; }
+  if (query.trim().length < 2) { lastResults = { q: query, res: [], near: null }; searchIdle(); return []; }
   const q = query, near = state.pos || state.map.getCenter().toArray();
   const res = await api(`/api/search?q=${encodeURIComponent(q)}&near=${near.join(',')}`).catch(() => []);
   if (q !== query) return null;                      // typed on meanwhile: a newer search is coming
@@ -396,11 +512,19 @@ async function runSearch() {
   for (const r of res) {
     const el = document.createElement('div'); el.className = 'item';
     const dist = fmtDist(hav(near, [r.lon, r.lat]), state.units);
-    el.innerHTML = `<div><div>${esc(r.name)}</div><div class="sub">${esc([r.kind === 'contact' ? contactKind(r) : kindName(r.kind), r.detail].filter(Boolean).join(' · '))} · ${dist}</div></div>`;
+    const sub = r.kind === 'fuel' ? fuelSub(r, [kindName('fuel'), r.detail]) : [r.kind === 'contact' ? contactKind(r) : kindName(r.kind), r.detail].filter(Boolean).join(' · ');
+    el.innerHTML = `<div><div>${esc(r.name || r.brand || kindName(r.kind))}</div><div class="sub">${esc(sub)} · ${dist}</div></div>`;
     el.onclick = () => pickResult(r, near);
     list.appendChild(el);
   }
   return res;
+}
+// nothing typed yet: one tap to the gas stations (nearest, or along the route)
+function searchIdle() {
+  const list = $('results'); list.innerHTML = '';
+  const el = document.createElement('div'); el.className = 'item fuel quick';
+  el.innerHTML = `${fuelBadge()}<div class="grow"><div>${esc(t(state.route ? 'nav.gas_along' : 'nav.gas_nearby'))}</div></div>`;
+  el.onclick = openFuel; list.appendChild(el);
 }
 // Enter: search right away and show the best match (an address first) on the map, with Go
 async function enterSearch() {
@@ -791,7 +915,7 @@ async function main() {
     // out, and an 'idle' that already happened is never reported again (then no greeting, no start-up time)
     const settled = Promise.race([new Promise(r => state.map.once('idle', r)), new Promise(r => setTimeout(r, 10000))]);
     logEvent('map_load', { ms: Math.round(performance.now() - t0), theme: state.theme.id });
-    addRouteLayers(); resetMarkers();
+    addFuelLayer(); addRouteLayers(); resetMarkers(); refreshFuel();
     const st = await api('/api/status').catch(() => null);
     if (st && !st.maps.basemap) $('nomaps').classList.remove('hidden');
     state.night = !!st?.night; applyNight();
@@ -826,6 +950,8 @@ async function main() {
   $('favBtn').onclick = openFavorites;
   $('clearHist').onclick = clearHistory;
   $('bookBtn').insertAdjacentHTML('afterbegin', BOOK_ICON); $('bookBtn').onclick = () => openBook();
+  $('fuelBtn').insertAdjacentHTML('afterbegin', FUEL_ICON); $('fuelBtn').onclick = openFuel;
+  $('searchBtn').addEventListener('click', () => { if (query.trim().length < 2) searchIdle(); });
   $('bookBack').innerHTML = BACK_ICON; $('bookBack').onclick = () => { state.bookAssign = null; $('bookPanel').classList.add('hidden'); openFavorites(); };
   $('themeBtn').onclick = openThemes;
   $('moreSettings').onclick = openSettings;
@@ -833,7 +959,10 @@ async function main() {
   $('centerBtn').onclick = () => { state.follow = true; if (state.pos) camera(); else toast(t('nav.waiting_gps')); };
   $('endBtn').onclick = () => endRoute(false);
   $('destCancel').onclick = () => $('destSheet').classList.add('hidden');
-  $('destGo').onclick = () => routeTo(state.pending);
+  $('destGo').onclick = () => {
+    const d = state.pending, keep = d?.fuel && state.route && !state.dest?.fuel ? state.dest : d?.fuel ? state.resumeDest : null;
+    const p = routeTo(d); p.then(ok => { if (ok) state.resumeDest = keep; });
+  };
   $('destFav').onclick = () => saveFavorite(state.pending);
   setupLongPress();
   setupRail();

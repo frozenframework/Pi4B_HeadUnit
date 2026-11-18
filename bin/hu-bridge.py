@@ -431,9 +431,51 @@ async def search(request):
     if "near" in request.query:
         try: near = [float(x) for x in request.query["near"].split(",")]
         except ValueError: pass
+    if fuel_query(q) and near:                     # "gas": the nearest gas stations, not businesses named Gas...
+        FUEL.ensure()
+        res = await asyncio.get_running_loop().run_in_executor(
+            None, lambda: FUEL.nearest(near[0], near[1], 15, diesel_first=FUEL_TYPE == "diesel" or "diesel" in q.lower()))
+        if res:
+            usage("search", n=len(res), qlen=len(q), fuel=1)
+            return web.json_response(res)
     res = await asyncio.get_running_loop().run_in_executor(None, do_search, q, near)
     usage("search", n=len(res), qlen=len(q))
     return web.json_response(res)
+
+# ---------------------------------------------------------------- gas stations (bin/hu_fuel.py)
+import hu_fuel
+FUEL = hu_fuel.Fuel(SEARCH_DB, USER_DIR / "fuel-stations.json", log=log.info)
+FUEL_TYPE = C("FUEL", "gasoline")                   # diesel: stations known to sell diesel come first
+FUEL_WORDS = {"gas", "gas station", "gas stations", "gasoline", "fuel", "petrol", "diesel", "gas near me", "fuel station"}
+
+def fuel_query(q):
+    """Typing gas / fuel / diesel in Search: the nearest stations (diesel ones first for "diesel")."""
+    q = " ".join(q.lower().split())
+    return q in FUEL_WORDS or q.rstrip("s") in FUEL_WORDS
+
+async def fuel_api(request):
+    """GET ?bbox=w,s,e,n: the stations in the map's view (GeoJSON, for the gas icons).
+    POST {near: [lon, lat], route: [[lon, lat], ...] (the rest of the route, optional)}: the nearest
+    stations, or the ones along the road ahead - for Places > Gas."""
+    FUEL.ensure()
+    loop = asyncio.get_running_loop()
+    if request.method == "GET":
+        try: w, s, e, n = [float(x) for x in request.query.get("bbox", "").split(",")]
+        except ValueError: raise web.HTTPBadRequest(text="bbox=w,s,e,n")
+        out = await loop.run_in_executor(None, FUEL.in_view, w, s, e, n)
+        out["ready"] = FUEL.ready()
+        return web.json_response(out)
+    body = await request.json()
+    near = body.get("near") or (gps.fix and [gps.fix.get("lon"), gps.fix.get("lat")]) or None
+    diesel = FUEL_TYPE == "diesel" or bool(body.get("diesel"))
+    out = {"ready": FUEL.ready(), "count": FUEL.count(), "fuel": FUEL_TYPE, "along": [], "near": []}
+    route = body.get("route") or []
+    if isinstance(route, list) and len(route) >= 2:
+        out["along"] = await loop.run_in_executor(None, lambda: FUEL.along([p[:2] for p in route[:4000]], 12, diesel_first=diesel))
+    if near and None not in near:
+        out["near"] = await loop.run_in_executor(None, lambda: FUEL.nearest(float(near[0]), float(near[1]), 12, diesel_first=diesel))
+    usage("fuel", along=len(out["along"]), near=len(out["near"]))
+    return web.json_response(out)
 
 # ---------------------------------------------------------------- music (MPD; iPod and USB drives)
 _mpd_lock = threading.Lock()
@@ -945,7 +987,7 @@ async def status(request):
         "maps": {"basemap": (MAPS_DIR / "basemap.pmtiles").exists(), "routing": ROUTING_TAR.exists(), "search": SEARCH_DB.exists(), **man,
                  "routingPrep": read_json(ROUTING_STATUS, {}) if ROUTING_TAR.exists() else {}},
         "gps": gps.fix, "power": st, "radio": radio.status(), "sources": sources(), "theme": settings().get("theme"),
-        "vehicle": C("VEHICLE_NAME", ""), "night": st.get("illum", False), "version": VERSION,
+        "vehicle": C("VEHICLE_NAME", ""), "fuel": FUEL_TYPE, "night": st.get("illum", False), "version": VERSION,
         "dayNight": settings().get("dayNight", False), "contactsSync": contacts_sync_now()})
 
 def contacts_sync_now():
@@ -1214,7 +1256,7 @@ async def on_start(app):
     try: hu_boot.mark("bridge")                     # start-up timeline (Settings > Developer)
     except Exception: pass
     async def later():                               # ZIP centres for older search data: after the map is up
-        await map_up(120); ZIPS.get()
+        await map_up(120); ZIPS.get(); FUEL.ensure()
     app["zips"] = asyncio.create_task(later())
     usage("bridge_start", vehicle=C("VEHICLE_ID", ""))
     asyncio.get_running_loop().run_in_executor(None, hudiy_hotspot_guard)
@@ -1293,6 +1335,7 @@ def make_app():
     app.router.add_get("/api/gps/stream", gps_stream)
     app.router.add_post("/api/route", route)
     app.router.add_get("/api/search", search)
+    app.router.add_route("*", "/api/fuel", fuel_api)
     app.router.add_get("/api/music/{action}", music)
     app.router.add_post("/api/music/control", music_control)
     app.router.add_route("*", "/api/radio/{action}", radio_api)

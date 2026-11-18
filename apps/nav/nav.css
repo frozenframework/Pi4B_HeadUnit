@@ -117,8 +117,9 @@ body[data-app="nav"] { position: fixed; inset: 0 0 0 var(--rail); height: auto; 
 
 /* Places: Home / Work / Gym / School tiles, then saved, often-visited and recent places */
 #favPanel .sheetHead #clearHist { font-size: 16px; min-height: 48px; }
-#favPanel .sheetHead #bookBtn { margin-inline-start: auto; font-size: 18px; min-height: 52px; color: var(--accent); display: flex; align-items: center; gap: 8px; }
-#bookBtn svg, .backBtn svg { width: 26px; height: 26px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+#favPanel .sheetHead #fuelBtn { margin-inline-start: auto; font-size: 18px; min-height: 52px; color: var(--accent); display: flex; align-items: center; gap: 8px; }
+#favPanel .sheetHead #bookBtn { font-size: 18px; min-height: 52px; color: var(--accent); display: flex; align-items: center; gap: 8px; }
+#fuelBtn svg, .fico svg, #bookBtn svg, .backBtn svg { width: 26px; height: 26px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .backBtn { width: 64px; padding: 0; display: grid; place-items: center; }
 #bookFrom { margin-inline-start: auto; font-size: 16px; }
 /* contact import running (from the phone over Bluetooth): a slim chip at the top of the map */
@@ -166,3 +167,13 @@ body[data-app="nav"] { position: fixed; inset: 0 0 0 var(--rail); height: auto; 
 .chooseGrid button svg { flex: none; width: 26px; height: 26px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .chooseGrid button.danger { border-color: var(--warn); color: var(--warn); }
 @media (max-height: 460px) { .tiles { margin: 6px 0 2px; } .tile { min-height: 70px; } .tile .ti { font-size: 18px; } }
+
+/* gas stations (Places > Gas, and the first line of an empty search) */
+#fuelPanel .sheetHead #fuelNote { margin-inline-start: auto; font-size: 16px; }
+#fuelList .sect { min-height: 0; padding: 12px 16px 4px; font-size: 14px; text-transform: uppercase; letter-spacing: .08em; color: var(--accent); border: none; }
+.item.fuel .grow { flex: 1; min-width: 0; }
+.item.fuel .sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.item.fuel .fico { flex: none; width: 44px; height: 44px; display: grid; place-items: center; border-radius: 10px;
+  border: 2px solid var(--accent); background: var(--panel); color: var(--accent); }
+.item.fuel .fico svg { width: 28px; height: 28px; }
+.item.fuel.quick { color: var(--accent); font-weight: 600; }

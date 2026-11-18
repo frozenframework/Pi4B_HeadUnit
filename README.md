@@ -142,6 +142,14 @@ house numbers mapped in OpenStreetMap exactly, others estimated between their ne
 the street. `--no-addresses` leaves addresses out for a smaller download. A run that stops after the
 routing graph is built reuses it next time, so adding addresses later only rebuilds search.
 
+**Gas stations** come from the same search data: every gas station is an icon on the map (from zoom 11,
+in the skin's own colours; a small **D** = known to sell diesel). Tap one for Go. *Places → Gas* (or
+typing *gas* in Search) lists the ones along the route ahead, then the nearest; going to one while on a
+route offers *Continue to …* when you get there. The F-250 profile has `FUEL=diesel`, which lists
+stations known to sell diesel first. Search data built before this has only the *named* stations
+(they work right away); rebuild it with `maps/build-routing.py --skip-routing` to get every station
+with its brand and diesel.
+
 Send the resulting `HEADUNIT_MAPS` folder to the head unit over Wi-Fi (same network as the computer;
 on the head unit turn on *Settings → Developer → SSH login over Wi-Fi* first):
 ```bash

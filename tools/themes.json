@@ -8,6 +8,7 @@
       "dark": true,
       "font": "Rajdhani",
       "ui": {"bg": "#07060d", "panel": "#120f22", "text": "#f5f7ff", "muted": "#8b86b8", "accent": "#00f0ff", "accent2": "#ff2fb3", "warn": "#f5f749"},
+      "fuel": {"bg": "#120f22", "ring": "#ff2fb3", "fg": "#ff2fb3", "badge": "#00f0ff", "badgeText": "#07060d"},
       "map": {
         "background": "#07060d", "earth": "#0b0a14", "water": "#03182b", "park": "#0d1a1c", "wood": "#0c1719", "urban": "#0e0c19",
         "industrial": "#120e1e", "buildings": "#1a1530", "pedestrian": "#14112a", "runway": "#1d1838", "sand": "#14121d",
@@ -27,6 +28,7 @@
       "dark": false,
       "font": "Barlow Condensed",
       "ui": {"bg": "#fff3dc", "panel": "#ffffff", "text": "#2b1d10", "muted": "#8a6a48", "accent": "#ff6a1a", "accent2": "#1aa6b7", "warn": "#e6007e"},
+      "fuel": {"bg": "#ffffff", "ring": "#ff6a1a", "fg": "#ff6a1a", "badge": "#1aa6b7", "badgeText": "#ffffff"},
       "map": {
         "background": "#f6e7c8", "earth": "#f4e3c1", "water": "#47b8c8", "park": "#b6d987", "wood": "#9fcb72", "urban": "#f0dcb4",
         "industrial": "#ead3ad", "buildings": "#e2c597", "pedestrian": "#f7ead2", "runway": "#d9c4a0", "sand": "#f3dca4",
@@ -46,6 +48,7 @@
       "dark": true,
       "font": "Saira Condensed",
       "ui": {"bg": "#0d0f12", "panel": "#171a1f", "text": "#eef1f4", "muted": "#7d8794", "accent": "#ff6b00", "accent2": "#00b3ff", "warn": "#ff2a2a"},
+      "fuel": {"bg": "#171a1f", "ring": "#ff6b00", "fg": "#ff6b00", "badge": "#00b3ff", "badgeText": "#0d0f12"},
       "map": {
         "background": "#0d0f12", "earth": "#121519", "water": "#0a2333", "park": "#141c18", "wood": "#121a16", "urban": "#15181d",
         "industrial": "#191b20", "buildings": "#1d2128", "pedestrian": "#181b21", "runway": "#22262e", "sand": "#1a1a17",
@@ -65,6 +68,7 @@
       "dark": true,
       "font": "Exo 2",
       "ui": {"bg": "#050b1f", "panel": "#0b1636", "text": "#e6f0ff", "muted": "#7f93c4", "accent": "#39ff88", "accent2": "#9fb8ff", "warn": "#ffd166"},
+      "fuel": {"bg": "#0b1636", "ring": "#ffd166", "fg": "#ffd166", "badge": "#39ff88", "badgeText": "#050b1f"},
       "map": {
         "background": "#050b1f", "earth": "#081233", "water": "#020617", "park": "#0a1a33", "wood": "#091830", "urban": "#0a153a",
         "industrial": "#0c173d", "buildings": "#10215a", "pedestrian": "#0b1842", "runway": "#14245a", "sand": "#0d1638",
