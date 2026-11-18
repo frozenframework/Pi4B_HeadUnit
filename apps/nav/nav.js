@@ -326,7 +326,8 @@ async function routeTo(dest, reason = 'new') {
   const t0 = performance.now();
   // the Go button answers at once; "Finding route" only shows if it takes a moment (first route after start-up)
   const busy = setTimeout(() => { toast(t('nav.finding_route'), 60000); $('destGo').disabled = true; }, 350);
-  const r = await api('/api/route', { json: { from, to: dest.lnglat, heading: state.speed > 3 ? state.heading : null } })
+  const style = state.settings?.routeStyle === 'manual' ? 'manual' : 'fastest';    // Fastest / Less stops (bin/hu_route_style.py)
+  const r = await api('/api/route', { json: { from, to: dest.lnglat, heading: state.speed > 3 ? state.heading : null, style, quick: reason === 'reroute' } })
     .catch(() => ({ error: 'route_failed' }));
   clearTimeout(busy); $('destGo').disabled = false;
   if (performance.now() - t0 > 350) hideToast();
@@ -345,10 +346,36 @@ async function routeTo(dest, reason = 'new') {
     state.map.fitBounds(b, { padding: { left: 360, right: 110, top: 40, bottom: 40 }, duration: 800, pitch: 0, bearing: 0 });
     state.follow = false; setTimeout(() => { state.follow = true; if (state.pos) camera(); }, 3500);
     { const first = spoken(r.maneuvers[0]); say(first || t('nav.route_started'), 'route_started', first ? { then: first } : {}); }
+    styleNote(r);
   }
   guide();
   if (SIM) startSim();
   return true;
+}
+
+// Less stops: how it compares with the fastest route ("8 fewer stops, 3 min longer")
+function styleNote(r) {
+  const i = r.styleInfo; if (r.style !== 'manual' || !i) return;
+  const f = i.fastest;
+  if (!f || f.stops <= i.stops) toast(t('nav.style_same', { n: i.stops }), 5000);
+  else toast(t('nav.style_saved', { n: f.stops - i.stops, min: Math.max(0, Math.round((r.summary.time - f.time) / 60)) }), 6000);
+  logEvent('route_style_result', { stops: i.stops, fastest: f?.stops, extra: f ? Math.round(r.summary.time - f.time) : null });
+}
+// the route style on the Go sheet: Fastest / Less stops (kept for the next routes, and for reroutes)
+const STYLE_ICONS = {
+  fastest: '<svg viewBox="0 0 24 24"><path d="M13 2L4.5 13.5H11l-1 8.5 8.5-11.5H12z"/></svg>',
+  manual: '<svg viewBox="0 0 24 24"><circle cx="6" cy="5" r="1.6"/><circle cx="12" cy="5" r="1.6"/><circle cx="18" cy="5" r="1.6"/><circle cx="6" cy="19" r="1.6"/><circle cx="12" cy="19" r="1.6"/><path d="M6 6.6v10.8M12 6.6v10.8M18 6.6V12H6"/></svg>',
+};
+function paintStyle() {
+  const m = state.settings?.routeStyle === 'manual';
+  $('routeStyle').innerHTML = `${STYLE_ICONS[m ? 'manual' : 'fastest']}<span>${esc(t(m ? 'nav.style_manual' : 'nav.style_fastest'))}</span>`;
+  $('routeStyle').classList.toggle('on', m);
+}
+async function toggleStyle() {
+  const v = state.settings?.routeStyle === 'manual' ? 'fastest' : 'manual';
+  state.settings = { ...state.settings, routeStyle: v }; paintStyle();
+  logEvent('route_style', { style: v });
+  saveSettings({ routeStyle: v }).then(s => { if (s) state.settings = s; }).catch(() => {});
 }
 
 function endRoute(arrived = false) {
@@ -448,7 +475,7 @@ function pick(lngLat) {
   logEvent('long_press');
 }
 function showDest(d) {
-  state.pending = d;
+  state.pending = d; paintStyle();
   $('destName').textContent = d.name; $('destSub').textContent = d.sub || '';
   $('destSheet').classList.remove('hidden');
 }
@@ -959,6 +986,7 @@ async function main() {
   $('centerBtn').onclick = () => { state.follow = true; if (state.pos) camera(); else toast(t('nav.waiting_gps')); };
   $('endBtn').onclick = () => endRoute(false);
   $('destCancel').onclick = () => $('destSheet').classList.add('hidden');
+  $('routeStyle').onclick = toggleStyle;
   $('destGo').onclick = () => {
     const d = state.pending, keep = d?.fuel && state.route && !state.dest?.fuel ? state.dest : d?.fuel ? state.resumeDest : null;
     const p = routeTo(d); p.then(ok => { if (ok) state.resumeDest = keep; });

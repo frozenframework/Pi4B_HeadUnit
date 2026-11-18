@@ -142,6 +142,13 @@ house numbers mapped in OpenStreetMap exactly, others estimated between their ne
 the street. `--no-addresses` leaves addresses out for a smaller download. A run that stops after the
 routing graph is built reuses it next time, so adding addresses later only rebuilds search.
 
+**Route style:** the Go sheet has a **Fastest / Less stops** button (it's remembered, and reroutes keep
+it). *Less stops* is for a stick shift: it compares the fastest route and its alternatives with routes
+that avoid turns and prefer highways, counts the traffic lights, the likely stops (entering or crossing
+a bigger road) and the turns on each, and takes the one with the fewest, as long as it's at most 50 %
+longer. After you press Go it says how it compares, e.g. "8 fewer stops, 3 min longer". To make
+*Less stops* the default for a car, add `ROUTE_STYLE=manual` to `/etc/headunit/headunit.conf`.
+
 **Gas stations** come from the same search data: every gas station is an icon on the map (from zoom 11,
 in the skin's own colours; a small **D** = known to sell diesel). Tap one for Go. *Places → Gas* (or
 typing *gas* in Search) lists the ones along the route ahead, then the nearest; going to one while on a

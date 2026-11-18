@@ -82,7 +82,7 @@ def system_language():
 DEFAULT_SETTINGS = {"theme": C("DEFAULT_THEME", "neon-overdrive"), "units": "imperial", "voice": True,
                     "language": system_language(), "lastPos": None,
                     "syncHudiyColors": True, "nightAuto": True, "startOnMap": True, "phoneScreen": "map",
-                    "voicePack": "standard", "mapView": "bird",
+                    "voicePack": "standard", "mapView": "bird", "routeStyle": C("ROUTE_STYLE", "fastest"),
                     "dayNight": False, "dayTheme": "sunset-junction", "nightTheme": C("DEFAULT_THEME", "neon-overdrive"),
                     "display": {"level": 100, "auto": True, "day": 100, "night": 45, "method": "auto"}, "radio": {"band": "FM", "FM": 101100, "AM": 740,
                     "presets": {"FM": [], "AM": []}}}
@@ -197,8 +197,17 @@ def do_route(body):
            "costing": body.get("costing", "auto"), "units": units,
            "language": LANGS.get(settings().get("language"), {}).get("valhalla") or "en-US",
            "directions_options": {"units": units}}
-    raw = actor.route(json.dumps(req))
-    res = json.loads(raw) if isinstance(raw, str) else raw
+    # route style (bin/hu_route_style.py): fastest, or "manual" - fewer stops for a stick shift, even if longer
+    style = body.get("style") or settings().get("routeStyle", "fastest")
+    info = None
+    if style == "manual" and req["costing"] == "auto":
+        import hu_route_style
+        trip, info = hu_route_style.plan(actor, req, quick=bool(body.get("quick")))
+    else:
+        style = "fastest"
+        raw = actor.route(json.dumps(req))
+        trip = (json.loads(raw) if isinstance(raw, str) else raw)["trip"]
+    res = {"trip": trip}
     leg = res["trip"]["legs"][0]
     shape = decode_polyline6(leg["shape"])
     man = [{"instruction": m.get("instruction"), "verbal": m.get("verbal_pre_transition_instruction") or m.get("instruction"),
@@ -206,7 +215,7 @@ def do_route(body):
             "end": m.get("end_shape_index"), "streets": m.get("street_names") or [], "exit": (m.get("sign") or {}).get("exit_number_elements")}
            for m in leg["maneuvers"]]
     s = res["trip"]["summary"]
-    return {"shape": shape, "maneuvers": man, "summary": {"length": s["length"], "time": s["time"], "units": units}}
+    return {"shape": shape, "maneuvers": man, "summary": {"length": s["length"], "time": s["time"], "units": units}, "style": style, "styleInfo": info}
 
 # ---------------------------------------------------------------- diagnostics bundles (bin/hu-diag.sh --bundle)
 DIAG_DIR = Path(C("DIAG_DIR", "/var/lib/headunit/diag"))
@@ -344,7 +353,8 @@ async def route(request):
         out = await asyncio.get_running_loop().run_in_executor(None, do_route, body)
     except Exception as e:
         out = {"error": "route_failed", "message": str(e)[:300]}
-    usage("route", ms=int((time.time() - t0) * 1000), ok="error" not in out)
+    usage("route", ms=int((time.time() - t0) * 1000), ok="error" not in out, style=out.get("style"),
+          stops=(out.get("styleInfo") or {}).get("stops"))
     return web.json_response(out)
 
 # ---------------------------------------------------------------- offline search

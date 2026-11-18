@@ -177,3 +177,8 @@ body[data-app="nav"] { position: fixed; inset: 0 0 0 var(--rail); height: auto; 
   border: 2px solid var(--accent); background: var(--panel); color: var(--accent); }
 .item.fuel .fico svg { width: 28px; height: 28px; }
 .item.fuel.quick { color: var(--accent); font-weight: 600; }
+
+/* route style on the Go sheet: Fastest / Less stops */
+#routeStyle { display: flex; align-items: center; gap: 8px; font-size: 18px; min-height: 56px; padding: 0 14px; white-space: nowrap; }
+#routeStyle svg { width: 26px; height: 26px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+#routeStyle.on { color: var(--accent); border-color: var(--accent); }
