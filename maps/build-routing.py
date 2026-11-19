@@ -159,16 +159,22 @@ def build_search(pbfs, out, addresses, work=Path(".")):
     con.executescript(hu_addr.SCHEMA)
     # gas stations, named or not (bin/hu_fuel.py): diesel 1 = sells it, -1 = doesn't, 0 = not mapped
     con.execute("CREATE TABLE fuel(lon REAL, lat REAL, name TEXT, brand TEXT, diesel INTEGER, detail TEXT)")
-    rows = []; addr_rows = []; street_rows = []; fuel_rows = []; seen_streets = set(); seen_pts = set()
+    # license-plate cameras (bin/hu_cameras.py: the "avoid Flock cameras" route option)
+    con.execute("CREATE TABLE cameras(lon REAL, lat REAL, flock INTEGER)")
+    import hu_cameras
+    rows = []; addr_rows = []; street_rows = []; fuel_rows = []; cam_rows = []; seen_streets = set(); seen_pts = set()
     def flush():
         con.executemany("INSERT INTO places VALUES (?,?,?,?,?)", rows); rows.clear()
         con.executemany("INSERT INTO addr VALUES (?,?,?,?,?,?,?,?)", addr_rows); addr_rows.clear()
         con.executemany("INSERT INTO street_pts VALUES (?,?,?,?,?)", street_rows); street_rows.clear()
         con.executemany("INSERT INTO fuel VALUES (?,?,?,?,?,?)", fuel_rows); fuel_rows.clear()
+        con.executemany("INSERT INTO cameras VALUES (?,?,?)", cam_rows); cam_rows.clear()
     class H(osmium.SimpleHandler):
         def place(self, tags, lon, lat, is_way):
             name = tags.get("name")
             city = tags.get("addr:city", "")
+            if tags.get("surveillance:type") == "ALPR":
+                cam_rows.append((lon, lat, 1 if hu_cameras.is_flock(tags) else 0))
             if tags.get("amenity") == "fuel":
                 brand = tags.get("brand") or tags.get("operator") or ""
                 dz = tags.get("fuel:diesel", "")

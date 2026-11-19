@@ -289,7 +289,30 @@ async function maps() {
   const st = await api('/api/status'); const m = st.maps;
   const yes = (v) => v ? `<span class="accent">${esc(t('set.installed'))}</span>` : `<span style="color:var(--warn)">${esc(t('set.missing'))}</span>`;
   $('mapInfo').innerHTML = `${esc(t('set.map_region'))}: <b>${esc(m.name || m.region || t('set.not_set'))}</b><br>${esc(t('set.map_display'))}: ${yes(m.basemap)} ${m.basemap_date ? '(' + esc(m.basemap_date) + ')' : ''}<br>${esc(t('set.routing'))}: ${yes(m.routing)}${routingPrep(m.routingPrep)} · ${esc(t('set.search'))}: ${yes(m.search)} ${m.built ? '(' + esc(t('set.built', { date: m.built.slice(0, 10) })) + ')' : ''}`;
-  mapProgress(); contactsInfo();
+  mapProgress(); contactsInfo(); camsInfo();
+}
+// license-plate cameras (bin/hu_cameras.py): Off / Flock only / every plate reader; the list and its age
+async function camsInfo() {
+  const a = $('avoidCams'), v = S.avoidCameras || 'off';
+  a.textContent = v === 'off' ? t('common.off') : v === 'all' ? t('set.cams_all') : t('set.cams_flock'); a.classList.toggle('on', v !== 'off');
+  const r = await api('/api/cameras').catch(() => null); if (!r) return;
+  const day = (x) => new Date(x * 1000).toLocaleDateString(langTag(), { month: 'short', day: 'numeric', year: 'numeric' });
+  $('camsInfo').textContent = r.busy ? t('set.cams_busy') : r.error && !r.count ? t('set.cams_error', { error: r.error })
+    : r.count ? t('set.cams_info', { n: r.count.toLocaleString(langTag()), flock: r.flock.toLocaleString(langTag()), date: day(r.updated) })
+    : t('set.cams_none');
+  $('camsUpdate').disabled = !!r.busy;
+  if (r.busy) setTimeout(camsInfo, 3000);
+}
+function wireCams() {
+  $('avoidCams').onclick = async () => {
+    const order = ['off', 'flock', 'all'], v = order[(order.indexOf(S.avoidCameras || 'off') + 1) % 3];
+    S = await saveSettings(v === 'off' ? { avoidCameras: v } : { avoidCameras: v, avoidCamerasWhich: v });
+    logEvent('setting', { k: 'avoidCameras', v }); camsInfo();
+  };
+  $('camsUpdate').onclick = async () => {
+    const r = await api('/api/cameras', { json: { op: 'update' } }).catch(() => null);
+    if (r && !r.ok) toast(t('set.cams_error', { error: r.error || '?' })); camsInfo();
+  };
 }
 // Phone contacts (bin/hu_contacts.py): which phones shared contacts, how many have an address on the map
 async function contactsInfo() {
@@ -399,7 +422,7 @@ function askGoBack(v, cur) {
   $('update').onclick = async () => { const r = await api('/api/maps/update', { json: {} }); toast(r.message || ''); setTimeout(mapProgress, 1500); };
   $('updCheck').onclick = async () => { const r = await api('/api/update/check', { json: {} }); toast(r.message || ''); setTimeout(updates, 2000); };
   $('exitBtn').onclick = exitSettings;
-  wireVoice(); wireSkins(); cards(); switches(); wireDisplay(); followTheme((s) => { S = s; cards(); }); wireRegion(); wireDev(); wireContacts(); wireDiag(); page(new URLSearchParams(location.search).get('page') || 'skins');
+  wireVoice(); wireSkins(); cards(); switches(); wireDisplay(); followTheme((s) => { S = s; cards(); }); wireRegion(); wireDev(); wireContacts(); wireDiag(); wireCams(); page(new URLSearchParams(location.search).get('page') || 'skins');
   setInterval(() => { if (!$('maps').classList.contains('hidden')) mapProgress(); }, 2000);
   setInterval(() => { if ((contactsBusy && !$('maps').classList.contains('hidden')) || !$('dev').classList.contains('hidden')) contactsInfo(); }, 1500);
   setInterval(() => { if (!$('maps').classList.contains('hidden')) maps(); }, 15000);

@@ -189,6 +189,64 @@ function refreshFuel(force = false) {
     else setTimeout(() => refreshFuel(true), 5000);          // still being worked out (first start after a map update)
   }).catch(() => {});
 }
+// ------------------------------------------------------------------ license-plate cameras (bin/hu_cameras.py)
+// With "avoid Flock cameras" on (Go sheet, or Settings > Maps), routes go around the known cameras and
+// the cameras show on the map (from zoom 12) in the skin's warning colour.
+const CAM_GLYPH = 'M4 8.5h9.5a1.5 1.5 0 0 1 1.5 1.5v5a1.5 1.5 0 0 1-1.5 1.5H4a1.5 1.5 0 0 1-1.5-1.5v-5A1.5 1.5 0 0 1 4 8.5zM15 11.5l5-2.5v7l-5-2.5M6 12.5h.01';
+const CAM_ICON = `<svg viewBox="0 0 24 24"><path d="${CAM_GLYPH}"/><path d="M3 21L21 3"/></svg>`;   // (crossed out: "avoid")
+let camBox = null, camSeq = 0;
+const camsOn = () => ['flock', 'all'].includes(state.settings?.avoidCameras);
+function camImage(t) {
+  const px = 2, S = 26, c = document.createElement('canvas'); c.width = c.height = S * px;
+  const g = c.getContext('2d'); g.scale(px, px);
+  g.beginPath(); g.arc(13, 13, 11, 0, 2 * Math.PI); g.fillStyle = t.ui.panel; g.fill();
+  g.lineWidth = 2; g.strokeStyle = t.ui.warn; g.stroke();
+  g.save(); g.translate(3.4, 3.6); g.scale(0.8, 0.8); g.strokeStyle = t.ui.warn; g.lineWidth = 2; g.lineCap = 'round'; g.lineJoin = 'round';
+  g.stroke(new Path2D(CAM_GLYPH)); g.restore();
+  const img = g.getImageData(0, 0, S * px, S * px);
+  return { width: img.width, height: img.height, data: new Uint8Array(img.data.buffer) };
+}
+function addCamLayer() {
+  const map = state.map; if (!map || map.getLayer('hu-cams')) return;
+  if (map.hasImage('hu-cam')) map.removeImage('hu-cam');
+  map.addImage('hu-cam', camImage(state.theme), { pixelRatio: 2 });
+  if (!map.getSource('hu-cams')) map.addSource('hu-cams', { type: 'geojson', data: EMPTY_FC });
+  map.addLayer({ id: 'hu-cams', type: 'symbol', source: 'hu-cams', minzoom: 12,
+    layout: { 'icon-image': 'hu-cam', 'icon-size': ['interpolate', ['linear'], ['zoom'], 12, 0.7, 16, 1], 'icon-allow-overlap': true } },
+    map.getLayer('hu-fuel') ? 'hu-fuel' : undefined);
+  camBox = null; refreshCams();
+}
+function refreshCams(force = false) {
+  const map = state.map; if (!map?.getSource('hu-cams')) return;
+  if (!camsOn() || map.getZoom() < 11.5) { if (!camsOn()) { map.getSource('hu-cams').setData(EMPTY_FC); camBox = null; } return; }
+  const b = map.getBounds(), box = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()];
+  if (!force && camBox && box[0] >= camBox[0] && box[1] >= camBox[1] && box[2] <= camBox[2] && box[3] <= camBox[3]) return;
+  const dx = (box[2] - box[0]) * 0.5, dy = (box[3] - box[1]) * 0.5, want = [box[0] - dx, box[1] - dy, box[2] + dx, box[3] + dy];
+  const seq = ++camSeq;
+  api(`/api/cameras?bbox=${want.map(v => v.toFixed(4)).join(',')}`).then(r => {
+    if (!r || seq !== camSeq) return;
+    map.getSource('hu-cams')?.setData(r); camBox = want;
+  }).catch(() => {});
+}
+function paintPrivacy() {
+  const b = $('privacyBtn'); if (!b) return;
+  b.innerHTML = `${CAM_ICON}<span>${esc(t(state.settings?.avoidCamerasWhich === 'all' ? 'nav.avoid_alpr' : 'nav.avoid_flock'))}</span>`;
+  b.classList.toggle('on', camsOn()); b.setAttribute('aria-pressed', camsOn() ? 'true' : 'false');
+}
+async function togglePrivacy() {
+  const v = camsOn() ? 'off' : (state.settings?.avoidCamerasWhich === 'all' ? 'all' : 'flock');
+  state.settings = { ...state.settings, avoidCameras: v }; paintPrivacy(); refreshCams(true);
+  logEvent('avoid_cameras', { v });
+  saveSettings({ avoidCameras: v }).then(s => { if (s) state.settings = s; }).catch(() => {});
+}
+// after Go: how the route did with cameras
+function camNote(c) {
+  if (!c) return '';
+  const what = t(c.which === 'all' ? 'nav.cam_alpr' : 'nav.cam_flock');
+  if (!c.known) return t('nav.cams_no_data');
+  if (c.passed) return t(c.unavoidable === c.passed ? 'nav.cams_unavoidable' : 'nav.cams_passed', { n: c.passed, what });
+  return c.avoided ? t('nav.cams_avoided', { n: c.avoided, what }) : t('nav.cams_none', { what });
+}
 const fuelSub = (s, extra = []) => [s.brand && s.brand !== s.name ? s.brand : '', s.diesel === 1 ? t('nav.diesel') : '', ...extra].filter(Boolean).join(' · ');
 function showFuel(s) {
   const lnglat = [s.lon, s.lat];
@@ -238,7 +296,7 @@ async function setTheme(id, persist = true) {
   await applyUiTheme(state.theme.id);
   if (state.map) {
     state.map.setStyle(`/apps/styles/${state.theme.id}.json`, { diff: false });
-    state.map.once('style.load', () => { addFuelLayer(); addRouteLayers(); refreshRoute(); });
+    state.map.once('style.load', () => { addFuelLayer(); addCamLayer(); addRouteLayers(); refreshRoute(); });
     resetMarkers();
   }
   if (persist) { state.settings = await saveSettings({ theme: state.theme.id }); }
@@ -327,7 +385,8 @@ async function routeTo(dest, reason = 'new') {
   // the Go button answers at once; "Finding route" only shows if it takes a moment (first route after start-up)
   const busy = setTimeout(() => { toast(t('nav.finding_route'), 60000); $('destGo').disabled = true; }, 350);
   const style = state.settings?.routeStyle === 'manual' ? 'manual' : 'fastest';    // Fastest / Less stops (bin/hu_route_style.py)
-  const r = await api('/api/route', { json: { from, to: dest.lnglat, heading: state.speed > 3 ? state.heading : null, style, quick: reason === 'reroute' } })
+  const r = await api('/api/route', { json: { from, to: dest.lnglat, heading: state.speed > 3 ? state.heading : null, style, quick: reason === 'reroute',
+    avoid: camsOn() ? state.settings.avoidCameras : 'off' } })
     .catch(() => ({ error: 'route_failed' }));
   clearTimeout(busy); $('destGo').disabled = false;
   if (performance.now() - t0 > 350) hideToast();
@@ -346,20 +405,24 @@ async function routeTo(dest, reason = 'new') {
     state.map.fitBounds(b, { padding: { left: 360, right: 110, top: 40, bottom: 40 }, duration: 800, pitch: 0, bearing: 0 });
     state.follow = false; setTimeout(() => { state.follow = true; if (state.pos) camera(); }, 3500);
     { const first = spoken(r.maneuvers[0]); say(first || t('nav.route_started'), 'route_started', first ? { then: first } : {}); }
-    styleNote(r);
+    routeNote(r);
   }
   guide();
   if (SIM) startSim();
   return true;
 }
 
-// Less stops: how it compares with the fastest route ("8 fewer stops, 3 min longer")
-function styleNote(r) {
-  const i = r.styleInfo; if (r.style !== 'manual' || !i) return;
-  const f = i.fastest;
-  if (!f || f.stops <= i.stops) toast(t('nav.style_same', { n: i.stops }), 5000);
-  else toast(t('nav.style_saved', { n: f.stops - i.stops, min: Math.max(0, Math.round((r.summary.time - f.time) / 60)) }), 6000);
-  logEvent('route_style_result', { stops: i.stops, fastest: f?.stops, extra: f ? Math.round(r.summary.time - f.time) : null });
+// after Go: Less stops compared with the fastest ("8 fewer stops, 3 min longer"), and the plate cameras
+function routeNote(r) {
+  const parts = [], i = r.styleInfo;
+  if (r.style === 'manual' && i) {
+    const f = i.fastest;
+    parts.push(!f || f.stops <= i.stops ? t('nav.style_same', { n: i.stops })
+      : t('nav.style_saved', { n: f.stops - i.stops, min: Math.max(0, Math.round((r.summary.time - f.time) / 60)) }));
+    logEvent('route_style_result', { stops: i.stops, fastest: f?.stops, extra: f ? Math.round(r.summary.time - f.time) : null });
+  }
+  if (r.cameras) { parts.push(camNote(r.cameras)); logEvent('route_cameras', { passed: r.cameras.passed, avoided: r.cameras.avoided }); }
+  if (parts.length) toast(parts.join(' · '), 6500);
 }
 // the route style on the Go sheet: Fastest / Less stops (kept for the next routes, and for reroutes)
 const STYLE_ICONS = {
@@ -462,7 +525,7 @@ function setupLongPress() {
   map.on('touchend', () => clearTimeout(timer));
   map.on('contextmenu', (e) => pick(e.lngLat));
   map.on('click', 'hu-fuel', (e) => { const f = e.features?.[0]; if (f) showFuel({ ...f.properties, lon: f.geometry.coordinates[0], lat: f.geometry.coordinates[1] }); });
-  map.on('moveend', () => { clearTimeout(fuelTimer); fuelTimer = setTimeout(refreshFuel, 300); });
+  map.on('moveend', () => { clearTimeout(fuelTimer); fuelTimer = setTimeout(() => { refreshFuel(); refreshCams(); }, 300); });
   map.on('dragstart', () => { state.follow = false; });
 }
 function pick(lngLat) {
@@ -475,7 +538,7 @@ function pick(lngLat) {
   logEvent('long_press');
 }
 function showDest(d) {
-  state.pending = d; paintStyle();
+  state.pending = d; paintStyle(); paintPrivacy();
   $('destName').textContent = d.name; $('destSub').textContent = d.sub || '';
   $('destSheet').classList.remove('hidden');
 }
@@ -942,7 +1005,7 @@ async function main() {
     // out, and an 'idle' that already happened is never reported again (then no greeting, no start-up time)
     const settled = Promise.race([new Promise(r => state.map.once('idle', r)), new Promise(r => setTimeout(r, 10000))]);
     logEvent('map_load', { ms: Math.round(performance.now() - t0), theme: state.theme.id });
-    addFuelLayer(); addRouteLayers(); resetMarkers(); refreshFuel();
+    addFuelLayer(); addCamLayer(); addRouteLayers(); resetMarkers(); refreshFuel();
     const st = await api('/api/status').catch(() => null);
     if (st && !st.maps.basemap) $('nomaps').classList.remove('hidden');
     state.night = !!st?.night; applyNight();
@@ -987,6 +1050,7 @@ async function main() {
   $('endBtn').onclick = () => endRoute(false);
   $('destCancel').onclick = () => $('destSheet').classList.add('hidden');
   $('routeStyle').onclick = toggleStyle;
+  $('privacyBtn').onclick = togglePrivacy;
   $('destGo').onclick = () => {
     const d = state.pending, keep = d?.fuel && state.route && !state.dest?.fuel ? state.dest : d?.fuel ? state.resumeDest : null;
     const p = routeTo(d); p.then(ok => { if (ok) state.resumeDest = keep; });

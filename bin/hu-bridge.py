@@ -83,6 +83,7 @@ DEFAULT_SETTINGS = {"theme": C("DEFAULT_THEME", "neon-overdrive"), "units": "imp
                     "language": system_language(), "lastPos": None,
                     "syncHudiyColors": True, "nightAuto": True, "startOnMap": True, "phoneScreen": "map",
                     "voicePack": "standard", "mapView": "bird", "routeStyle": C("ROUTE_STYLE", "fastest"),
+                    "avoidCameras": C("AVOID_CAMERAS", "off"), "avoidCamerasWhich": "flock",
                     "dayNight": False, "dayTheme": "sunset-junction", "nightTheme": C("DEFAULT_THEME", "neon-overdrive"),
                     "display": {"level": 100, "auto": True, "day": 100, "night": 45, "method": "auto"}, "radio": {"band": "FM", "FM": 101100, "AM": 740,
                     "presets": {"FM": [], "AM": []}}}
@@ -168,6 +169,7 @@ def get_actor():
         if _actor is None or mt != _actor_mtime:
             from valhalla import Actor, get_config
             cfg = get_config(tile_extract=str(ROUTING_TAR), tile_dir="", verbose=False)
+            cfg["service_limits"]["max_exclude_locations"] = 5000          # routes around plate cameras (bin/hu_cameras.py)
             _actor = Actor(cfg); _actor_mtime = mt
             log.info("valhalla loaded %s", ROUTING_TAR)
     return _actor
@@ -199,23 +201,33 @@ def do_route(body):
            "directions_options": {"units": units}}
     # route style (bin/hu_route_style.py): fastest, or "manual" - fewer stops for a stick shift, even if longer
     style = body.get("style") or settings().get("routeStyle", "fastest")
-    info = None
-    if style == "manual" and req["costing"] == "auto":
-        import hu_route_style
-        trip, info = hu_route_style.plan(actor, req, quick=bool(body.get("quick")))
+    if not (style == "manual" and req["costing"] == "auto"): style = "fastest"
+    calls = [0]
+    def route_fn(r):
+        calls[0] += 1
+        if style == "manual":
+            import hu_route_style                         # (a second try around cameras: the quick way)
+            t, i = hu_route_style.plan(actor, r, quick=bool(body.get("quick")) or calls[0] > 1)
+        else:
+            raw = actor.route(json.dumps(r))
+            t, i = (json.loads(raw) if isinstance(raw, str) else raw)["trip"], None
+        return t, decode_polyline6(t["legs"][0]["shape"]), i
+    # privacy (bin/hu_cameras.py): around the known license-plate cameras - Flock's, or all of them
+    avoid = body["avoid"] if "avoid" in body else settings().get("avoidCameras", "off")
+    cams = None
+    if avoid in ("flock", "all"):
+        trip, shape, info, cams = hu_cameras.avoid(route_fn, req, CAMERAS, avoid)
     else:
-        style = "fastest"
-        raw = actor.route(json.dumps(req))
-        trip = (json.loads(raw) if isinstance(raw, str) else raw)["trip"]
+        trip, shape, info = route_fn(req)
     res = {"trip": trip}
     leg = res["trip"]["legs"][0]
-    shape = decode_polyline6(leg["shape"])
     man = [{"instruction": m.get("instruction"), "verbal": m.get("verbal_pre_transition_instruction") or m.get("instruction"),
             "type": m.get("type"), "length": m.get("length"), "time": m.get("time"), "begin": m.get("begin_shape_index"),
             "end": m.get("end_shape_index"), "streets": m.get("street_names") or [], "exit": (m.get("sign") or {}).get("exit_number_elements")}
            for m in leg["maneuvers"]]
     s = res["trip"]["summary"]
-    return {"shape": shape, "maneuvers": man, "summary": {"length": s["length"], "time": s["time"], "units": units}, "style": style, "styleInfo": info}
+    return {"shape": shape, "maneuvers": man, "summary": {"length": s["length"], "time": s["time"], "units": units}, "style": style, "styleInfo": info,
+            "cameras": cams}
 
 # ---------------------------------------------------------------- diagnostics bundles (bin/hu-diag.sh --bundle)
 DIAG_DIR = Path(C("DIAG_DIR", "/var/lib/headunit/diag"))
@@ -354,7 +366,8 @@ async def route(request):
     except Exception as e:
         out = {"error": "route_failed", "message": str(e)[:300]}
     usage("route", ms=int((time.time() - t0) * 1000), ok="error" not in out, style=out.get("style"),
-          stops=(out.get("styleInfo") or {}).get("stops"))
+          stops=(out.get("styleInfo") or {}).get("stops"), cams=(out.get("cameras") or {}).get("passed"),
+          avoided=(out.get("cameras") or {}).get("avoided"))
     return web.json_response(out)
 
 # ---------------------------------------------------------------- offline search
@@ -486,6 +499,48 @@ async def fuel_api(request):
         out["near"] = await loop.run_in_executor(None, lambda: FUEL.nearest(float(near[0]), float(near[1]), 12, diesel_first=diesel))
     usage("fuel", along=len(out["along"]), near=len(out["near"]))
     return web.json_response(out)
+
+# ---------------------------------------------------------------- license-plate cameras (bin/hu_cameras.py)
+import hu_cameras
+CAMERAS = hu_cameras.Cameras(SEARCH_DB, USER_DIR / "alpr-cameras.json", log=log.info)
+CAMERAS_REFRESH = float(C("CAMERAS_REFRESH_DAYS", "7")) * 86400
+
+def region_bbox():
+    """The map region's box [w, s, e, n] (the maps' manifest, or the region in headunit.conf)."""
+    bb = read_json(MAPS_DIR / "manifest.json", {}).get("bbox")
+    if bb: return bb
+    try: return json.loads((APP_DIR.parent / "maps" / "regions.json").read_text())[C("MAP_REGION", "texas-plus")]["bbox"]
+    except Exception: return None
+
+async def cameras_api(request):
+    """GET ?bbox=w,s,e,n: the cameras in the map's view (GeoJSON; Flock's or all, as set); GET: what's
+    known; POST {op: "update"}: download the region's cameras from OpenStreetMap now (Wi-Fi)."""
+    loop = asyncio.get_running_loop()
+    if request.method == "POST":
+        bb = region_bbox()
+        if not bb: return web.json_response({"ok": False, "error": "no_region"})
+        if not CAMERAS.busy: loop.run_in_executor(None, CAMERAS.update, bb)
+        usage("cameras_update")
+        return web.json_response({"ok": True, **CAMERAS.status(), "busy": True})
+    if "bbox" in request.query:
+        try: w, s, e, n = [float(x) for x in request.query["bbox"].split(",")]
+        except ValueError: raise web.HTTPBadRequest(text="bbox=w,s,e,n")
+        which = request.query.get("which") or settings().get("avoidCameras", "off")
+        return web.json_response(await loop.run_in_executor(None, CAMERAS.in_view, w, s, e, n, "all" if which == "all" else "flock"))
+    return web.json_response(await loop.run_in_executor(None, CAMERAS.status))
+
+async def cameras_watch():
+    """While the privacy option is on: the camera list refreshed once a week (when there's internet)."""
+    await map_up(180)
+    while True:
+        try:
+            st = await asyncio.get_running_loop().run_in_executor(None, CAMERAS.status)
+            if settings().get("avoidCameras", "off") != "off" and time.time() - (st.get("updated") or 0) > CAMERAS_REFRESH \
+               and not st["busy"] and region_bbox():
+                await asyncio.get_running_loop().run_in_executor(None, CAMERAS.update, region_bbox())
+        except Exception as e:
+            log.warning("plate cameras: %s", e)
+        await asyncio.sleep(3600)
 
 # ---------------------------------------------------------------- music (MPD; iPod and USB drives)
 _mpd_lock = threading.Lock()
@@ -1263,6 +1318,7 @@ async def on_start(app):
     app["contacts"] = asyncio.create_task(contacts_watch())
     app["routing"] = asyncio.create_task(routing_watch())
     app["diag"] = asyncio.create_task(diag_watch())
+    app["cameras"] = asyncio.create_task(cameras_watch())
     try: hu_boot.mark("bridge")                     # start-up timeline (Settings > Developer)
     except Exception: pass
     async def later():                               # ZIP centres for older search data: after the map is up
@@ -1346,6 +1402,7 @@ def make_app():
     app.router.add_post("/api/route", route)
     app.router.add_get("/api/search", search)
     app.router.add_route("*", "/api/fuel", fuel_api)
+    app.router.add_route("*", "/api/cameras", cameras_api)
     app.router.add_get("/api/music/{action}", music)
     app.router.add_post("/api/music/control", music_control)
     app.router.add_route("*", "/api/radio/{action}", radio_api)

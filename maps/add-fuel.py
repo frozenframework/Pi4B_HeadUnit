@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """
-Add every gas station to existing offline search data (HEADUNIT_MAPS/search.sqlite), without
-rebuilding search: the map's gas icons and Places > Gas then have all stations, named or not, with
-their brand and whether they sell diesel. Nothing else in the search data changes (addresses,
-911 house numbers you added, ...), and running it again just replaces the stations.
+Add every gas station - and every license-plate camera (Flock and others, for the "avoid Flock cameras"
+route option) - to existing offline search data (HEADUNIT_MAPS/search.sqlite), without rebuilding
+search: the map's gas icons and Places > Gas then have all stations, named or not, with their brand
+and whether they sell diesel. Nothing else in the search data changes (addresses, 911 house numbers
+you added, ...), and running it again just replaces them. (The head unit can also download the
+cameras itself over Wi-Fi: Settings > Maps > Plate cameras.)
 
     source hu-maps/bin/activate          (Windows: hu-maps\\Scripts\\activate)
     pip install osmium
@@ -18,6 +20,8 @@ import argparse, importlib.util, json, sqlite3, sys, time
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE.parent / "bin"))
+import hu_cameras
 
 def log(*a):
     print(time.strftime("%H:%M:%S"), *a, flush=True)
@@ -40,8 +44,9 @@ def station(tags):
     detail = " ".join(x for x in (tags.get("addr:housenumber", ""), tags.get("addr:street", ""), tags.get("addr:city", "")) if x)
     return tags.get("name", ""), brand, diesel, detail
 
-def read_fuel(pbfs):
-    """[(lon, lat, name, brand, diesel, detail)] for every amenity=fuel node and way."""
+def read_fuel(pbfs, cameras=None):
+    """[(lon, lat, name, brand, diesel, detail)] for every amenity=fuel node and way; with a list as
+    `cameras`, every license-plate camera goes into it too: (lon, lat, flock)."""
     osmium = need_osmium()
     has_filters = hasattr(osmium, "filter") and hasattr(osmium.filter, "KeyFilter")
     out, ways = [], []                                   # ways: (info, [node ids])
@@ -49,6 +54,8 @@ def read_fuel(pbfs):
         def node(self, n):
             if n.tags.get("amenity") == "fuel" and n.location.valid():
                 out.append((n.location.lon, n.location.lat) + station(n.tags))
+            if cameras is not None and n.tags.get("surveillance:type") == "ALPR" and n.location.valid():
+                cameras.append((n.location.lon, n.location.lat, 1 if hu_cameras.is_flock(n.tags) else 0))
         def way(self, w):
             if w.tags.get("amenity") == "fuel":
                 refs = list(dict.fromkeys(nd.ref for nd in w.nodes))          # a closed area repeats its first corner
@@ -57,7 +64,7 @@ def read_fuel(pbfs):
     for p in pbfs:
         log("finding gas stations in", Path(p).name)
         h = Pass1()
-        if has_filters: h.apply_file(str(p), filters=[osmium.filter.KeyFilter("amenity")])
+        if has_filters: h.apply_file(str(p), filters=[osmium.filter.KeyFilter("amenity", "surveillance:type")])
         else: h.apply_file(str(p))
     if ways:
         want = {r for _, refs in ways for r in refs}
@@ -76,9 +83,13 @@ def read_fuel(pbfs):
                 out.append((sum(x for x, _ in pts) / len(pts), sum(y for _, y in pts) / len(pts)) + info)
     return out
 
-def add_to_db(db, rows):
+def add_to_db(db, rows, cameras=None):
     con = sqlite3.connect(db)
     try:
+        if cameras is not None:
+            con.execute("DROP TABLE IF EXISTS cameras")
+            con.execute("CREATE TABLE cameras(lon REAL, lat REAL, flock INTEGER)")
+            con.executemany("INSERT INTO cameras VALUES (?,?,?)", cameras)
         con.execute("CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT)")
         con.execute("DROP TABLE IF EXISTS fuel")
         con.execute("CREATE TABLE fuel(lon REAL, lat REAL, name TEXT, brand TEXT, diesel INTEGER, detail TEXT)")
@@ -118,9 +129,11 @@ def main():
         if not region.get("geofabrik"): sys.exit("Couldn't tell which region the search data is for: pass --pbf <file.osm.pbf>.")
         work = Path(a.work); work.mkdir(parents=True, exist_ok=True)
         pbfs = [br.download(f"{br.GEOFABRIK}{g}-latest.osm.pbf", work / (g.split("/")[-1] + "-latest.osm.pbf")) for g in region["geofabrik"]]
-    rows = read_fuel(pbfs)
+    cams = []
+    rows = read_fuel(pbfs, cams)
     named = sum(1 for r in rows if r[2]); diesel = sum(1 for r in rows if r[4] == 1)
-    extra = add_to_db(db, rows)
+    extra = add_to_db(db, rows, cams)
+    log(f"{len(cams):,} license-plate cameras added ({sum(c[2] for c in cams):,} Flock)")
     log(f"{len(rows):,} gas stations added ({named:,} named, {diesel:,} known to sell diesel; "
         f"{extra:,} unnamed ones now found by their brand in Search)")
     log(f"send it to the head unit: python3 tools/push-maps.py {out} --only search --host miata-headunit.local")

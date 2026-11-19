@@ -122,7 +122,7 @@ for t in themes:
     assert f == src[t["id"]]["fuel"], "apps/styles/themes.json matches tools/themes.json"
     assert f["bg"].lower() != f["fg"].lower() and f["fg"].lower() != t["route"]["color"].lower(), t["id"]   # stands out from the route line
 nav = (ROOT / "apps/nav/nav.js").read_text()
-assert "addFuelLayer(); addRouteLayers(); refreshRoute();" in nav, "the icons come back after a skin change"
+assert "addFuelLayer(); addCamLayer(); addRouteLayers(); refreshRoute();" in nav, "the icons come back after a skin change"
 assert "map.on('click', 'hu-fuel'" in nav and "fuelColors(state.theme)" in nav
 print("6) each skin colours its own gas icons; they're redrawn with every skin change")
 # 7) maps/add-fuel.py: every station into existing search data (areas placed at their middle), run twice

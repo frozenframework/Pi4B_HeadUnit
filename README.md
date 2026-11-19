@@ -149,6 +149,17 @@ a bigger road) and the turns on each, and takes the one with the fewest, as long
 longer. After you press Go it says how it compares, e.g. "8 fewer stops, 3 min longer". To make
 *Less stops* the default for a car, add `ROUTE_STYLE=manual` to `/etc/headunit/headunit.conf`.
 
+**Privacy: avoid license-plate cameras.** The Go sheet also has **Avoid Flock**: routes then go around
+the known Flock Safety cameras (or every plate reader: *Settings → Maps → Avoid license-plate cameras*,
+which cycles Off / Flock only / All plate cameras), and the cameras show on the map. The cameras come
+from OpenStreetMap, where volunteers (mostly the DeFlock project) map them: the head unit downloads
+the list for your map region itself over Wi-Fi (*Update* in that setting, and once a week while it's
+on), or it comes with the search data (`maps/build-routing.py`, `maps/add-fuel.py`). A route passing
+a camera is asked for again with that spot left out, a few times, as long as it stays at most twice as
+long; after Go it says how many it avoided, and if one can't be avoided (at the start or destination,
+or the only road) it says that too. A camera nobody has mapped yet can't be avoided, so treat it as
+"fewer known cameras", not a guarantee.
+
 **Gas stations** come from the same search data: every gas station is an icon on the map (from zoom 11,
 in the skin's own colours; a small **D** = known to sell diesel). Tap one for Go. *Places → Gas* (or
 typing *gas* in Search) lists the ones along the route ahead, then the nearest; going to one while on a
