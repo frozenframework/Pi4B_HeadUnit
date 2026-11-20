@@ -16,24 +16,24 @@ v = Voices(ROOT / "voices", T / "data", play_cmd=[str(BIN / "play")], espeak=str
 
 ps = v.packs()
 ORIG = {"neon-guide", "race-caller", "street-narrator", "cruise-control"}
-assert set(ps) == {"standard"} | ORIG | {f"{x}-hd" for x in ORIG}, set(ps)
+assert set(ps) == {"standard"} | ORIG, set(ps)
 for pid, p in ps.items():
     if pid == "standard": continue
     assert p["engine"] == "piper" and hu_voice.MODEL_RE.match(p["model"]), pid
     for k in ("greet", "route_started", "rerouting", "arrived", "in_dist", "sample"): assert p["lines"].get(k), (pid, k)
     hu_voice.model_url(p["model"], ".onnx")
-for x in ORIG:                                   # the HD packs: same personality and lines, Piper's high-quality voice
-    hd, o = ps[f"{x}-hd"], ps[x]
-    assert hd["hd"] and hd["model"].endswith("-high") and hd["lines"] == o["lines"] and hd["name"] == o["name"] + " HD", x
-    assert hd["dir"].endswith(f"{x}-hd") and not o.get("hd")
-assert len({ps[f"{x}-hd"]["model"] for x in ORIG}) == 4, "each HD pack its own speaker"
-print("1) nine packs: Standard, the four personalities, and each in HD; all lines, valid Piper voice names")
+for x in ORIG:                                   # tuned near what the voices were trained at: no wobbly rhythm
+    p = ps[x]
+    assert 0.6 <= p["noise_scale"] <= 0.7 and 0.75 <= p["noise_w"] <= 0.85 and 0.9 <= p["length_scale"] <= 1.08, x
+    assert not any(":" in l for k, ls in p["lines"].items() for l in (ls if isinstance(ls, list) else [ls])), "no colons (odd pauses)"
+assert v.pack("race-caller")["id"] == "race-caller", "a removed HD pack falls back to its personality"
+print("1) five packs: Standard and the four personalities; all lines, valid Piper voice names, settings near the voices' own")
 
 rc = v.pack("race-caller")
 kind, said = v.compose(rc, "in_dist", "In 0.5 miles, Turn left.", {"dist": "0.5 miles", "text": "Turn left onto Main Street"}, "en")
-assert said == "Coming up in 0.5 miles: Turn left onto Main Street!", said
+assert said == "Coming up in 0.5 miles, Turn left onto Main Street!", said
 kind, said = v.compose(rc, "route_started", "Head north.", {"then": "Head north on Elm Street."}, "en")
-assert said.endswith(" Head north on Elm Street.") and said.split("!")[0] in ("And they're off", "Green light"), said
+assert said.endswith(" Head north on Elm Street.") and said.split("!")[0] in ("And we're off", "Green light, let's go"), said
 assert v.compose(rc, "turn", "Turn left onto Main Street.", {}, "en") == ("text", "Turn left onto Main Street.")
 assert v.compose(v.pack("standard"), "arrived", "You have arrived.", {}, "en") == ("text", "You have arrived.")
 assert v.compose(v.pack("standard"), "greet", "", {}, "en") == ("text", "")
@@ -121,14 +121,15 @@ v2 = asyncio.run(dl())
 assert v2.model_ready(model) and (T / "data/models" / f"{model}.onnx").read_bytes() == blob
 assert any(r and r.startswith("bytes=6") for _, r in hits), hits
 assert [x for x in v2.status("cruise-control") if x["id"] == "cruise-control"][0]["state"] == "ready"
-# HD models are big: fetched only for the HD pack you pick
-v3 = Voices(ROOT / "voices", T / "data3"); got = []
-async def fake_fetch(session, url, dest, model, progress): got.append(model); raise IOError("stop")
-v3._fetch = fake_fetch
-asyncio.run(v3.download_models(None, first="neon-guide"))
-assert got and not got[0].endswith("-high"), got
-got.clear(); asyncio.run(v3.download_models(None, first="race-caller-hd")); assert got == ["en_US-ryan-high"], got
-print("5) Piper model downloads, survives a cut-off and resumes from the last byte; an HD model only once it's picked")
+# models and spoken lines no pack uses any more (the HD voices of 1.2.37) are removed
+v3 = Voices(ROOT / "voices", T / "data3"); (T / "data3/models").mkdir(parents=True)
+for m in ("en_US-ryan-high", "en_US-joe-medium"):
+    for ext in (".onnx", ".onnx.json"): (T / "data3/models" / f"{m}{ext}").write_bytes(b"x" * 1000)
+(T / "data3/cache/race-caller-hd/keep").mkdir(parents=True); (T / "data3/cache/cruise-control").mkdir(parents=True)
+assert v3.tidy() == 2000
+assert sorted(x.name for x in (T / "data3/models").iterdir()) == ["en_US-joe-medium.onnx", "en_US-joe-medium.onnx.json"]
+assert [d.name for d in (T / "data3/cache").iterdir()] == ["cruise-control"]
+print("5) Piper model downloads, survives a cut-off and resumes from the last byte; unused models removed")
 
 # 6) the most common lines made once for the chosen Piper voice, and kept
 import types, numpy as np
@@ -142,25 +143,25 @@ class _Voice:
 sys.modules["piper"] = types.SimpleNamespace(SynthesisConfig=_Cfg)
 v4 = Voices(ROOT / "voices", T / "data4", play_cmd=[str(BIN / "play")], espeak=str(BIN / "espeak"), prep_delay=0)
 (T / "data4/models").mkdir(parents=True)
-for ext in (".onnx", ".onnx.json"): (T / "data4/models" / f"en_US-ryan-high{ext}").write_bytes(b"x")
+for ext in (".onnx", ".onnx.json"): (T / "data4/models" / f"en_US-john-medium{ext}").write_bytes(b"x")
 v4._piper_voice = lambda m: _Voice()
-assert v4.preload("neon-guide-hd", "en", "en-us") == 0, "model not there yet: nothing made with the stand-in voice"
-n = v4.preload("race-caller-hd", "en", "en-us")
-lines = v4.pack("race-caller-hd")["lines"]
+assert v4.preload("neon-guide", "en", "en-us") == 0, "model not there yet: nothing made with the stand-in voice"
+n = v4.preload("race-caller", "en", "en-us")
+lines = v4.pack("race-caller")["lines"]
 fixed = sum(len(lines[k]) if isinstance(lines[k], list) else 1 for k in ("greet", "rerouting", "arrived"))
 assert n == fixed + 3 * len(hu_voice.COMMON_TURNS), n
-assert v4.status("race-caller-hd") and [x for x in v4.status("race-caller-hd") if x["id"] == "race-caller-hd"][0]["preload"]["total"] == n
+assert v4.status("race-caller") and [x for x in v4.status("race-caller") if x["id"] == "race-caller"][0]["preload"]["total"] == n
 for _ in range(400):
     if not v4.preloads and not (v4.prep_thread and v4.prep_thread.is_alive()): break
     time.sleep(0.02)
-kept = list((T / "data4/cache/race-caller-hd/keep").glob("*.wav")); assert len(kept) == n, len(kept)
-assert v4.preload("race-caller-hd", "en", "en-us") == 0, "made once"
+kept = list((T / "data4/cache/race-caller/keep").glob("*.wav")); assert len(kept) == n, len(kept)
+assert v4.preload("race-caller", "en", "en-us") == 0, "made once"
 c0 = _Voice.calls
-asyncio.run(v4.say("race-caller-hd", "in_dist", "In 0.5 miles, Turn left.", {"dist": "0.5 miles", "text": "Turn left."}, "en", "en-us"))
-asyncio.run(v4.say("race-caller-hd", "turn", "Keep right at the fork.", {}, "en", "en-us"))
+asyncio.run(v4.say("race-caller", "in_dist", "In 0.5 miles, Turn left.", {"dist": "0.5 miles", "text": "Turn left."}, "en", "en-us"))
+asyncio.run(v4.say("race-caller", "turn", "Keep right at the fork.", {}, "en", "en-us"))
 assert _Voice.calls == c0, "common lines play straight from the kept copies"
-for i in range(hu_voice.CACHE_MAX + 5): (T / "data4/cache/race-caller-hd" / f"x{i}.wav").write_bytes(b"x")
-v4._prune(); assert len(list((T / "data4/cache/race-caller-hd/keep").glob("*.wav"))) == n, "kept lines aren't pruned"
-assert v4.preload("race-caller-hd", "en", "en-us", units="metric") == 2 * len(hu_voice.COMMON_TURNS), "metric heads-ups too"
+for i in range(hu_voice.CACHE_MAX + 5): (T / "data4/cache/race-caller" / f"x{i}.wav").write_bytes(b"x")
+v4._prune(); assert len(list((T / "data4/cache/race-caller/keep").glob("*.wav"))) == n, "kept lines aren't pruned"
+assert v4.preload("race-caller", "en", "en-us", units="metric") == 2 * len(hu_voice.COMMON_TURNS), "metric heads-ups too"
 print("6) the chosen voice's common lines (greetings, the usual turns + heads-ups) made once, kept, played at once")
 print("voice packs: all tests passed")

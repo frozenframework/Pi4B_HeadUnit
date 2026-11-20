@@ -34,11 +34,13 @@ headunit.conf, the default).
 
 Only use recordings you made yourself or have the rights to.
 
-**HD packs.** Each personality also comes as an HD pack (Neon Guide HD, Race Caller HD, Street Narrator HD,
-Cruise Control HD): the same lines and wording with one of Piper's "high" quality models, which sound
-smoother but are bigger (about 110 MB each) and take 2–3x the work to speak. An HD model downloads only
-when you pick that pack. A pack can build on another with `"extends": "<pack id>"` plus its own `model`,
-pace and description; `"hd": true` marks a high-quality pack.
+**Hearing a voice the way it sounds in the car:** Settings › Driving › Voice › *Test drive* plays a short
+drive's worth of directions back to back (route set, a heads-up and its turn, two quick turns in one
+breath, a highway exit, rerouting, arrival).
+
+**Tuning:** `noise_scale` / `noise_w` close to the values the Piper voices were trained with (0.667 / 0.8)
+keep the rhythm steady; much higher makes it wobble. Lines read best short, with commas for breaths and
+no colons (Piper makes an odd stop at a colon).
 
 **Common lines made once.** For the chosen Piper voice, the head unit makes its greetings / rerouting /
 arrived lines and the usual directions without a street name (turn left, keep right at the fork, take
@@ -48,7 +50,4 @@ half a mile, ..."), once in the background after the model arrives (about 85 lin
 street names are made a few turns ahead during a route.
 
 Built-in Piper voices and their data: Kristin, John (LibriVox recordings, public domain), Joe (CC0),
-Northern English Male (OpenSLR 83, CC BY-SA 4.0); HD: LJ Speech (public domain), Cori (LibriVox, public
-domain), Lessac (Blizzard 2013 data, its own license: https://www.cstr.ed.ac.uk/projects/blizzard/2013/lessac_blizzard2013/license.html),
-Ryan (RyanSpeech, CC BY-NC-SA 4.0: non-commercial). Fine for your own car; check the licenses before
-selling a head unit with them. Piper: https://github.com/OHF-Voice/piper1-gpl (GPL-3.0).
+Northern English Male (OpenSLR 83, CC BY-SA 4.0). Piper: https://github.com/OHF-Voice/piper1-gpl (GPL-3.0).

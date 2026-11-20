@@ -5,25 +5,23 @@
  "description": "High-energy announcer who treats every drive like race day",
  "engine": "piper",
  "model": "en_US-john-medium",
- "length_scale": 0.88,
+ "length_scale": 0.93,
  "espeak": {
   "voice": "en-us+m3",
   "speed": 185,
   "pitch": 58
  },
- "noise_scale": 0.8,
- "noise_w": 1.0,
- "pause": 0.15,
+ "noise_scale": 0.7,
+ "noise_w": 0.85,
+ "pause": 0.16,
  "phrases": {
   "Turn left": [
    "Turn left",
-   "Hang a left",
-   "Swing left"
+   "Hang a left"
   ],
   "Turn right": [
    "Turn right",
-   "Hang a right",
-   "Swing right"
+   "Hang a right"
   ],
   "Keep left": [
    "Keep left",
@@ -40,22 +38,22 @@
  },
  "lines": {
   "greet": [
-   "Engines warm, let's get this show on the road!",
-   "Welcome back, driver! The streets are waiting!"
+   "Engines warm. Let's get this show on the road!",
+   "Welcome back, driver. The streets are waiting!"
   ],
   "route_started": [
-   "And they're off! Route is live!",
-   "Green light! Let's go!"
+   "And we're off!",
+   "Green light, let's go!"
   ],
-  "in_dist": "Coming up in {dist}: {text}!",
+  "in_dist": "Coming up in {dist}, {text}!",
   "rerouting": [
-   "Whoa, wrong way! Finding you a new line!",
-   "Shortcut? Not quite. Rerouting!"
+   "Wrong way! Finding you a new line.",
+   "Not quite. New route coming up!"
   ],
   "arrived": [
-   "And that's the finish line! What a run!",
-   "You made it! Destination reached!"
+   "And that's the finish line!",
+   "You made it. What a run!"
   ],
-  "sample": "Race Caller on the mic! Coming up in half a mile: turn left onto Main Street!"
+  "sample": "Race Caller on the mic! Coming up in half a mile, turn left onto Main Street!"
  }
 }

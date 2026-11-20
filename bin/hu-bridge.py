@@ -790,7 +790,32 @@ async def voices_api(request):
     what = request.match_info.get("what", "")
     if request.method == "POST" and what == "download":
         start_voice_downloads(); return web.json_response({"ok": True})
+    if request.method == "POST" and what == "test":         # Settings > Driving > Voice > Test drive
+        body = await request.json() if request.can_read_body else {}
+        s = settings(); pack = str(body.get("pack") or s.get("voicePack", "standard")); lang = s.get("language", "en")
+        if _voice_test.get("task") and not _voice_test["task"].done(): return web.json_response({"ok": False, "busy": True})
+        _voice_test["task"] = asyncio.create_task(voice_test_drive(pack, lang))
+        return web.json_response({"ok": True})
     return web.json_response({"packs": voices.status(settings().get("voicePack", "standard")), "language": settings().get("language", "en")})
+
+# A short drive's worth of prompts, one after another, so a voice can be judged the way it sounds in the car
+TEST_DRIVE = [("greet", "", {}),
+              ("route_started", "Head north on Main St.", {"then": "Head north on Main St."}),
+              ("in_dist", "In 0.5 miles, Turn right onto N Frazier St.", {"dist": "0.5 miles", "text": "Turn right onto N Frazier St."}),
+              ("turn", "Turn right onto N Frazier St.", {}),
+              ("in_dist", "In 1000 feet, Turn left onto Davis St, then turn right onto Oak Ave.",
+               {"dist": "1000 feet", "text": "Turn left onto Davis St, then turn right onto Oak Ave."}),
+              ("turn", "Take exit 87B toward I-45 S/US-59/Downtown/Houston.", {}),
+              ("rerouting", "Rerouting.", {}),
+              ("in_dist", "In 1000 feet, Your destination is on the right.", {"dist": "1000 feet", "text": "Your destination is on the right."}),
+              ("arrived", "You have arrived at your destination.", {})]
+_voice_test = {"task": None}
+async def voice_test_drive(pack, lang):
+    fb = voice_for(lang)
+    for key, text, vars in TEST_DRIVE if lang == "en" else [("sample", "", {})]:
+        await voices.say(pack, key, text, vars, lang, fb)
+        await asyncio.sleep(0.7)
+    usage("voice_test", pack=pack)
 
 def voice_preload():
     """The chosen voice's most common lines, made once in the background and kept (bin/hu_voice.py preload)."""
@@ -1343,6 +1368,9 @@ async def on_start(app):
         await map_up(120); ZIPS.get(); FUEL.ensure()
         s = settings()                               # the voice's greetings / rerouting / arrived lines, ready ahead of time
         if s.get("voice", True): voices.prepare_lines(s.get("voicePack", "standard"), s.get("language", "en"), voice_for(s.get("language", "en")))
+        if str(s.get("voicePack", "")).endswith("-hd"):   # the HD voices are gone (1.2.38): back to the same personality
+            s["voicePack"] = s["voicePack"][:-3]; write_json(USER_DIR / "settings.json", s)
+        await asyncio.get_running_loop().run_in_executor(None, voices.tidy)
         voice_preload()                              # and its most common lines, kept (once per voice)
     app["zips"] = asyncio.create_task(later())
     usage("bridge_start", vehicle=C("VEHICLE_ID", ""))

@@ -108,6 +108,7 @@ def humanize(text, phrases=None, rng=random):
                ("Turn", "Keep", "Take", "Bear", "Continue", "Make", "Merge", "Stay", "Head", "Go", "Enter", "Exit", "Drive",
                 "Follow", "You", "Your", "Then", "At", "Use", "Hang", "Slight", "Sharp") else m.group(2)) + m.group(3), t)
     t = re.sub(r"\s+([,.!?])", r"\1", t); t = re.sub(r"([,.!?])\1+", r"\1", t); t = re.sub(r",\.", ".", t)
+    t = re.sub(r"[.,;:]+([!?])", r"\1", t); t = re.sub(r"([!?])[.,]+", r"\1", t)       # "...on the right.!" -> "...on the right!"
     t = t.strip()
     if t and t[-1] not in ".!?": t += "."
     return t[0].upper() + t[1:] if t else t

@@ -11,9 +11,9 @@
   "speed": 160,
   "pitch": 62
  },
- "noise_scale": 0.7,
- "noise_w": 0.9,
- "pause": 0.25,
+ "noise_scale": 0.667,
+ "noise_w": 0.8,
+ "pause": 0.24,
  "phrases": {
   "Turn left": [
    "Turn left",
@@ -38,21 +38,21 @@
  },
  "lines": {
   "greet": [
-   "Systems online. Where are we headed?",
-   "Grid's up. Pick a destination when you're ready."
+   "Evening. Where are we headed?",
+   "I'm here when you're ready. Where to?"
   ],
   "route_started": [
-   "Route locked in. Follow the light.",
-   "Path is set. I'll call the turns."
+   "Route's set. I'll call the turns.",
+   "Got it. Here's the way."
   ],
   "in_dist": "In {dist}, {text}",
   "rerouting": [
-   "Off the line. Recalculating.",
-   "New path coming up."
+   "New way coming up.",
+   "Okay, finding another way."
   ],
   "arrived": [
-   "You've arrived. Nice and clean.",
-   "Destination reached. Signing off the route."
+   "You're here. Nice and easy.",
+   "That's your stop."
   ],
   "sample": "Neon Guide here. In half a mile, turn left onto Main Street."
  }

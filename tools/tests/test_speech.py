@@ -13,6 +13,7 @@ cases = {
     "In 0.5 miles, Turn left onto N Main St.": "In half a mile, turn left onto North Main Street.",
     "Take exit 87B toward I-45 S/US-59.": "Take exit 87 B toward Interstate 45 South and U.S. 59.",
     "Take exit 87B toward I-45 S/US-59/Downtown/Houston.": "Take exit 87 B toward Interstate 45 South and U.S. 59.",
+    "Coming up in 1000 feet, Your destination is on the right.!": "Coming up in 1000 feet, your destination is on the right!",
     "In 1.5 miles, Keep right to take TX-105 W.": "In a mile and a half, keep right to take Texas 105 West.",
     "Turn right onto St Johns Rd": "Turn right onto Saint Johns Road.",
     "Continue on FM 1488 for 2.3 miles.": "Continue on F.M. 1488 for 2 and a half miles.",

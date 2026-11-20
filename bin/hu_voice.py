@@ -127,18 +127,22 @@ class Voices:
                     try: p = json.loads((d / "voice.json").read_text())
                     except (OSError, ValueError): continue
                     p.update(id=d.name, dir=str(d), kind=kind); out.setdefault(d.name, p)   # built-in wins on a name clash
-        # "extends": another pack's lines and wording with its own voice (the HD packs: same personality,
-        # Piper's high-quality model)
-        for pid, p in list(out.items()):
-            base = out.get(p.get("extends") or "")
-            if base and not base.get("extends"):
-                merged = {k: v for k, v in base.items() if k not in ("id", "dir", "kind", "hd", "download")}
-                merged.update(p); out[pid] = merged
         return out
 
     def pack(self, pid):
         ps = self.packs()
-        return ps.get(pid) or ps.get("standard") or {"id": "standard", "engine": "espeak", "lines": {}, "language": "*"}
+        return ps.get(pid) or ps.get(str(pid).removesuffix("-hd")) or ps.get("standard") or {"id": "standard", "engine": "espeak", "lines": {}, "language": "*"}
+
+    def tidy(self):
+        """Voice models and cached speech no pack uses any more (e.g. the HD voices of 1.2.37) are removed."""
+        ps = self.packs(); used = {p.get("model") for p in ps.values() if p.get("engine") == "piper"}
+        freed = 0
+        for f in list(self.models.glob("*.onnx*")) if self.models.exists() else []:
+            if f.name.split(".onnx")[0] not in used: freed += f.stat().st_size; f.unlink(missing_ok=True)
+        for d in list(self.cache.iterdir()) if self.cache.exists() else []:
+            if d.is_dir() and d.name not in ps: shutil.rmtree(d, ignore_errors=True)
+        if freed: log.info("voices: %d MB of unused voice models removed", freed >> 20)
+        return freed
 
     def model_ready(self, model):
         return bool(model) and (self.models / f"{model}.onnx").exists() and (self.models / f"{model}.onnx.json").exists()
@@ -151,7 +155,7 @@ class Voices:
             out.append({"id": pid, "name": p.get("name", pid), "description": p.get("description", ""), "kind": p["kind"],
                         "language": p.get("language", "en"), "engine": p.get("engine", "espeak"), "state": st,
                         "pct": self.downloads.get(m, {}).get("pct") if m else None, "current": pid == current,
-                        "hd": bool(p.get("hd")), "size_mb": p.get("size_mb"), "preload": self.preloads.get(pid)})
+                        "preload": self.preloads.get(pid)})
         out.sort(key=lambda x: (x["id"] != "standard", x["kind"] != "built-in", x["name"].lower()))
         return out
 
@@ -364,7 +368,6 @@ class Voices:
         """Fetch missing Piper models of every pack (the chosen one first). Resumes partial downloads."""
         wanted = []
         for p in sorted(self.packs().values(), key=lambda p: p["id"] != first):
-            if p.get("hd") and p["id"] != first: continue          # big high-quality models: only the one you pick
             m = p.get("model") if p.get("engine") == "piper" else None
             if m and MODEL_RE.match(m) and not self.model_ready(m) and m not in wanted: wanted.append(m)
         self.models.mkdir(parents=True, exist_ok=True)

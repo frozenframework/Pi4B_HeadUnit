@@ -5,24 +5,22 @@
  "description": "Laid-back co-driver, easy-going and unhurried",
  "engine": "piper",
  "model": "en_US-joe-medium",
- "length_scale": 1.05,
+ "length_scale": 1.04,
  "espeak": {
   "voice": "en-us+m7",
   "speed": 155,
   "pitch": 45
  },
- "noise_scale": 0.72,
- "noise_w": 0.95,
+ "noise_scale": 0.667,
+ "noise_w": 0.85,
  "pause": 0.28,
  "phrases": {
   "Turn left": [
    "Turn left",
-   "Hang a left",
    "Make a left"
   ],
   "Turn right": [
    "Turn right",
-   "Hang a right",
    "Make a right"
   ],
   "Continue on": [
@@ -32,26 +30,26 @@
   ],
   "Keep left": [
    "Keep left",
-   "Ease left"
+   "Stay to the left"
   ],
   "Keep right": [
    "Keep right",
-   "Ease right"
+   "Stay to the right"
   ]
  },
  "lines": {
   "greet": [
-   "Hey, good to see you. Where are we cruising today?",
+   "Hey, good to see you. Where are we going today?",
    "All set. Take your time."
   ],
   "route_started": [
-   "Alright, we're rolling. Easy does it.",
+   "Alright, we're rolling.",
    "Route's ready. Just ride."
   ],
-  "in_dist": "In about {dist}, {text}.",
+  "in_dist": "In about {dist}, {text}",
   "rerouting": [
    "No worries, finding another way.",
-   "Missed it? All good. New route."
+   "All good. New route."
   ],
   "arrived": [
    "And we're here. Smooth ride.",

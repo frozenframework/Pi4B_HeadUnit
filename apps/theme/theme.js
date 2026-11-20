@@ -135,11 +135,10 @@ async function region() {
 }
 // ---- Voice packs (bin/hu_voice.py): name, what state its offline voice is in, a sample
 let VOICES = [];
-// a voice's state: downloading / getting its common lines ready (made once, then instant) / ready;
-// a high-quality (HD) voice downloads only once it's picked
+// a voice's state: downloading / getting its common lines ready (made once, then instant) / ready
 const voiceState = (v) => v.preload ? t('set.voice_preparing', { done: v.preload.done, total: v.preload.total })
   : v.state === 'ready' ? t('set.voice_ready') : v.state === 'downloading' ? t('set.voice_downloading', { pct: v.pct ?? 0 })
-  : v.hd && !v.current ? t('set.voice_hd_size', { mb: v.size_mb ?? 110 }) : t('set.voice_waiting');
+  : t('set.voice_waiting');
 let VOICE_LANG = 'en';
 async function loadVoices() {
   const r = await api('/api/voices').catch(() => null);
@@ -169,6 +168,8 @@ function wireVoice() {
       });
   };
   $('voiceSample').onclick = () => sample(curVoice()?.id || S.voicePack || 'standard');
+  // a short drive's worth of prompts back to back (heads-up, turn, two quick turns, an exit, arrived)
+  $('voiceTest').onclick = () => { api('/api/voices/test', { json: { pack: curVoice()?.id || S.voicePack } }).catch(() => {}); toast(t('set.voice_test_note'), 4000); };
 }
 function sample(id) {
   const v = VOICES.find(x => x.id === id);
