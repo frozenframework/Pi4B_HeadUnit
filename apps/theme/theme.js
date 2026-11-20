@@ -135,8 +135,11 @@ async function region() {
 }
 // ---- Voice packs (bin/hu_voice.py): name, what state its offline voice is in, a sample
 let VOICES = [];
-const voiceState = (v) => v.state === 'ready' ? t('set.voice_ready') : v.state === 'downloading' ? t('set.voice_downloading', { pct: v.pct ?? 0 })
-  : t('set.voice_waiting');
+// a voice's state: downloading / getting its common lines ready (made once, then instant) / ready;
+// a high-quality (HD) voice downloads only once it's picked
+const voiceState = (v) => v.preload ? t('set.voice_preparing', { done: v.preload.done, total: v.preload.total })
+  : v.state === 'ready' ? t('set.voice_ready') : v.state === 'downloading' ? t('set.voice_downloading', { pct: v.pct ?? 0 })
+  : v.hd && !v.current ? t('set.voice_hd_size', { mb: v.size_mb ?? 110 }) : t('set.voice_waiting');
 let VOICE_LANG = 'en';
 async function loadVoices() {
   const r = await api('/api/voices').catch(() => null);
@@ -150,7 +153,8 @@ async function voiceRow() {
   $('voicePack').textContent = cur?.name || (S.voicePack && S.voicePack !== 'standard' ? S.voicePack : 'Standard');
   $('voicePack').classList.add('on');
   $('voiceSub').textContent = VOICE_LANG !== 'en' && cur?.language === 'en' ? t('set.voice_lang_note')
-    : (cur && cur.state !== 'ready' ? `${cur.description} · ${voiceState(cur)}` : (cur?.description || t('set.voice_pack_sub')));
+    : (cur && (cur.state !== 'ready' || cur.preload) ? `${cur.description} · ${voiceState(cur)}` : (cur?.description || t('set.voice_pack_sub')));
+  if (cur?.preload || cur?.state === 'downloading') setTimeout(voiceRow, 3000);
 }
 // wired once, up front: the buttons work even before (or without) the voice list loading
 function wireVoice() {

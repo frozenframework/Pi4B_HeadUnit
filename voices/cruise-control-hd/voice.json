@@ -1,0 +1,18 @@
+{
+ "format": 1,
+ "extends": "cruise-control",
+ "name": "Cruise Control HD",
+ "hd": true,
+ "size_mb": 110,
+ "description": "Laid-back co-driver, easy-going and unhurried. High-quality voice (US female, Lessac)",
+ "model": "en_US-lessac-high",
+ "length_scale": 1.05,
+ "noise_scale": 0.667,
+ "noise_w": 0.85,
+ "pause": 0.28,
+ "espeak": {
+  "voice": "en-us+f2",
+  "speed": 155,
+  "pitch": 55
+ }
+}

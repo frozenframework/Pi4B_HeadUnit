@@ -792,6 +792,12 @@ async def voices_api(request):
         start_voice_downloads(); return web.json_response({"ok": True})
     return web.json_response({"packs": voices.status(settings().get("voicePack", "standard")), "language": settings().get("language", "en")})
 
+def voice_preload():
+    """The chosen voice's most common lines, made once in the background and kept (bin/hu_voice.py preload)."""
+    s = settings(); lang = s.get("language", "en")
+    try: return voices.preload(s.get("voicePack", "standard"), lang, voice_for(lang), s.get("units", "imperial"))
+    except Exception as e: log.warning("voice preload: %s", e); return 0
+
 _voice_dl = {"task": None}
 def start_voice_downloads():
     t = _voice_dl["task"]
@@ -800,6 +806,7 @@ def start_voice_downloads():
         from aiohttp import ClientSession, ClientTimeout
         async with ClientSession(timeout=ClientTimeout(total=None, sock_connect=20, sock_read=60)) as cs:
             await voices.download_models(cs, first=settings().get("voicePack"))
+        voice_preload()                              # a model that just arrived: its common lines next
     _voice_dl["task"] = asyncio.create_task(run())
 
 async def voice_watch():
@@ -833,7 +840,7 @@ async def settings_api(request):
     if "voicePack" in body:
         start_voice_downloads()
         lang = s.get("language", "en")
-        voices.prepare_lines(s.get("voicePack", "standard"), lang, voice_for(lang))
+        voices.prepare_lines(s.get("voicePack", "standard"), lang, voice_for(lang)); voice_preload()
                               # the chosen voice first
     if s.get("startOnMap") != old_start:   # Hudiy's first screen: offline map or its own dashboard
         subprocess.Popen([sys.executable, "/opt/headunit/bin/hu-hudiy-start.py", "--config"],
@@ -1336,6 +1343,7 @@ async def on_start(app):
         await map_up(120); ZIPS.get(); FUEL.ensure()
         s = settings()                               # the voice's greetings / rerouting / arrived lines, ready ahead of time
         if s.get("voice", True): voices.prepare_lines(s.get("voicePack", "standard"), s.get("language", "en"), voice_for(s.get("language", "en")))
+        voice_preload()                              # and its most common lines, kept (once per voice)
     app["zips"] = asyncio.create_task(later())
     usage("bridge_start", vehicle=C("VEHICLE_ID", ""))
     asyncio.get_running_loop().run_in_executor(None, hudiy_hotspot_guard)

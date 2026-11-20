@@ -1,0 +1,18 @@
+{
+ "format": 1,
+ "extends": "street-narrator",
+ "name": "Street Narrator HD",
+ "hd": true,
+ "size_mb": 110,
+ "description": "Unhurried British storyteller for late-night drives. High-quality voice (UK female, LibriVox)",
+ "model": "en_GB-cori-high",
+ "length_scale": 1.08,
+ "noise_scale": 0.62,
+ "noise_w": 0.8,
+ "pause": 0.32,
+ "espeak": {
+  "voice": "en-gb+f3",
+  "speed": 150,
+  "pitch": 45
+ }
+}

@@ -20,6 +20,17 @@ MODEL_RE = re.compile(r"^([a-z]{2,3})_([A-Z]{2})-([A-Za-z0-9_]+)-(x_low|low|medi
 CACHE_MAX = 1200
 RANDOM_KEYS = ("greet", "route_started", "rerouting", "arrived", "sample")   # a different line each time; directions: always the same words
 PREP_MAX = 40
+# Kept ready for every Piper pack (spoken once, never pruned): the directions that come up on most drives
+# with no street name in them, said at the turn and as a heads-up - the same words the map sends (see
+# prompts() in apps/nav/nav.js: "In {dist}, {text}" with the road's heads-up distance).
+COMMON_TURNS = ["Turn left.", "Turn right.", "Bear left.", "Bear right.", "Make a sharp left.", "Make a sharp right.",
+                "Make a left U-turn.", "Make a right U-turn.", "Keep left at the fork.", "Keep right at the fork.",
+                "Keep straight at the fork.", "Take the exit on the right.", "Take the exit on the left.",
+                "Take the ramp on the right.", "Take the ramp on the left.", "Merge.", "Merge left.", "Merge right.",
+                "Continue.", "Enter the roundabout and take the 1st exit.", "Enter the roundabout and take the 2nd exit.",
+                "Enter the roundabout and take the 3rd exit.", "You have arrived at your destination.",
+                "Your destination is on the right.", "Your destination is on the left."]
+HEADS_UP = {"imperial": ("0.5 miles", "1000 feet"), "metric": ("800 meters", "300 meters")}
 
 def model_url(model, ext):
     m = MODEL_RE.match(model)
@@ -105,6 +116,7 @@ class Voices:
         self.on_speak_start = self.on_speak_end = None   # set by the bridge: duck other audio through Hudiy
         self.prep_queue, self.prep_lock, self.prep_thread, self.prep_delay = [], threading.Lock(), None, prep_delay
         self.prepared = 0
+        self.preloads = {}          # pack -> {"done": n, "total": n} while its common lines are being made
 
     # ---------------------------------------------------------- packs
     def packs(self):
@@ -115,6 +127,13 @@ class Voices:
                     try: p = json.loads((d / "voice.json").read_text())
                     except (OSError, ValueError): continue
                     p.update(id=d.name, dir=str(d), kind=kind); out.setdefault(d.name, p)   # built-in wins on a name clash
+        # "extends": another pack's lines and wording with its own voice (the HD packs: same personality,
+        # Piper's high-quality model)
+        for pid, p in list(out.items()):
+            base = out.get(p.get("extends") or "")
+            if base and not base.get("extends"):
+                merged = {k: v for k, v in base.items() if k not in ("id", "dir", "kind", "hd", "download")}
+                merged.update(p); out[pid] = merged
         return out
 
     def pack(self, pid):
@@ -131,7 +150,8 @@ class Voices:
             st = "ready" if not m or self.model_ready(m) else self.downloads.get(m, {}).get("state", "waiting")
             out.append({"id": pid, "name": p.get("name", pid), "description": p.get("description", ""), "kind": p["kind"],
                         "language": p.get("language", "en"), "engine": p.get("engine", "espeak"), "state": st,
-                        "pct": self.downloads.get(m, {}).get("pct") if m else None, "current": pid == current})
+                        "pct": self.downloads.get(m, {}).get("pct") if m else None, "current": pid == current,
+                        "hd": bool(p.get("hd")), "size_mb": p.get("size_mb"), "preload": self.preloads.get(pid)})
         out.sort(key=lambda x: (x["id"] != "standard", x["kind"] != "built-in", x["name"].lower()))
         return out
 
@@ -193,13 +213,20 @@ class Voices:
         cmd = [self.espeak, "-v", e.get("voice") or fallback_voice, "-s", str(e.get("speed", 165)), "-p", str(e.get("pitch", 50)), "--stdout", text]
         return subprocess.run(cmd, capture_output=True, timeout=20).stdout
 
-    def wav_for(self, p, text, fallback_voice):
-        """Spoken audio for text (cached on disk, so repeated lines start instantly)."""
+    def _cache_files(self, p, text, fallback_voice):
+        """(kept, ordinary) cache paths for a line."""
         use_piper = p.get("engine") == "piper" and self.model_ready(p.get("model"))
         how = f"piper3:{p.get('car_eq', True)}:{p.get('presence_db')}:{p.get('volume')}:{p.get('model')}:{p.get('length_scale')}:{p.get('noise_scale')}:{p.get('noise_w')}:{p.get('pause')}" if use_piper else f"espeak:{json.dumps(p.get('espeak'))}:{fallback_voice}"
-        f = self.cache / p["id"] / (hashlib.sha1(f"{how}|{text}".encode()).hexdigest() + ".wav")
-        if f.exists():
-            return f.read_bytes()
+        name = hashlib.sha1(f"{how}|{text}".encode()).hexdigest() + ".wav"
+        return self.cache / p["id"] / "keep" / name, self.cache / p["id"] / name
+
+    def wav_for(self, p, text, fallback_voice, keep=False):
+        """Spoken audio for text (cached on disk, so repeated lines start instantly; `keep`: never pruned)."""
+        use_piper = p.get("engine") == "piper" and self.model_ready(p.get("model"))
+        kept, f = self._cache_files(p, text, fallback_voice)
+        for c in (kept, f):
+            if c.exists(): return c.read_bytes()
+        if keep and use_piper: f = kept
         try:
             data = self.synth_piper(p, text) if use_piper else self.synth_espeak(p, text, fallback_voice)
         except Exception as e:
@@ -214,7 +241,7 @@ class Voices:
         return data
 
     def _prune(self):
-        files = sorted(self.cache.rglob("*.wav"), key=lambda x: x.stat().st_atime)
+        files = sorted((x for x in self.cache.rglob("*.wav") if x.parent.name != "keep"), key=lambda x: x.stat().st_atime)
         for x in files[:max(0, len(files) - CACHE_MAX)]: x.unlink(missing_ok=True)
 
     async def _focus(self, which):
@@ -234,7 +261,7 @@ class Voices:
             what = humanize(what, p.get("phrases"), rng)
         return p, kind, what
 
-    def prepare(self, pack_id, items, lang, fallback_voice):
+    def prepare(self, pack_id, items, lang, fallback_voice, keep=False):
         """Speak ahead of time (into the cache, in the background, never while something is being said):
         the next turns' prompts, so each one starts the moment it's due - no pause while the voice is
         worked out. items = [{key, text, vars}]. Returns how many were queued."""
@@ -243,15 +270,44 @@ class Voices:
             if not isinstance(it, dict): continue
             p, kind, what = self.words(pack_id, str(it.get("key", ""))[:30], str(it.get("text", ""))[:300],
                                        {k: str(v)[:200] for k, v in (it.get("vars") or {}).items() if isinstance(k, str)}, lang)
-            if kind == "text" and what: jobs.append((p, what, fallback_voice))
+            if kind == "text" and what: jobs.append((p, what, fallback_voice, keep))
         with self.prep_lock:
             have = {(j[0]["id"], j[1]) for j in self.prep_queue}
-            for j in jobs:
-                if (j[0]["id"], j[1]) not in have: self.prep_queue.append(j); have.add((j[0]["id"], j[1]))
-            del self.prep_queue[:-PREP_MAX]                         # the newest route wins
+            new = [j for j in jobs if (j[0]["id"], j[1]) not in have]
+            if keep: self.prep_queue.extend(new)                       # common lines: after everything else
+            else:                                                      # the route's next turns first (the newest route wins)
+                routes = [j for j in self.prep_queue if not j[3]]; keeps = [j for j in self.prep_queue if j[3]]
+                self.prep_queue[:] = (new + routes)[:PREP_MAX] + keeps
             if not (self.prep_thread and self.prep_thread.is_alive()):
                 self.prep_thread = threading.Thread(target=self._prep_run, daemon=True); self.prep_thread.start()
-        return len(jobs)
+        return len(new)
+
+    def preload(self, pack_id, lang, fallback_voice, units="imperial"):
+        """Make a Piper pack's most common lines once (kept, never pruned): its greetings / rerouting /
+        arrived lines and the usual directions without a street name, at the turn and as heads-ups.
+        Only once its model is on the head unit (not with the stand-in voice). Returns how many were queued."""
+        p = self.pack(pack_id)
+        if p.get("engine") != "piper" or not self.model_ready(p.get("model")) or p.get("language", "en") not in ("*", lang): return 0
+        items = []
+        for key in ("greet", "rerouting", "arrived"):
+            line = (p.get("lines") or {}).get(key)
+            for l in (line if isinstance(line, list) else [line] if line else []):
+                if "{" not in l: items.append({"key": "_line", "text": l})
+        for turn in COMMON_TURNS:
+            items.append({"key": "turn", "text": turn, "vars": {}})
+            for d in HEADS_UP.get(units, HEADS_UP["imperial"]):
+                items.append({"key": "in_dist", "text": f"In {d}, {turn}", "vars": {"dist": d, "text": turn}})
+        todo = [it for it in items if not self.cached(pack_id, it, lang, fallback_voice)]
+        if not todo: return 0
+        self.preloads[p["id"]] = {"done": 0, "total": len(todo)}
+        n = sum(self.prepare(pack_id, todo[i:i + PREP_MAX], lang, fallback_voice, keep=True) for i in range(0, len(todo), PREP_MAX))
+        if n: self.preloads[p["id"]]["total"] = n
+        else: self.preloads.pop(p["id"], None)
+        return n
+
+    def cached(self, pack_id, item, lang, fallback_voice):
+        p, kind, what = self.words(pack_id, item.get("key", ""), item.get("text", ""), item.get("vars") or {}, lang)
+        return kind != "text" or not what or any(f.exists() for f in self._cache_files(p, what, fallback_voice))
 
     def prepare_lines(self, pack_id, lang, fallback_voice):
         """The pack's fixed lines (greetings, rerouting, arrived) - every variant - ahead of time."""
@@ -270,12 +326,15 @@ class Voices:
         while True:
             with self.prep_lock:
                 if not self.prep_queue: return
-                p, what, fb = self.prep_queue.pop(0)
+                p, what, fb, keep = self.prep_queue.pop(0)
             while self.waiting > 0: time.sleep(0.2)                  # something is being said: wait
             try:
-                self.wav_for(p, what, fb); self.prepared += 1
+                self.wav_for(p, what, fb, keep=keep); self.prepared += 1
             except Exception as e:
                 log.debug("prepare %r: %s", what, e)
+            if keep and p["id"] in self.preloads:
+                pl = self.preloads[p["id"]]; pl["done"] += 1
+                if pl["done"] >= pl["total"]: self.preloads.pop(p["id"], None); log.info("voice %s: common lines ready", p["id"])
             time.sleep(self.prep_delay)
 
     async def say(self, pack_id, key, text, vars, lang, fallback_voice):
@@ -305,6 +364,7 @@ class Voices:
         """Fetch missing Piper models of every pack (the chosen one first). Resumes partial downloads."""
         wanted = []
         for p in sorted(self.packs().values(), key=lambda p: p["id"] != first):
+            if p.get("hd") and p["id"] != first: continue          # big high-quality models: only the one you pick
             m = p.get("model") if p.get("engine") == "piper" else None
             if m and MODEL_RE.match(m) and not self.model_ready(m) and m not in wanted: wanted.append(m)
         self.models.mkdir(parents=True, exist_ok=True)

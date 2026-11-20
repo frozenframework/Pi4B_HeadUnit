@@ -1,0 +1,13 @@
+{
+ "format": 1,
+ "extends": "neon-guide",
+ "name": "Neon Guide HD",
+ "hd": true,
+ "size_mb": 110,
+ "description": "Calm and cool, like a city guide in your ear after dark. High-quality voice (US female, LJ Speech)",
+ "model": "en_US-ljspeech-high",
+ "length_scale": 1.0,
+ "noise_scale": 0.667,
+ "noise_w": 0.8,
+ "pause": 0.25
+}
