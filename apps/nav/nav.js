@@ -322,9 +322,19 @@ function startGps() {
   const es = new EventSource('/api/gps/stream');
   es.onmessage = (e) => {
     const f = JSON.parse(e.data);
+    state.gps = f;
     if (!(f.mode >= 2) || f.lat == null) { $('speed').textContent = '--'; return; }
     onFix([f.lon, f.lat], f.track, f.speed || 0);
   };
+  // no receiver at all a little after start: say so once, instead of a map that quietly waits
+  setTimeout(() => { if (!state.pos && ['no_receiver', 'no_gpsd'].includes(state.gps?.state)) toast(gpsWaiting(), 6000); }, 25000);
+}
+// why there's no position yet (bin/hu-bridge.py GPS.info)
+function gpsWaiting(g = state.gps) {
+  if (g?.state === 'no_receiver') return t('nav.gps_none');
+  if (g?.state === 'no_gpsd') return t('nav.gps_no_service');
+  if (g?.state === 'searching') return t('nav.gps_searching', { n: g.seen || 0 });
+  return t('nav.waiting_gps');
 }
 
 function onFix(p, track, speed) {
@@ -705,7 +715,7 @@ async function setLabel(label, existing) {
   if (existing) opts.push({ value: 'remove', label: t('common.remove'), danger: true });
   const how = await choose(existing ? labelName(label) : t('nav.set_place', { label: labelName(label) }), opts);
   if (how === 'here') {
-    if (!state.pos) { toast(t('nav.waiting_gps')); return; }
+    if (!state.pos) { toast(gpsWaiting()); return; }
     if (await savePlace(label, { name: labelName(label), lnglat: state.pos })) openFavorites();
   } else if (how === 'search') {
     state.assign = label; closeSheets(); buildKeyboard();
@@ -1069,7 +1079,7 @@ async function main() {
   $('themeBtn').onclick = openThemes;
   $('moreSettings').onclick = openSettings;
   $('viewBtn').onclick = toggleView;
-  $('centerBtn').onclick = () => { state.follow = true; if (state.pos) camera(); else toast(t('nav.waiting_gps')); };
+  $('centerBtn').onclick = () => { state.follow = true; if (state.pos) camera(); else toast(gpsWaiting()); };
   $('endBtn').onclick = () => endRoute(false);
   $('destCancel').onclick = () => $('destSheet').classList.add('hidden');
   $('routeStyle').onclick = toggleStyle;

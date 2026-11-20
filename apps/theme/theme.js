@@ -28,7 +28,7 @@ function page(id) {
   document.querySelectorAll('.page').forEach(p => p.classList.toggle('hidden', p.id !== id));
   document.querySelectorAll('[data-page]').forEach(b => b.classList.toggle('on', b.dataset.page === id));
   ({ maps, about, display, updates, region, dev })[id]?.();
-  if (id === 'dev') contactsInfo();
+  if (id === 'dev') { contactsInfo(); gpsInfo(); }
 }
 // Day and night skins: with the switch on, the cards pick the skin for the selected slot (day or night);
 // the bridge changes skins at sunrise and sunset (bin/hu_sun.py), using the GPS position.
@@ -338,6 +338,15 @@ async function contactsInfo() {
   contactsBusy = !!(r.importing || r.busy);
 }
 let contactsBusy = false;
+// GPS: is a receiver in use, how many satellites, or why not (bin/hu-bridge.py GPS.info)
+async function gpsInfo() {
+  const g = (await api('/api/status').catch(() => null))?.gps; if (!g) return;
+  const ids = (g.plugged || []).map(p => p[1] ? `${p[1]}, ${p[0]}` : p[0]).join('; ');
+  $('gpsInfo').textContent = g.state === 'fix' ? t('set.gps_fix', { used: g.used, seen: g.seen })
+    : g.state === 'searching' ? t('set.gps_searching', { seen: g.seen })
+    : g.state === 'no_gpsd' ? t('set.gps_no_service')
+    : ids ? t('set.gps_unused', { ids }) : t('set.gps_none');
+}
 // routing data from an older build gets index.bin once, in the background (bin/hu_valhalla_tar.py)
 function routingPrep(p) {
   if (!p || p.phase === 'done' || !p.phase) return '';
@@ -430,6 +439,7 @@ function askGoBack(v, cur) {
   wireVoice(); wireSkins(); cards(); switches(); wireDisplay(); followTheme((s) => { S = s; cards(); }); wireRegion(); wireDev(); wireContacts(); wireDiag(); wireCams(); page(new URLSearchParams(location.search).get('page') || 'skins');
   setInterval(() => { if (!$('maps').classList.contains('hidden')) mapProgress(); }, 2000);
   setInterval(() => { if ((contactsBusy && !$('maps').classList.contains('hidden')) || !$('dev').classList.contains('hidden')) contactsInfo(); }, 1500);
+  setInterval(() => { if (!$('dev').classList.contains('hidden')) gpsInfo(); }, 3000);
   setInterval(() => { if (!$('maps').classList.contains('hidden')) maps(); }, 15000);
   setInterval(() => { if (!$('display').classList.contains('hidden')) display(); }, 2000);
   setInterval(() => { if (!$('updates').classList.contains('hidden')) updates(); }, 3000);

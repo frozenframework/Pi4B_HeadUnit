@@ -60,3 +60,7 @@ HUDIY_ORDER=""
 
 # Voice prompts lower the music / CarPlay audio while they speak (through Hudiy's audio focus). 0 = off.
 DUCK_AUDIO=1
+
+# USB GPS receivers are found by themselves (VK-162, Adafruit Ultimate GPS USB, BU-353 and anything
+# named GPS). Another one the map doesn't pick up: its USB id from lsusb, e.g. GPS_USB=1234:abcd
+GPS_USB=""

@@ -111,28 +111,85 @@ def usage(event, **fields):
         f.write(json.dumps(rec) + "\n")
 
 # ---------------------------------------------------------------- GPS (gpsd)
+GPSD_PORT = int(C("GPSD_PORT", "2947"))
+USB_GPS_IDS = {"1546": None, "10c4": "ea60", "067b": "2303", "1163": None, "0e8d": "3329"}   # (udev/61-headunit-gps.rules)
+
+def usb_gps_plugged(sys_usb="/sys/bus/usb/devices"):
+    """USB devices that look like a GPS receiver, whether or not gpsd has them: [(vid:pid, product)]."""
+    out = []
+    for d in Path(sys_usb).glob("*"):
+        try:
+            vid = (d / "idVendor").read_text().strip(); pid = (d / "idProduct").read_text().strip()
+        except OSError:
+            continue
+        try: prod = (d / "product").read_text().strip()
+        except OSError: prod = ""
+        if (vid in USB_GPS_IDS and USB_GPS_IDS[vid] in (None, pid)) or any(w in prod.lower() for w in ("gps", "gnss")):
+            out.append((f"{vid}:{pid}", prod))
+    return out
+
 class GPS:
+    """Position from gpsd (127.0.0.1:2947). Besides the fix, keeps what's needed to tell why there's no
+    position: no receiver handed to gpsd (none plugged in, or one gpsd wasn't told about), or a
+    receiver that hasn't found enough satellites yet (no view of the sky, or a cold start)."""
     def __init__(self):
         self.fix = {"mode": 0}
+        self.devices = {}             # path -> driver, from gpsd's DEVICES / DEVICE reports
+        self.seen = self.used = 0     # satellites in view / used, from SKY
+        self.connected = False; self.error = ""; self.since = time.time()
         self.subscribers = set()
+    def info(self):
+        """The fix plus receivers / satellites, for the map (SSE) and Settings > Developer."""
+        state = ("fix" if (self.fix.get("mode") or 0) >= 2 and self.fix.get("lat") is not None
+                 else "searching" if self.devices else "no_gpsd" if not self.connected else "no_receiver")
+        return {**self.fix, "state": state, "receivers": len(self.devices), "drivers": sorted({d for d in self.devices.values() if d}),
+                "seen": self.seen, "used": self.used, "since": int(self.since), **({"error": self.error} if self.error else {})}
+    def _push(self):
+        data = json.dumps(self.info())
+        for q in list(self.subscribers):
+            if q.qsize() < 5: q.put_nowait(data)
+    def handle(self, msg):
+        """One gpsd report. True when the map should hear about it."""
+        cls = msg.get("class")
+        if cls == "TPV":
+            was = self.fix.get("mode") or 0
+            self.fix = {k: msg.get(k) for k in ("mode", "lat", "lon", "speed", "track", "alt", "time", "eph")}
+            if ((self.fix.get("mode") or 0) >= 2) != (was >= 2): self.since = time.time()
+            if msg.get("device") and msg["device"] not in self.devices: self.devices[msg["device"]] = msg.get("driver", "")
+            return True
+        if cls == "DEVICES":
+            self.devices = {d["path"]: d.get("driver", "") for d in msg.get("devices", []) if d.get("path")}
+            self.since = time.time(); return True
+        if cls == "DEVICE" and msg.get("path"):
+            if msg.get("activated") == 0: self.devices.pop(msg["path"], None); self.fix = {"mode": 0}
+            else: self.devices[msg["path"]] = msg.get("driver", "") or self.devices.get(msg["path"], "")
+            self.since = time.time(); return True
+        if cls == "SKY":
+            sats = msg.get("satellites") or []
+            seen = msg.get("nSat", len(sats)) if sats or "nSat" in msg else self.seen
+            used = msg.get("uSat", sum(1 for s in sats if s.get("used"))) if sats or "uSat" in msg else self.used
+            changed = (seen, used) != (self.seen, self.used); self.seen, self.used = seen, used
+            return changed and (self.fix.get("mode") or 0) < 2       # (with a fix, TPV already updates the map)
+        return False
     async def run(self):
         while True:
             try:
-                r, w = await asyncio.open_connection("127.0.0.1", 2947)
+                r, w = await asyncio.open_connection("127.0.0.1", GPSD_PORT)
                 w.write(b'?WATCH={"enable":true,"json":true}\n'); await w.drain()
+                self.connected, self.error = True, ""
                 async for line in r:
                     try:
                         msg = json.loads(line)
                     except ValueError:
                         continue
-                    if msg.get("class") == "TPV":
-                        self.fix = {k: msg.get(k) for k in ("mode", "lat", "lon", "speed", "track", "alt", "time", "eph")}
-                        data = json.dumps(self.fix)
-                        for q in list(self.subscribers):
-                            if q.qsize() < 5:
-                                q.put_nowait(data)
+                    if self.handle(msg): self._push()
+                raise ConnectionError("gpsd closed the connection")
             except Exception as e:
-                self.fix = {"mode": 0, "error": str(e)}
+                was = self.connected
+                self.fix = {"mode": 0}; self.devices = {}; self.seen = self.used = 0
+                self.connected, self.error = False, str(e)[:120]
+                if was: self.since = time.time()
+                self._push()
             await asyncio.sleep(3)
 
 gps = GPS()
@@ -142,7 +199,7 @@ async def gps_stream(request):
     await resp.prepare(request)
     q = asyncio.Queue(); gps.subscribers.add(q)
     try:
-        await resp.write(f"data: {json.dumps(gps.fix)}\n\n".encode())
+        await resp.write(f"data: {json.dumps(gps.info())}\n\n".encode())
         while True:
             try:
                 data = await asyncio.wait_for(q.get(), timeout=15)
@@ -1094,7 +1151,7 @@ async def status(request):
     return web.json_response({
         "maps": {"basemap": (MAPS_DIR / "basemap.pmtiles").exists(), "routing": ROUTING_TAR.exists(), "search": SEARCH_DB.exists(), **man,
                  "routingPrep": read_json(ROUTING_STATUS, {}) if ROUTING_TAR.exists() else {}},
-        "gps": gps.fix, "power": st, "radio": radio.status(), "sources": sources(), "theme": settings().get("theme"),
+        "gps": {**gps.info(), "plugged": usb_gps_plugged(C("SYS_USB", "/sys/bus/usb/devices"))}, "power": st, "radio": radio.status(), "sources": sources(), "theme": settings().get("theme"),
         "vehicle": C("VEHICLE_NAME", ""), "fuel": FUEL_TYPE, "night": st.get("illum", False), "version": VERSION,
         "dayNight": settings().get("dayNight", False), "contactsSync": contacts_sync_now()})
 

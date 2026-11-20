@@ -1,0 +1,24 @@
+# Head unit: hand USB GPS receivers to gpsd as soon as they're plugged in, and give them a steady
+# name (/dev/gps-usb0, ...). Debian's own list (60-gpsd.rules) only knows a few receivers: it has the
+# VK-162 (u-blox 7) but not the Adafruit Ultimate GPS USB (a Silicon Labs CP210x USB-serial chip),
+# which then never reaches gpsd and the map waits for GPS forever.
+# Another receiver that isn't picked up: put its USB id (lsusb) in headunit.conf as GPS_USB=1234:abcd
+# and run sudo /opt/headunit/setup.sh --only 50-gps.
+SUBSYSTEM!="tty", GOTO="hu_gps_end"
+ACTION=="remove", GOTO="hu_gps_end"
+# u-blox, any model (VK-162 G-Mouse = 1546:01a7, u-blox 8 / M9 receivers)
+ATTRS{idVendor}=="1546", GOTO="hu_gps"
+# Silicon Labs CP210x: Adafruit Ultimate GPS USB (#4279) and many other USB GPS boards
+ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", GOTO="hu_gps"
+# Prolific PL2303: GlobalSat BU-353 and other GPS pucks
+ATTRS{idVendor}=="067b", ATTRS{idProduct}=="2303", GOTO="hu_gps"
+# SiRF / GlobalSat, MediaTek GPS chips
+ATTRS{idVendor}=="1163", GOTO="hu_gps"
+ATTRS{idVendor}=="0e8d", ATTRS{idProduct}=="3329", GOTO="hu_gps"
+# anything that calls itself a GPS / GNSS receiver
+ATTRS{product}=="*GPS*|*Gps*|*gps*|*GNSS*|*Gnss*", GOTO="hu_gps"
+# GPS_USB from headunit.conf
+GOTO="hu_gps_end"
+LABEL="hu_gps"
+SYMLINK+="gps-usb%n", TAG+="systemd", ENV{SYSTEMD_WANTS}="gpsdctl@%k.service", ENV{HU_GPS}="1"
+LABEL="hu_gps_end"

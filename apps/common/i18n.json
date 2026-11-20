@@ -350,7 +350,16 @@
   "nav.did_you_mean": "No exact match. Did you mean:",
   "nav.k_area": "City / ZIP area",
   "nav.k_street": "Street",
-  "nav.enter": "Enter"
+  "nav.enter": "Enter",
+  "nav.gps_none": "No GPS receiver found. Check its USB plug.",
+  "nav.gps_no_service": "The GPS service isn't running",
+  "nav.gps_searching": "Finding satellites ({n} in view). The GPS needs a view of the sky.",
+  "set.gps": "GPS",
+  "set.gps_fix": "Position found · {used} of {seen} satellites in use",
+  "set.gps_searching": "Receiver found · {seen} satellites in view, no position yet. It needs a view of the sky; the first fix can take a few minutes.",
+  "set.gps_none": "No GPS receiver in use. Check that it's plugged in.",
+  "set.gps_unused": "A GPS receiver is plugged in ({ids}) but isn't in use. Install the latest update, or run: sudo /opt/headunit/setup.sh --only 50-gps",
+  "set.gps_no_service": "The GPS service (gpsd) isn't running."
  },
  "es": {
   "common.back": "Atrás",
@@ -702,7 +711,16 @@
   "nav.did_you_mean": "No hay coincidencia exacta. ¿Quiso decir:",
   "nav.k_area": "Ciudad / código postal",
   "nav.k_street": "Calle",
-  "nav.enter": "Intro"
+  "nav.enter": "Intro",
+  "nav.gps_none": "No se encontró un receptor GPS. Revisa su conexión USB.",
+  "nav.gps_no_service": "El servicio de GPS no está funcionando",
+  "nav.gps_searching": "Buscando satélites ({n} a la vista). El GPS necesita ver el cielo.",
+  "set.gps": "GPS",
+  "set.gps_fix": "Posición encontrada · {used} de {seen} satélites en uso",
+  "set.gps_searching": "Receptor encontrado · {seen} satélites a la vista, aún sin posición. Necesita ver el cielo; la primera posición puede tardar unos minutos.",
+  "set.gps_none": "Ningún receptor GPS en uso. Revisa que esté conectado.",
+  "set.gps_unused": "Hay un receptor GPS conectado ({ids}) pero no está en uso. Instala la última actualización o ejecuta: sudo /opt/headunit/setup.sh --only 50-gps",
+  "set.gps_no_service": "El servicio de GPS (gpsd) no está funcionando."
  },
  "zh": {
   "common.back": "返回",
@@ -1075,7 +1093,16 @@
   "nav.did_you_mean": "没有完全匹配。您是不是要找：",
   "nav.k_area": "城市 / 邮编区域",
   "nav.k_street": "街道",
-  "nav.enter": "确定"
+  "nav.enter": "确定",
+  "nav.gps_none": "未找到 GPS 接收器。请检查 USB 连接。",
+  "nav.gps_no_service": "GPS 服务未运行",
+  "nav.gps_searching": "正在搜索卫星（可见 {n} 颗）。GPS 需要看到天空。",
+  "set.gps": "GPS",
+  "set.gps_fix": "已定位 · 使用 {used}/{seen} 颗卫星",
+  "set.gps_searching": "已找到接收器 · 可见 {seen} 颗卫星，尚未定位。需要看到天空；首次定位可能需要几分钟。",
+  "set.gps_none": "没有正在使用的 GPS 接收器。请检查是否已插好。",
+  "set.gps_unused": "已插入 GPS 接收器（{ids}），但未被使用。请安装最新更新，或运行：sudo /opt/headunit/setup.sh --only 50-gps",
+  "set.gps_no_service": "GPS 服务（gpsd）未运行。"
  },
  "tl": {
   "common.back": "Bumalik",
@@ -1448,7 +1475,16 @@
   "nav.did_you_mean": "Walang eksaktong tugma. Ito ba ang ibig mong sabihin:",
   "nav.k_area": "Lungsod / ZIP",
   "nav.k_street": "Kalye",
-  "nav.enter": "Enter"
+  "nav.enter": "Enter",
+  "nav.gps_none": "Walang nakitang GPS receiver. Tingnan ang USB plug nito.",
+  "nav.gps_no_service": "Hindi tumatakbo ang GPS service",
+  "nav.gps_searching": "Naghahanap ng satellite ({n} ang nakikita). Kailangang makita ng GPS ang langit.",
+  "set.gps": "GPS",
+  "set.gps_fix": "May posisyon na · {used} sa {seen} satellite ang gamit",
+  "set.gps_searching": "May receiver · {seen} satellite ang nakikita, wala pang posisyon. Kailangan nitong makita ang langit; ilang minuto ang unang posisyon.",
+  "set.gps_none": "Walang GPS receiver na ginagamit. Tingnan kung nakasaksak ito.",
+  "set.gps_unused": "May nakasaksak na GPS receiver ({ids}) pero hindi ginagamit. I-install ang pinakabagong update, o patakbuhin: sudo /opt/headunit/setup.sh --only 50-gps",
+  "set.gps_no_service": "Hindi tumatakbo ang GPS service (gpsd)."
  },
  "vi": {
   "common.back": "Quay lại",
@@ -1800,7 +1836,16 @@
   "nav.did_you_mean": "Không có kết quả khớp chính xác. Có phải bạn muốn tìm:",
   "nav.k_area": "Thành phố / mã ZIP",
   "nav.k_street": "Đường",
-  "nav.enter": "Nhập"
+  "nav.enter": "Nhập",
+  "nav.gps_none": "Không tìm thấy bộ thu GPS. Kiểm tra cổng USB.",
+  "nav.gps_no_service": "Dịch vụ GPS không chạy",
+  "nav.gps_searching": "Đang tìm vệ tinh ({n} trong tầm nhìn). GPS cần nhìn thấy bầu trời.",
+  "set.gps": "GPS",
+  "set.gps_fix": "Đã có vị trí · dùng {used}/{seen} vệ tinh",
+  "set.gps_searching": "Đã có bộ thu · thấy {seen} vệ tinh, chưa có vị trí. Cần nhìn thấy bầu trời; lần định vị đầu có thể mất vài phút.",
+  "set.gps_none": "Không có bộ thu GPS nào đang dùng. Kiểm tra xem đã cắm chưa.",
+  "set.gps_unused": "Đã cắm bộ thu GPS ({ids}) nhưng chưa được dùng. Cài bản cập nhật mới nhất, hoặc chạy: sudo /opt/headunit/setup.sh --only 50-gps",
+  "set.gps_no_service": "Dịch vụ GPS (gpsd) không chạy."
  },
  "ar": {
   "common.back": "رجوع",
@@ -2152,7 +2197,16 @@
   "nav.did_you_mean": "لا توجد نتيجة مطابقة تمامًا. هل تقصد:",
   "nav.k_area": "المدينة / الرمز البريدي",
   "nav.k_street": "شارع",
-  "nav.enter": "إدخال"
+  "nav.enter": "إدخال",
+  "nav.gps_none": "لم يتم العثور على جهاز GPS. تحقق من توصيل USB.",
+  "nav.gps_no_service": "خدمة GPS لا تعمل",
+  "nav.gps_searching": "جارٍ البحث عن الأقمار الصناعية ({n} مرئية). يحتاج GPS إلى رؤية السماء.",
+  "set.gps": "GPS",
+  "set.gps_fix": "تم تحديد الموقع · {used} من {seen} أقمار قيد الاستخدام",
+  "set.gps_searching": "تم العثور على المستقبل · {seen} أقمار مرئية، لا يوجد موقع بعد. يحتاج إلى رؤية السماء؛ قد يستغرق أول تحديد بضع دقائق.",
+  "set.gps_none": "لا يوجد مستقبل GPS قيد الاستخدام. تحقق من توصيله.",
+  "set.gps_unused": "مستقبل GPS موصول ({ids}) لكنه غير مستخدم. ثبّت آخر تحديث، أو شغّل: sudo /opt/headunit/setup.sh --only 50-gps",
+  "set.gps_no_service": "خدمة GPS (gpsd) لا تعمل."
  },
  "fr": {
   "common.back": "Retour",
@@ -2504,7 +2558,16 @@
   "nav.did_you_mean": "Aucune correspondance exacte. Vouliez-vous dire :",
   "nav.k_area": "Ville / code postal",
   "nav.k_street": "Rue",
-  "nav.enter": "Entrée"
+  "nav.enter": "Entrée",
+  "nav.gps_none": "Aucun récepteur GPS trouvé. Vérifiez sa prise USB.",
+  "nav.gps_no_service": "Le service GPS ne fonctionne pas",
+  "nav.gps_searching": "Recherche des satellites ({n} visibles). Le GPS doit voir le ciel.",
+  "set.gps": "GPS",
+  "set.gps_fix": "Position trouvée · {used} satellites sur {seen} utilisés",
+  "set.gps_searching": "Récepteur trouvé · {seen} satellites visibles, pas encore de position. Il doit voir le ciel ; la première position peut prendre quelques minutes.",
+  "set.gps_none": "Aucun récepteur GPS utilisé. Vérifiez qu'il est branché.",
+  "set.gps_unused": "Un récepteur GPS est branché ({ids}) mais n'est pas utilisé. Installez la dernière mise à jour ou lancez : sudo /opt/headunit/setup.sh --only 50-gps",
+  "set.gps_no_service": "Le service GPS (gpsd) ne fonctionne pas."
  },
  "ko": {
   "common.back": "뒤로",
@@ -2856,7 +2919,16 @@
   "nav.did_you_mean": "정확히 일치하는 결과가 없습니다. 이것을 찾으셨나요:",
   "nav.k_area": "도시 / 우편번호",
   "nav.k_street": "도로",
-  "nav.enter": "확인"
+  "nav.enter": "확인",
+  "nav.gps_none": "GPS 수신기를 찾을 수 없습니다. USB 연결을 확인하세요.",
+  "nav.gps_no_service": "GPS 서비스가 실행되지 않습니다",
+  "nav.gps_searching": "위성 찾는 중({n}개 보임). GPS는 하늘이 보여야 합니다.",
+  "set.gps": "GPS",
+  "set.gps_fix": "위치 확인 · 위성 {seen}개 중 {used}개 사용",
+  "set.gps_searching": "수신기 연결됨 · 위성 {seen}개 보임, 아직 위치 없음. 하늘이 보여야 하며 첫 위치 확인은 몇 분 걸릴 수 있습니다.",
+  "set.gps_none": "사용 중인 GPS 수신기가 없습니다. 연결되어 있는지 확인하세요.",
+  "set.gps_unused": "GPS 수신기가 연결되어 있지만({ids}) 사용되지 않습니다. 최신 업데이트를 설치하거나 실행하세요: sudo /opt/headunit/setup.sh --only 50-gps",
+  "set.gps_no_service": "GPS 서비스(gpsd)가 실행되지 않습니다."
  },
  "pt": {
   "common.back": "Voltar",
@@ -3208,7 +3280,16 @@
   "nav.did_you_mean": "Nenhuma correspondência exata. Você quis dizer:",
   "nav.k_area": "Cidade / CEP",
   "nav.k_street": "Rua",
-  "nav.enter": "Enter"
+  "nav.enter": "Enter",
+  "nav.gps_none": "Nenhum receptor GPS encontrado. Verifique a conexão USB.",
+  "nav.gps_no_service": "O serviço de GPS não está funcionando",
+  "nav.gps_searching": "Procurando satélites ({n} visíveis). O GPS precisa ver o céu.",
+  "set.gps": "GPS",
+  "set.gps_fix": "Posição encontrada · {used} de {seen} satélites em uso",
+  "set.gps_searching": "Receptor encontrado · {seen} satélites visíveis, ainda sem posição. Precisa ver o céu; a primeira posição pode levar alguns minutos.",
+  "set.gps_none": "Nenhum receptor GPS em uso. Verifique se está conectado.",
+  "set.gps_unused": "Um receptor GPS está conectado ({ids}) mas não está em uso. Instale a atualização mais recente ou execute: sudo /opt/headunit/setup.sh --only 50-gps",
+  "set.gps_no_service": "O serviço de GPS (gpsd) não está funcionando."
  },
  "hi": {
   "common.back": "वापस",
@@ -3560,6 +3641,15 @@
   "nav.did_you_mean": "कोई सटीक मिलान नहीं मिला। क्या आपका मतलब था:",
   "nav.k_area": "शहर / ZIP क्षेत्र",
   "nav.k_street": "सड़क",
-  "nav.enter": "एंटर"
+  "nav.enter": "एंटर",
+  "nav.gps_none": "कोई GPS रिसीवर नहीं मिला। उसका USB प्लग जाँचें।",
+  "nav.gps_no_service": "GPS सेवा नहीं चल रही है",
+  "nav.gps_searching": "उपग्रह खोजे जा रहे हैं ({n} दिख रहे)। GPS को आसमान दिखना चाहिए।",
+  "set.gps": "GPS",
+  "set.gps_fix": "स्थिति मिली · {seen} में से {used} उपग्रह उपयोग में",
+  "set.gps_searching": "रिसीवर मिला · {seen} उपग्रह दिख रहे, अभी स्थिति नहीं। आसमान दिखना चाहिए; पहली स्थिति में कुछ मिनट लग सकते हैं।",
+  "set.gps_none": "कोई GPS रिसीवर उपयोग में नहीं। जाँचें कि वह लगा है।",
+  "set.gps_unused": "GPS रिसीवर लगा है ({ids}) पर उपयोग में नहीं है। नवीनतम अपडेट इंस्टॉल करें, या चलाएँ: sudo /opt/headunit/setup.sh --only 50-gps",
+  "set.gps_no_service": "GPS सेवा (gpsd) नहीं चल रही है।"
  }
 }

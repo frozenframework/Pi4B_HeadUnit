@@ -70,7 +70,27 @@ for f in sorted(pathlib.Path(sys.argv[1]).glob("*.json")):
     print(f"{d.get('phone')}: {d.get('count')} contacts with an address, {adr} addresses, {onmap} on the map, updated {time.ctime(d.get('updated', 0))}")
 PY
   sec "audio"; asuser wpctl status 2>&1 | head -60
-  sec "GPS (position rounded away)"; timeout 6 gpspipe -w -n 8 2>&1 | grep -E '"class":"(TPV|SKY|DEVICE)"' | head -4
+  sec "GPS (receivers and satellites; no positions)"
+  echo "services: gpsd.socket $(systemctl is-active gpsd.socket 2>&1), gpsd $(systemctl is-active gpsd 2>&1)"
+  systemctl list-units --all --no-legend --no-pager 'gpsdctl@*' 2>&1 | head -5
+  echo "USB devices:"; for d in /sys/bus/usb/devices/*; do [ -f "$d/idVendor" ] && [ "$(cat "$d/idVendor")" != "1d6b" ] &&
+    echo "  $(cat "$d/idVendor"):$(cat "$d/idProduct") $(cat "$d/product" 2>/dev/null) [$(basename "$d"), $(cat "$d/bMaxPower" 2>/dev/null)]"; done
+  ls -l /dev/gps-usb* /dev/ttyUSB* /dev/ttyACM* /dev/serial/by-id/ 2>&1 | grep -v "^total" | head -10
+  ls -l /etc/udev/rules.d/61-headunit-gps.rules 2>&1; grep -E '^[A-Z_]+=' /etc/default/gpsd 2>&1
+  dmesg 2>/dev/null | grep -iE 'cp210x|pl2303|cdc_acm|ttyUSB|ttyACM|u-blox|gps' | tail -8
+  timeout 8 gpspipe -w -n 20 2>&1 | python3 -c '
+import json, sys
+mode = None
+for line in sys.stdin:
+    try: m = json.loads(line)
+    except ValueError: print(line.strip()[:120]); continue
+    c = m.get("class")
+    if c == "DEVICES": print("gpsd has", len(m.get("devices", [])), "receiver(s):", [(d.get("path"), d.get("driver", "?"), d.get("bps")) for d in m.get("devices", [])])
+    elif c == "DEVICE": print("receiver:", m.get("path"), m.get("driver", "?"), "activated" if m.get("activated") else "removed")
+    elif c == "SKY" and ("nSat" in m or m.get("satellites")): print("satellites: seen", m.get("nSat", len(m.get("satellites", []))), "used", m.get("uSat", sum(1 for s in m.get("satellites", []) if s.get("used"))))
+    elif c == "TPV": mode = m.get("mode")
+print("fix:", {None: "no report", 0: "none", 1: "none yet", 2: "2D", 3: "3D"}.get(mode, mode))' 2>&1 | sort -u | head -12
+  journalctl -b --no-pager -u gpsd -u 'gpsdctl@*' -n 25 2>&1 | tail -25
   sec "Hudiy"; ls -la "$H/.hudiy/share" 2>&1 | head -40
   (exec 3<>/dev/tcp/127.0.0.1/44405) 2>/dev/null && echo "Hudiy API (44405): answering" || echo "Hudiy API (44405): not answering"
   sec "accounts / desktop login"; getent passwd 1000 "$U"; grep -E '^(autologin-user|autologin-session|user-session)=' /etc/lightdm/lightdm.conf

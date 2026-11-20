@@ -101,7 +101,7 @@ sudo ./setup.sh --vehicle f250 --tier 2          # or: --vehicle miata, --tier 1
 | `30-power` | `gpio-poweroff` hold pin, I2C off (GPIO3 is the ignition sense), power daemon |
 | `40-audio` | USB audio output preferred over HDMI (WirePlumber rule) |
 | `45-dimmer` | screen dimmer service (backlight, HDMI DDC/CI, or overlay), backlight permissions, i2c-dev |
-| `50-gps` | gpsd with USB auto-detect |
+| `50-gps` | gpsd with USB auto-detect: the VK-162 (u-blox), the Adafruit Ultimate GPS USB (CP210x, missing from Debian's list), PL2303 pucks and any receiver named GPS; another one: `GPS_USB=1234:abcd` (its id from `lsusb`) |
 | `60-media` | iPod/USB auto-mount (read-only) + MPD as a user service |
 | `70-radio` | RTL-SDR (tier 3 only) |
 | `80-nav` | data folders, bridge service, map updater, a two-line sudoers rule |
