@@ -361,7 +361,8 @@
   "set.gps_unused": "A GPS receiver is plugged in ({ids}) but isn't in use. Install the latest update, or run: sudo /opt/headunit/setup.sh --only 50-gps",
   "set.gps_no_service": "The GPS service (gpsd) isn't running.",
   "set.gps_systems": "Listening to {list}",
-  "set.gps_one_system": "This receiver listens to one satellite system at a time: {list}"
+  "set.gps_one_system": "This receiver listens to one satellite system at a time: {list}",
+  "diag.shared_numbers": "{n} phone numbers are on more than one contact: a call from one of them shows both names (fix the contact on the phone)"
  },
  "es": {
   "common.back": "Atrás",
@@ -724,7 +725,8 @@
   "set.gps_unused": "Hay un receptor GPS conectado ({ids}) pero no está en uso. Instala la última actualización o ejecuta: sudo /opt/headunit/setup.sh --only 50-gps",
   "set.gps_no_service": "El servicio de GPS (gpsd) no está funcionando.",
   "set.gps_systems": "Escuchando {list}",
-  "set.gps_one_system": "Este receptor usa un solo sistema de satélites a la vez: {list}"
+  "set.gps_one_system": "Este receptor usa un solo sistema de satélites a la vez: {list}",
+  "diag.shared_numbers": "{n} números están en más de un contacto: una llamada de uno de ellos muestra ambos nombres (corrige el contacto en el teléfono)"
  },
  "zh": {
   "common.back": "返回",
@@ -1108,7 +1110,8 @@
   "set.gps_unused": "已插入 GPS 接收器（{ids}），但未被使用。请安装最新更新，或运行：sudo /opt/headunit/setup.sh --only 50-gps",
   "set.gps_no_service": "GPS 服务（gpsd）未运行。",
   "set.gps_systems": "正在接收 {list}",
-  "set.gps_one_system": "此接收器一次只能使用一个卫星系统：{list}"
+  "set.gps_one_system": "此接收器一次只能使用一个卫星系统：{list}",
+  "diag.shared_numbers": "有 {n} 个号码出现在多个联系人中：来电时会显示两个名字（请在手机上修改联系人）"
  },
  "tl": {
   "common.back": "Bumalik",
@@ -1492,7 +1495,8 @@
   "set.gps_unused": "May nakasaksak na GPS receiver ({ids}) pero hindi ginagamit. I-install ang pinakabagong update, o patakbuhin: sudo /opt/headunit/setup.sh --only 50-gps",
   "set.gps_no_service": "Hindi tumatakbo ang GPS service (gpsd).",
   "set.gps_systems": "Nakikinig sa {list}",
-  "set.gps_one_system": "Isang satellite system lang ang kaya ng receiver na ito: {list}"
+  "set.gps_one_system": "Isang satellite system lang ang kaya ng receiver na ito: {list}",
+  "diag.shared_numbers": "{n} numero ang nasa higit sa isang contact: ang tawag mula sa isa sa mga ito ay magpapakita ng dalawang pangalan (ayusin ang contact sa telepono)"
  },
  "vi": {
   "common.back": "Quay lại",
@@ -1855,7 +1859,8 @@
   "set.gps_unused": "Đã cắm bộ thu GPS ({ids}) nhưng chưa được dùng. Cài bản cập nhật mới nhất, hoặc chạy: sudo /opt/headunit/setup.sh --only 50-gps",
   "set.gps_no_service": "Dịch vụ GPS (gpsd) không chạy.",
   "set.gps_systems": "Đang thu {list}",
-  "set.gps_one_system": "Bộ thu này chỉ dùng một hệ thống vệ tinh mỗi lúc: {list}"
+  "set.gps_one_system": "Bộ thu này chỉ dùng một hệ thống vệ tinh mỗi lúc: {list}",
+  "diag.shared_numbers": "{n} số điện thoại có trong nhiều liên hệ: cuộc gọi từ số đó sẽ hiện cả hai tên (sửa liên hệ trên điện thoại)"
  },
  "ar": {
   "common.back": "رجوع",
@@ -2218,7 +2223,8 @@
   "set.gps_unused": "مستقبل GPS موصول ({ids}) لكنه غير مستخدم. ثبّت آخر تحديث، أو شغّل: sudo /opt/headunit/setup.sh --only 50-gps",
   "set.gps_no_service": "خدمة GPS (gpsd) لا تعمل.",
   "set.gps_systems": "يستقبل {list}",
-  "set.gps_one_system": "هذا المستقبل يستخدم نظام أقمار واحدًا في كل مرة: {list}"
+  "set.gps_one_system": "هذا المستقبل يستخدم نظام أقمار واحدًا في كل مرة: {list}",
+  "diag.shared_numbers": "{n} أرقام موجودة في أكثر من جهة اتصال: المكالمة من أحدها تُظهر الاسمين (صحّح جهة الاتصال على الهاتف)"
  },
  "fr": {
   "common.back": "Retour",
@@ -2581,7 +2587,8 @@
   "set.gps_unused": "Un récepteur GPS est branché ({ids}) mais n'est pas utilisé. Installez la dernière mise à jour ou lancez : sudo /opt/headunit/setup.sh --only 50-gps",
   "set.gps_no_service": "Le service GPS (gpsd) ne fonctionne pas.",
   "set.gps_systems": "Écoute {list}",
-  "set.gps_one_system": "Ce récepteur n'utilise qu'un système de satellites à la fois : {list}"
+  "set.gps_one_system": "Ce récepteur n'utilise qu'un système de satellites à la fois : {list}",
+  "diag.shared_numbers": "{n} numéros figurent dans plusieurs contacts : un appel de l'un d'eux affiche les deux noms (corrigez le contact sur le téléphone)"
  },
  "ko": {
   "common.back": "뒤로",
@@ -2944,7 +2951,8 @@
   "set.gps_unused": "GPS 수신기가 연결되어 있지만({ids}) 사용되지 않습니다. 최신 업데이트를 설치하거나 실행하세요: sudo /opt/headunit/setup.sh --only 50-gps",
   "set.gps_no_service": "GPS 서비스(gpsd)가 실행되지 않습니다.",
   "set.gps_systems": "수신 중: {list}",
-  "set.gps_one_system": "이 수신기는 한 번에 한 위성 시스템만 사용합니다: {list}"
+  "set.gps_one_system": "이 수신기는 한 번에 한 위성 시스템만 사용합니다: {list}",
+  "diag.shared_numbers": "{n}개의 번호가 여러 연락처에 있습니다: 이 번호의 전화는 두 이름이 모두 표시됩니다(휴대폰에서 연락처를 고치세요)"
  },
  "pt": {
   "common.back": "Voltar",
@@ -3307,7 +3315,8 @@
   "set.gps_unused": "Um receptor GPS está conectado ({ids}) mas não está em uso. Instale a atualização mais recente ou execute: sudo /opt/headunit/setup.sh --only 50-gps",
   "set.gps_no_service": "O serviço de GPS (gpsd) não está funcionando.",
   "set.gps_systems": "Recebendo {list}",
-  "set.gps_one_system": "Este receptor usa um sistema de satélites por vez: {list}"
+  "set.gps_one_system": "Este receptor usa um sistema de satélites por vez: {list}",
+  "diag.shared_numbers": "{n} números estão em mais de um contato: uma chamada de um deles mostra os dois nomes (corrija o contato no telefone)"
  },
  "hi": {
   "common.back": "वापस",
@@ -3670,6 +3679,7 @@
   "set.gps_unused": "GPS रिसीवर लगा है ({ids}) पर उपयोग में नहीं है। नवीनतम अपडेट इंस्टॉल करें, या चलाएँ: sudo /opt/headunit/setup.sh --only 50-gps",
   "set.gps_no_service": "GPS सेवा (gpsd) नहीं चल रही है।",
   "set.gps_systems": "{list} सुन रहा है",
-  "set.gps_one_system": "यह रिसीवर एक समय में एक ही उपग्रह प्रणाली उपयोग करता है: {list}"
+  "set.gps_one_system": "यह रिसीवर एक समय में एक ही उपग्रह प्रणाली उपयोग करता है: {list}",
+  "diag.shared_numbers": "{n} नंबर एक से अधिक संपर्कों में हैं: उनमें से किसी की कॉल पर दोनों नाम दिखेंगे (फ़ोन पर संपर्क ठीक करें)"
  }
 }

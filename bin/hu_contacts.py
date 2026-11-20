@@ -14,7 +14,7 @@ How it works:
     through BlueZ's obexd (session bus; busctl, so no extra Python packages), as vCards
   - only contacts with a street address are kept: name, label (Home / Work), the address and where it
     is on the map (found with the offline address search, bin/hu_addr.py). No phone numbers, notes or
-    pictures. Saved per phone in USER_DIR/contacts/<phone>.json, readable only by the head-unit user,
+    pictures on disk; the numbers are kept in memory only, to name who's calling on the map (caller()). Saved per phone in USER_DIR/contacts/<phone>.json, readable only by the head-unit user,
     so search works before the phone connects; Settings > Maps > Forget removes them
   - search uses the contacts of the phones connected now, or of the phone connected last
 """
@@ -72,6 +72,44 @@ def parse_vcards(text):
 
 def address_text(a):
     return ", ".join(x for x in (a["street"], " ".join(y for y in (a["city"], a["state"], a["zip"]) if y)) if x)
+
+# ------------------------------------------------------------------ who's calling (the map's call banner)
+def norm_number(s):
+    """A phone number reduced for matching: digits only, the US/Canada 1 and international 00 / 011 /
+    + prefixes off, so "+1 (936) 555-0142", "19365550142" and "936-555-0142" are all "9365550142"."""
+    d = re.sub(r"\D", "", s or "")
+    for pre in ("011", "00"):
+        if d.startswith(pre) and len(d) > 10: d = d[len(pre):]; break
+    if len(d) == 11 and d.startswith("1"): d = d[1:]
+    return d
+
+def numbers_key(d):
+    """The part of a number compared: the last 10 digits (a country code or not, same phone), or all of a
+    short one (a 7-digit local number, a short code)."""
+    return d[-10:] if len(d) >= 10 else d
+
+def parse_numbers(text):
+    """{number key: [names]} for every contact with a phone number (vCard TEL), in the phonebook's order."""
+    out, cur = {}, None
+    for line in _unfold(text).split("\n"):
+        if ":" not in line: continue
+        key, val = line.split(":", 1)
+        prop = key.split(";")[0].split(".")[-1].upper()
+        if prop == "BEGIN" and val.strip().upper() == "VCARD": cur = {"fn": "", "n": [], "tel": []}; continue
+        if cur is None: continue
+        if prop == "END":
+            name = cur["fn"] or " ".join(x for x in reversed(cur["n"]) if x).strip()
+            for t in cur["tel"]:
+                k = numbers_key(norm_number(t))
+                if name and len(k) >= 3 and name not in out.setdefault(k, []): out[k].append(name)
+            cur = None; continue
+        if any("QUOTED-PRINTABLE" in p.upper() for p in key.split(";")[1:]):
+            try: val = quopri.decodestring(val.encode("latin-1", "replace")).decode("utf-8", "replace")
+            except Exception: pass
+        if prop == "FN": cur["fn"] = _split(val, ";")[0].strip()
+        elif prop == "N": cur["n"] = [x.strip() for x in _split(val, ";")[:2]]
+        elif prop == "TEL": cur["tel"].append(val.strip().removeprefix("tel:"))
+    return out
 
 ERRORS = {"err_no_dbuslib": "a Python D-Bus library (python3-jeepney) is missing: connect to Wi-Fi and check for updates",
           "err_refused": "the phone said no: allow contact sync on the phone (iPhone: Settings > Bluetooth > (i) > Sync Contacts)",
@@ -159,7 +197,7 @@ class Bus:
             call(sess, PB, "Select", "ss", ("int", "pb"))
             progress("downloading", 0, 0)
             transfer, props = call(sess, PB, "PullAll", "sa{sv}",
-                                   ("", {"Format": ("s", "vcard30"), "Fields": ("as", ["VERSION", "FN", "N", "ADR"])}))
+                                   ("", {"Format": ("s", "vcard30"), "Fields": ("as", ["VERSION", "FN", "N", "TEL", "ADR"])}))
             fname = link.plain(props.get("Filename"))
             t0 = time.time()
             while time.time() - t0 < timeout:
@@ -248,6 +286,9 @@ class Contacts:
         self.state = {}                                       # address -> {state, error, next_try, tries, seen_connected}
         self.connected = []; self.lock = threading.Lock()
         self.progress = {}                                    # address -> {phase, done, total, phone, ...} (Settings shows a bar)
+        self.numbers = {}                                     # address -> (time, {number key: [names]}): in memory only
+        self.hudiy_pb = os.environ.get("HUDIY_PB_GLOB", str(Path.home() / ".hudiy/cache/hfp/pb*.vcf"))
+        self._hudiy = (None, {})
     def _info(self, *a):
         if self.log: self.log.info(*a)
 
@@ -272,7 +313,48 @@ class Contacts:
                 self._file(d["address"]).unlink(missing_ok=True); n += 1
                 st = self.state.get(d["address"])             # not fetched again until the phone reconnects
                 if st: st.update(state="forgotten", fresh=True)
+        if address is None: self.numbers.clear()
+        else: self.numbers.pop(address, None)
         return n
+
+    # who's calling: the name for a number, from the phone's own phonebook
+    def _hudiy_numbers(self):
+        """Hudiy's copy of the phonebook (it fetches one each time the phone connects): (time, index)."""
+        import glob
+        files = sorted(glob.glob(self.hudiy_pb), key=lambda f: os.path.getmtime(f), reverse=True)
+        stamp = [(f, os.path.getmtime(f)) for f in files]
+        if stamp != self._hudiy[0]:
+            idx = {}
+            for f in files:                                   # the newest copy first
+                try: text = Path(f).read_text(encoding="utf-8", errors="replace")
+                except OSError: continue
+                for k, names in parse_numbers(text).items(): idx.setdefault(k, names)
+            self._hudiy = (stamp, (stamp[0][1] if stamp else 0, idx))
+        return self._hudiy[1]
+
+    def caller(self, number, given=""):
+        """The caller's name on the map: whoever has exactly this number in the phone's contacts (the last
+        10 digits). Hudiy's own name is kept when it's one of them; several contacts with the number show
+        as "A / B"; a number in no contact shows as the number (never someone else's name)."""
+        k = numbers_key(norm_number(number))
+        if len(k) < 3: return given
+        mine = [self.numbers[a] for a in self.connected if a in self.numbers] or list(self.numbers.values())
+        try: hud = self._hudiy_numbers()
+        except OSError: hud = (0, {})
+        sources = sorted(mine + ([hud] if hud[1] else []), key=lambda x: -x[0])       # the newest phonebook first
+        if not sources: return given
+        for _, idx in sources:
+            names = idx.get(k)
+            if names:
+                if given in names: return given
+                return " / ".join(names[:2])
+        return ""                                             # nobody has it: the banner shows the number
+
+    def shared_numbers(self):
+        """How many numbers are on more than one contact (Settings > Developer > Check)."""
+        mine = [self.numbers[a][1] for a in self.connected if a in self.numbers] or [v[1] for v in self.numbers.values()]
+        idx = mine[0] if mine else self._hudiy_numbers()[1]
+        return sum(1 for names in idx.values() if len(names) > 1)
 
     # where an address is, with the offline search
     def locate(self, a, cache):
@@ -313,6 +395,7 @@ class Contacts:
         except Exception as e:
             self._progress(dev, "error", error=friendly(e)); raise
         cards = parse_vcards(vcf)
+        self.numbers[dev["address"]] = (time.time(), parse_numbers(vcf))
         n_addr = sum(len(c["addresses"]) for c in cards); done = 0
         self._progress(dev, "placing", 0, n_addr, received=vcf.upper().count("BEGIN:VCARD"))
         old = next((d for d in self.saved() if d["address"] == dev["address"]), {})
@@ -362,6 +445,11 @@ class Contacts:
         for d in phones:
             key = "phone_ready" if d["connected"] and d["pbap"] else "phone_no_pbap" if d["connected"] else "phone_not_connected"
             add(key == "phone_ready", key, phone=d["name"])
+        try:
+            n = self.shared_numbers()
+            if n: add(True, "shared_numbers", n=n)
+        except Exception:
+            pass
         return out
 
     def force_import(self):
@@ -485,7 +573,8 @@ if __name__ == "__main__":                 # over SSH:  python3 /opt/headunit/bi
             "no_phones": "no paired phone: pair the phone with the head unit's Bluetooth (not only the CarPlay adapter)",
             "phone_ready": "{phone}: connected, offers contacts", "phone_no_pbap": "{phone}: connected but doesn't offer contacts (turn on Sync Contacts on the phone)",
             "phone_not_connected": "{phone}: paired, not connected now", "imported": "{phone}: {received} contacts received, {n} with an address, {m} on the map",
-            "import_failed": "{phone}: {error}", "no_dbuslib": ERRORS["err_no_dbuslib"]}
+            "import_failed": "{phone}: {error}", "no_dbuslib": ERRORS["err_no_dbuslib"],
+            "shared_numbers": "{n} phone numbers are on more than one contact (a call from one shows both names)"}
     def words(r):
         v = dict(r["vars"]); v["error"] = ERRORS.get(v.get("error"), v.get("error", ""))
         return TEXT.get(r["key"] if r["key"] != "obexd" or r["ok"] else "obexd", r["key"]).format(**v)

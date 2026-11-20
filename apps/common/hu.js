@@ -116,6 +116,7 @@ export function diagText(key, v, t) {
     err_no_dbuslib: () => t('diag.err_no_dbuslib', v),
     err_dropped: () => t('diag.err_dropped', v),
     no_dbuslib: () => t('diag.err_no_dbuslib', v),
+    shared_numbers: () => t('diag.shared_numbers', v),
   };
   return m[key] ? m[key]() : key;
 }

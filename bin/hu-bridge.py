@@ -1474,7 +1474,8 @@ def start_phone_link():
         return bool(link and link.action(action))
     global phone_link_up
     phone_link_up = lambda: link is not None and link.ready
-    phone = PhoneState(dispatch, lambda: "carplay" if settings().get("phoneScreen") == "carplay" else "map", log=log)
+    phone = PhoneState(dispatch, lambda: "carplay" if settings().get("phoneScreen") == "carplay" else "map", log=log,
+                       caller=contacts.caller)
     duck = C("DUCK_AUDIO", "1") == "1"
     link = H.HudiyLink("headunit-phone", port=H.api_port(), on_message=phone.handle,
                        subscriptions=[H.SUB_PROJECTION, H.SUB_MEDIA, H.SUB_NAVIGATION, H.SUB_PHONE, H.SUB_CURRENT_MENU_ACTION],

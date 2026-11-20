@@ -985,8 +985,9 @@ async function phoneTick() {
   // call
   const c = p.call || {};
   $('callChip').classList.toggle('hidden', !c.state);
-  const CALL = { incoming: t('nav.call_incoming', { name: c.name || c.number || '' }), ringing: t('nav.call_ringing', { name: c.name || c.number || '' }),
-    active: t('nav.call_active', { name: c.name || c.number || '' }) };
+  const who = c.name || phoneNumber(c.number);       // (bin/hu_contacts.py caller: the phone's own contacts, by exact number)
+  const CALL = { incoming: t('nav.call_incoming', { name: who }), ringing: t('nav.call_ringing', { name: who }),
+    active: t('nav.call_active', { name: who }) };
   if (c.state) $('callChip').textContent = CALL[c.state] || '';
   // now playing from the phone
   const m = p.media || {}, showMusic = (m.source === 'carplay' || m.source === 'android_auto') && (m.title || m.artist);
@@ -999,6 +1000,11 @@ async function phoneTick() {
     }
     $('npPlay').innerHTML = m.playing ? icons.pause : icons.play;
   }
+}
+// a caller no contact has: the number, written the usual way ((936) 555-0142)
+function phoneNumber(n) {
+  const d = (n || '').replace(/\D/g, ''), us = d.length === 11 && d[0] === '1' ? d.slice(1) : d;
+  return us.length === 10 && !/^\+(?!1)/.test(n || '') ? `(${us.slice(0, 3)}) ${us.slice(3, 6)}-${us.slice(6)}` : (n || '');
 }
 function setupPhone() {
   $('phoneBtn').innerHTML = PHONE_ICON; $('npPrev').innerHTML = icons.prev; $('npNext').innerHTML = icons.next; $('npPlay').innerHTML = icons.play;

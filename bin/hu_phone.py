@@ -53,9 +53,12 @@ def image_type(b):
     return None
 
 class PhoneState:
-    def __init__(self, dispatch, phone_screen, clock=time.monotonic, log=None):
-        """dispatch(action) sends a Hudiy action; phone_screen() returns "map" or "carplay"."""
-        self.dispatch, self.phone_screen, self.clock, self.log = dispatch, phone_screen, clock, log
+    def __init__(self, dispatch, phone_screen, clock=time.monotonic, log=None, caller=None):
+        """dispatch(action) sends a Hudiy action; phone_screen() returns "map" or "carplay";
+        caller(number, hudiy_name) names who's calling from the phone's own contacts (bin/hu_contacts.py):
+        Hudiy's name can belong to a different contact."""
+        self.dispatch, self.phone_screen, self.clock, self.log, self.caller = dispatch, phone_screen, clock, log, caller
+        self._named = ("", "", "")                    # (number, Hudiy's name) -> name, so each call is looked up once
         self.lock = threading.Lock()
         self.projection = False; self.last_phone = None; self.user_asked = -1e9; self.source = None
         self.session_start = None; self.session_handled = False
@@ -105,7 +108,15 @@ class PhoneState:
             elif mid == PHONE_CONNECTION_STATUS:
                 self.phone_name = _s(f, 2) if _i(f, 1) == 1 else ""
             elif mid == PHONE_VOICE_CALL_STATUS:
-                self.call = {"state": CALL_STATES.get(_i(f, 1, 0)), "number": _s(f, 2), "name": _s(f, 3)}
+                number, name = _s(f, 2), _s(f, 3)
+                if self.caller and number:
+                    if self._named[:2] != (number, name):
+                        try: self._named = (number, name, self.caller(number, name))
+                        except Exception as e:
+                            self._named = (number, name, name)
+                            if self.log: self.log.warning("phone: naming the caller: %s", e)
+                    name = self._named[2]
+                self.call = {"state": CALL_STATES.get(_i(f, 1, 0)), "number": number, "name": name}
             elif mid == CURRENT_MENU_ACTION:
                 if _s(f, 1) in PROJECTION_ACTIONS: self.user_asked = now
 
