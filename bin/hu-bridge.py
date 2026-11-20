@@ -112,6 +112,16 @@ def usage(event, **fields):
 
 # ---------------------------------------------------------------- GPS (gpsd)
 GPSD_PORT = int(C("GPSD_PORT", "2947"))
+GPS_SETUP_FILE = Path(C("GPS_SETUP_FILE", "/run/headunit-gps.json"))      # (bin/hu-gps-setup.py)
+GNSS = {0: "GPS", 1: "SBAS", 2: "Galileo", 3: "BeiDou", 5: "QZSS", 6: "GLONASS"}
+
+def gnss_of(sat):
+    """Which satellite system a SKY satellite belongs to (gnssid, or gpsd's PRN ranges for NMEA receivers)."""
+    if sat.get("gnssid") in GNSS: return GNSS[sat["gnssid"]]
+    p = sat.get("PRN") or 0
+    return ("GPS" if 1 <= p <= 63 else "GLONASS" if 64 <= p <= 96 else "SBAS" if 120 <= p <= 158 else "QZSS" if 193 <= p <= 202
+            else "Galileo" if 301 <= p <= 336 else "BeiDou" if 401 <= p <= 463 else "other")
+
 USB_GPS_IDS = {"1546": None, "10c4": "ea60", "067b": "2303", "1163": None, "0e8d": "3329"}   # (udev/61-headunit-gps.rules)
 
 def usb_gps_plugged(sys_usb="/sys/bus/usb/devices"):
@@ -128,6 +138,11 @@ def usb_gps_plugged(sys_usb="/sys/bus/usb/devices"):
             out.append((f"{vid}:{pid}", prod))
     return out
 
+def gps_setup():
+    """What bin/hu-gps-setup.py set the receiver in use to (satellite systems), if it's still plugged in."""
+    s = read_json(GPS_SETUP_FILE, None)
+    return s if isinstance(s, dict) and s.get("device") in gps.devices else None
+
 class GPS:
     """Position from gpsd (127.0.0.1:2947). Besides the fix, keeps what's needed to tell why there's no
     position: no receiver handed to gpsd (none plugged in, or one gpsd wasn't told about), or a
@@ -136,6 +151,7 @@ class GPS:
         self.fix = {"mode": 0}
         self.devices = {}             # path -> driver, from gpsd's DEVICES / DEVICE reports
         self.seen = self.used = 0     # satellites in view / used, from SKY
+        self.systems = {}             # "GLONASS": [in view, used]
         self.connected = False; self.error = ""; self.since = time.time()
         self.subscribers = set()
     def info(self):
@@ -143,7 +159,7 @@ class GPS:
         state = ("fix" if (self.fix.get("mode") or 0) >= 2 and self.fix.get("lat") is not None
                  else "searching" if self.devices else "no_gpsd" if not self.connected else "no_receiver")
         return {**self.fix, "state": state, "receivers": len(self.devices), "drivers": sorted({d for d in self.devices.values() if d}),
-                "seen": self.seen, "used": self.used, "since": int(self.since), **({"error": self.error} if self.error else {})}
+                "seen": self.seen, "used": self.used, "systems": self.systems, "since": int(self.since), **({"error": self.error} if self.error else {})}
     def _push(self):
         data = json.dumps(self.info())
         for q in list(self.subscribers):
@@ -168,7 +184,13 @@ class GPS:
             sats = msg.get("satellites") or []
             seen = msg.get("nSat", len(sats)) if sats or "nSat" in msg else self.seen
             used = msg.get("uSat", sum(1 for s in sats if s.get("used"))) if sats or "uSat" in msg else self.used
-            changed = (seen, used) != (self.seen, self.used); self.seen, self.used = seen, used
+            systems = self.systems
+            if sats:
+                systems = {}
+                for sat in sats:
+                    c = systems.setdefault(gnss_of(sat), [0, 0]); c[0] += 1; c[1] += 1 if sat.get("used") else 0
+            changed = (seen, used, systems) != (self.seen, self.used, self.systems)
+            self.seen, self.used, self.systems = seen, used, systems
             return changed and (self.fix.get("mode") or 0) < 2       # (with a fix, TPV already updates the map)
         return False
     async def run(self):
@@ -186,7 +208,7 @@ class GPS:
                 raise ConnectionError("gpsd closed the connection")
             except Exception as e:
                 was = self.connected
-                self.fix = {"mode": 0}; self.devices = {}; self.seen = self.used = 0
+                self.fix = {"mode": 0}; self.devices = {}; self.seen = self.used = 0; self.systems = {}
                 self.connected, self.error = False, str(e)[:120]
                 if was: self.since = time.time()
                 self._push()
@@ -1151,7 +1173,8 @@ async def status(request):
     return web.json_response({
         "maps": {"basemap": (MAPS_DIR / "basemap.pmtiles").exists(), "routing": ROUTING_TAR.exists(), "search": SEARCH_DB.exists(), **man,
                  "routingPrep": read_json(ROUTING_STATUS, {}) if ROUTING_TAR.exists() else {}},
-        "gps": {**gps.info(), "plugged": usb_gps_plugged(C("SYS_USB", "/sys/bus/usb/devices"))}, "power": st, "radio": radio.status(), "sources": sources(), "theme": settings().get("theme"),
+        "gps": {**gps.info(), "plugged": usb_gps_plugged(C("SYS_USB", "/sys/bus/usb/devices")),
+                "setup": gps_setup()}, "power": st, "radio": radio.status(), "sources": sources(), "theme": settings().get("theme"),
         "vehicle": C("VEHICLE_NAME", ""), "fuel": FUEL_TYPE, "night": st.get("illum", False), "version": VERSION,
         "dayNight": settings().get("dayNight", False), "contactsSync": contacts_sync_now()})
 

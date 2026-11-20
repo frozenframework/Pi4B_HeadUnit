@@ -87,10 +87,14 @@ for line in sys.stdin:
     c = m.get("class")
     if c == "DEVICES": print("gpsd has", len(m.get("devices", [])), "receiver(s):", [(d.get("path"), d.get("driver", "?"), d.get("bps")) for d in m.get("devices", [])])
     elif c == "DEVICE": print("receiver:", m.get("path"), m.get("driver", "?"), "activated" if m.get("activated") else "removed")
-    elif c == "SKY" and ("nSat" in m or m.get("satellites")): print("satellites: seen", m.get("nSat", len(m.get("satellites", []))), "used", m.get("uSat", sum(1 for s in m.get("satellites", []) if s.get("used"))))
+    elif c == "SKY" and ("nSat" in m or m.get("satellites")):
+        by = {}
+        for s in m.get("satellites", []): k = {0: "GPS", 1: "SBAS", 2: "Galileo", 3: "BeiDou", 5: "QZSS", 6: "GLONASS"}.get(s.get("gnssid"), "PRN%s" % s.get("PRN")); by[k] = by.get(k, 0) + 1
+        print("satellites: seen", m.get("nSat", len(m.get("satellites", []))), "used", m.get("uSat", sum(1 for s in m.get("satellites", []) if s.get("used"))), "by system", dict(sorted(by.items())))
     elif c == "TPV": mode = m.get("mode")
 print("fix:", {None: "no report", 0: "none", 1: "none yet", 2: "2D", 3: "3D"}.get(mode, mode))' 2>&1 | sort -u | head -12
-  journalctl -b --no-pager -u gpsd -u 'gpsdctl@*' -n 25 2>&1 | tail -25
+  echo "satellite systems set: $(cat /run/headunit-gps.json 2>&1)"
+  journalctl -b --no-pager -u gpsd -u 'gpsdctl@*' -u 'headunit-gps-setup@*' -n 30 2>&1 | tail -30
   sec "Hudiy"; ls -la "$H/.hudiy/share" 2>&1 | head -40
   (exec 3<>/dev/tcp/127.0.0.1/44405) 2>/dev/null && echo "Hudiy API (44405): answering" || echo "Hudiy API (44405): not answering"
   sec "accounts / desktop login"; getent passwd 1000 "$U"; grep -E '^(autologin-user|autologin-session|user-session)=' /etc/lightdm/lightdm.conf

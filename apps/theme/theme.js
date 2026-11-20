@@ -342,10 +342,17 @@ let contactsBusy = false;
 async function gpsInfo() {
   const g = (await api('/api/status').catch(() => null))?.gps; if (!g) return;
   const ids = (g.plugged || []).map(p => p[1] ? `${p[1]}, ${p[0]}` : p[0]).join('; ');
-  $('gpsInfo').textContent = g.state === 'fix' ? t('set.gps_fix', { used: g.used, seen: g.seen })
+  const line = g.state === 'fix' ? t('set.gps_fix', { used: g.used, seen: g.seen })
     : g.state === 'searching' ? t('set.gps_searching', { seen: g.seen })
     : g.state === 'no_gpsd' ? t('set.gps_no_service')
     : ids ? t('set.gps_unused', { ids }) : t('set.gps_none');
+  // satellites by system (in view, or used / in view with a position), and what the receiver was set to listen to
+  const ORDER = ['GPS', 'GLONASS', 'Galileo', 'BeiDou', 'QZSS', 'SBAS'];
+  const sys = Object.entries(g.systems || {}).sort((a, b) => ORDER.indexOf(a[0]) - ORDER.indexOf(b[0]))
+    .map(([n, [seen, used]]) => `${n} ${g.state === 'fix' ? `${used}/${seen}` : seen}`).join(' · ');
+  const su = g.setup?.ok && (g.setup.systems || []).length
+    ? t(g.setup.chip === 'ublox7' ? 'set.gps_one_system' : 'set.gps_systems', { list: g.setup.systems.join(' + ') }) : '';
+  $('gpsInfo').innerHTML = [line, sys, su].filter(Boolean).map(x => `<div>${esc(x)}</div>`).join('');
 }
 // routing data from an older build gets index.bin once, in the background (bin/hu_valhalla_tar.py)
 function routingPrep(p) {

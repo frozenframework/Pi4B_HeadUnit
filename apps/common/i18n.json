@@ -359,7 +359,9 @@
   "set.gps_searching": "Receiver found · {seen} satellites in view, no position yet. It needs a view of the sky; the first fix can take a few minutes.",
   "set.gps_none": "No GPS receiver in use. Check that it's plugged in.",
   "set.gps_unused": "A GPS receiver is plugged in ({ids}) but isn't in use. Install the latest update, or run: sudo /opt/headunit/setup.sh --only 50-gps",
-  "set.gps_no_service": "The GPS service (gpsd) isn't running."
+  "set.gps_no_service": "The GPS service (gpsd) isn't running.",
+  "set.gps_systems": "Listening to {list}",
+  "set.gps_one_system": "This receiver listens to one satellite system at a time: {list}"
  },
  "es": {
   "common.back": "Atrás",
@@ -720,7 +722,9 @@
   "set.gps_searching": "Receptor encontrado · {seen} satélites a la vista, aún sin posición. Necesita ver el cielo; la primera posición puede tardar unos minutos.",
   "set.gps_none": "Ningún receptor GPS en uso. Revisa que esté conectado.",
   "set.gps_unused": "Hay un receptor GPS conectado ({ids}) pero no está en uso. Instala la última actualización o ejecuta: sudo /opt/headunit/setup.sh --only 50-gps",
-  "set.gps_no_service": "El servicio de GPS (gpsd) no está funcionando."
+  "set.gps_no_service": "El servicio de GPS (gpsd) no está funcionando.",
+  "set.gps_systems": "Escuchando {list}",
+  "set.gps_one_system": "Este receptor usa un solo sistema de satélites a la vez: {list}"
  },
  "zh": {
   "common.back": "返回",
@@ -1102,7 +1106,9 @@
   "set.gps_searching": "已找到接收器 · 可见 {seen} 颗卫星，尚未定位。需要看到天空；首次定位可能需要几分钟。",
   "set.gps_none": "没有正在使用的 GPS 接收器。请检查是否已插好。",
   "set.gps_unused": "已插入 GPS 接收器（{ids}），但未被使用。请安装最新更新，或运行：sudo /opt/headunit/setup.sh --only 50-gps",
-  "set.gps_no_service": "GPS 服务（gpsd）未运行。"
+  "set.gps_no_service": "GPS 服务（gpsd）未运行。",
+  "set.gps_systems": "正在接收 {list}",
+  "set.gps_one_system": "此接收器一次只能使用一个卫星系统：{list}"
  },
  "tl": {
   "common.back": "Bumalik",
@@ -1484,7 +1490,9 @@
   "set.gps_searching": "May receiver · {seen} satellite ang nakikita, wala pang posisyon. Kailangan nitong makita ang langit; ilang minuto ang unang posisyon.",
   "set.gps_none": "Walang GPS receiver na ginagamit. Tingnan kung nakasaksak ito.",
   "set.gps_unused": "May nakasaksak na GPS receiver ({ids}) pero hindi ginagamit. I-install ang pinakabagong update, o patakbuhin: sudo /opt/headunit/setup.sh --only 50-gps",
-  "set.gps_no_service": "Hindi tumatakbo ang GPS service (gpsd)."
+  "set.gps_no_service": "Hindi tumatakbo ang GPS service (gpsd).",
+  "set.gps_systems": "Nakikinig sa {list}",
+  "set.gps_one_system": "Isang satellite system lang ang kaya ng receiver na ito: {list}"
  },
  "vi": {
   "common.back": "Quay lại",
@@ -1845,7 +1853,9 @@
   "set.gps_searching": "Đã có bộ thu · thấy {seen} vệ tinh, chưa có vị trí. Cần nhìn thấy bầu trời; lần định vị đầu có thể mất vài phút.",
   "set.gps_none": "Không có bộ thu GPS nào đang dùng. Kiểm tra xem đã cắm chưa.",
   "set.gps_unused": "Đã cắm bộ thu GPS ({ids}) nhưng chưa được dùng. Cài bản cập nhật mới nhất, hoặc chạy: sudo /opt/headunit/setup.sh --only 50-gps",
-  "set.gps_no_service": "Dịch vụ GPS (gpsd) không chạy."
+  "set.gps_no_service": "Dịch vụ GPS (gpsd) không chạy.",
+  "set.gps_systems": "Đang thu {list}",
+  "set.gps_one_system": "Bộ thu này chỉ dùng một hệ thống vệ tinh mỗi lúc: {list}"
  },
  "ar": {
   "common.back": "رجوع",
@@ -2206,7 +2216,9 @@
   "set.gps_searching": "تم العثور على المستقبل · {seen} أقمار مرئية، لا يوجد موقع بعد. يحتاج إلى رؤية السماء؛ قد يستغرق أول تحديد بضع دقائق.",
   "set.gps_none": "لا يوجد مستقبل GPS قيد الاستخدام. تحقق من توصيله.",
   "set.gps_unused": "مستقبل GPS موصول ({ids}) لكنه غير مستخدم. ثبّت آخر تحديث، أو شغّل: sudo /opt/headunit/setup.sh --only 50-gps",
-  "set.gps_no_service": "خدمة GPS (gpsd) لا تعمل."
+  "set.gps_no_service": "خدمة GPS (gpsd) لا تعمل.",
+  "set.gps_systems": "يستقبل {list}",
+  "set.gps_one_system": "هذا المستقبل يستخدم نظام أقمار واحدًا في كل مرة: {list}"
  },
  "fr": {
   "common.back": "Retour",
@@ -2567,7 +2579,9 @@
   "set.gps_searching": "Récepteur trouvé · {seen} satellites visibles, pas encore de position. Il doit voir le ciel ; la première position peut prendre quelques minutes.",
   "set.gps_none": "Aucun récepteur GPS utilisé. Vérifiez qu'il est branché.",
   "set.gps_unused": "Un récepteur GPS est branché ({ids}) mais n'est pas utilisé. Installez la dernière mise à jour ou lancez : sudo /opt/headunit/setup.sh --only 50-gps",
-  "set.gps_no_service": "Le service GPS (gpsd) ne fonctionne pas."
+  "set.gps_no_service": "Le service GPS (gpsd) ne fonctionne pas.",
+  "set.gps_systems": "Écoute {list}",
+  "set.gps_one_system": "Ce récepteur n'utilise qu'un système de satellites à la fois : {list}"
  },
  "ko": {
   "common.back": "뒤로",
@@ -2928,7 +2942,9 @@
   "set.gps_searching": "수신기 연결됨 · 위성 {seen}개 보임, 아직 위치 없음. 하늘이 보여야 하며 첫 위치 확인은 몇 분 걸릴 수 있습니다.",
   "set.gps_none": "사용 중인 GPS 수신기가 없습니다. 연결되어 있는지 확인하세요.",
   "set.gps_unused": "GPS 수신기가 연결되어 있지만({ids}) 사용되지 않습니다. 최신 업데이트를 설치하거나 실행하세요: sudo /opt/headunit/setup.sh --only 50-gps",
-  "set.gps_no_service": "GPS 서비스(gpsd)가 실행되지 않습니다."
+  "set.gps_no_service": "GPS 서비스(gpsd)가 실행되지 않습니다.",
+  "set.gps_systems": "수신 중: {list}",
+  "set.gps_one_system": "이 수신기는 한 번에 한 위성 시스템만 사용합니다: {list}"
  },
  "pt": {
   "common.back": "Voltar",
@@ -3289,7 +3305,9 @@
   "set.gps_searching": "Receptor encontrado · {seen} satélites visíveis, ainda sem posição. Precisa ver o céu; a primeira posição pode levar alguns minutos.",
   "set.gps_none": "Nenhum receptor GPS em uso. Verifique se está conectado.",
   "set.gps_unused": "Um receptor GPS está conectado ({ids}) mas não está em uso. Instale a atualização mais recente ou execute: sudo /opt/headunit/setup.sh --only 50-gps",
-  "set.gps_no_service": "O serviço de GPS (gpsd) não está funcionando."
+  "set.gps_no_service": "O serviço de GPS (gpsd) não está funcionando.",
+  "set.gps_systems": "Recebendo {list}",
+  "set.gps_one_system": "Este receptor usa um sistema de satélites por vez: {list}"
  },
  "hi": {
   "common.back": "वापस",
@@ -3650,6 +3668,8 @@
   "set.gps_searching": "रिसीवर मिला · {seen} उपग्रह दिख रहे, अभी स्थिति नहीं। आसमान दिखना चाहिए; पहली स्थिति में कुछ मिनट लग सकते हैं।",
   "set.gps_none": "कोई GPS रिसीवर उपयोग में नहीं। जाँचें कि वह लगा है।",
   "set.gps_unused": "GPS रिसीवर लगा है ({ids}) पर उपयोग में नहीं है। नवीनतम अपडेट इंस्टॉल करें, या चलाएँ: sudo /opt/headunit/setup.sh --only 50-gps",
-  "set.gps_no_service": "GPS सेवा (gpsd) नहीं चल रही है।"
+  "set.gps_no_service": "GPS सेवा (gpsd) नहीं चल रही है।",
+  "set.gps_systems": "{list} सुन रहा है",
+  "set.gps_one_system": "यह रिसीवर एक समय में एक ही उपग्रह प्रणाली उपयोग करता है: {list}"
  }
 }

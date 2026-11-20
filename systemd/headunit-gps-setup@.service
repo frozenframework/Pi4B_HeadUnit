@@ -1,0 +1,12 @@
+[Unit]
+Description=Head unit: turn on GPS, GLONASS and Galileo on the GPS receiver %I
+# (udev/61-headunit-gps.rules wants it with gpsdctl@, which hands the receiver to gpsd first)
+After=gpsdctl@%i.service gpsd.socket
+BindsTo=dev-%i.device
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/python3 /opt/headunit/bin/hu-gps-setup.py /dev/%I
+TimeoutStartSec=90
+Nice=10

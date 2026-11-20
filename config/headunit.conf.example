@@ -64,3 +64,6 @@ DUCK_AUDIO=1
 # USB GPS receivers are found by themselves (VK-162, Adafruit Ultimate GPS USB, BU-353 and anything
 # named GPS). Another one the map doesn't pick up: its USB id from lsusb, e.g. GPS_USB=1234:abcd
 GPS_USB=""
+# Satellite systems the receiver listens to (set each time it's plugged in). More systems = more
+# satellites = a faster, steadier position. GPS is always on. The VK-162 can only use one (GPS).
+GPS_SYSTEMS="gps,glonass,galileo"

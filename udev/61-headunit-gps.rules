@@ -4,6 +4,7 @@
 # which then never reaches gpsd and the map waits for GPS forever.
 # Another receiver that isn't picked up: put its USB id (lsusb) in headunit.conf as GPS_USB=1234:abcd
 # and run sudo /opt/headunit/setup.sh --only 50-gps.
+# Each receiver is then set to use GPS, GLONASS and Galileo (bin/hu-gps-setup.py).
 SUBSYSTEM!="tty", GOTO="hu_gps_end"
 ACTION=="remove", GOTO="hu_gps_end"
 # u-blox, any model (VK-162 G-Mouse = 1546:01a7, u-blox 8 / M9 receivers)
@@ -20,5 +21,5 @@ ATTRS{product}=="*GPS*|*Gps*|*gps*|*GNSS*|*Gnss*", GOTO="hu_gps"
 # GPS_USB from headunit.conf
 GOTO="hu_gps_end"
 LABEL="hu_gps"
-SYMLINK+="gps-usb%n", TAG+="systemd", ENV{SYSTEMD_WANTS}="gpsdctl@%k.service", ENV{HU_GPS}="1"
+SYMLINK+="gps-usb%n", TAG+="systemd", ENV{SYSTEMD_WANTS}="gpsdctl@%k.service headunit-gps-setup@%k.service", ENV{HU_GPS}="1"
 LABEL="hu_gps_end"

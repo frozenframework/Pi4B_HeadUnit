@@ -20,15 +20,18 @@ for id in $(conf_get GPS_USB | tr ',' ' '); do
     warn "gps: GPS_USB=$id isn't a USB id like 1234:abcd (see lsusb); left out"
   fi
 done
+# each receiver set to use GPS, GLONASS and Galileo (GPS_SYSTEMS in headunit.conf) when it's plugged in
+install -m 644 "$HU_ROOT/systemd/headunit-gps-setup@.service" /etc/systemd/system/
 rules=/etc/udev/rules.d/61-headunit-gps.rules
 new=$(awk -v extra="$extra" '{print} /^# GPS_USB from headunit.conf$/ && extra != "" {printf "%s", extra}' \
       "$HU_ROOT/udev/61-headunit-gps.rules")
 if [ "$new" != "$(cat "$rules" 2>/dev/null)" ]; then
   printf '%s\n' "$new" > "$rules"; chmod 644 "$rules"
   udevadm control --reload 2>/dev/null || true
+  command systemctl daemon-reload 2>/dev/null || true     # (the setup unit known before udev asks for it)
   # a receiver that's already plugged in is handed over now, not at the next start
   udevadm trigger --subsystem-match=tty --action=add 2>/dev/null || true
 fi
 
 systemctl enable gpsd.socket gpsd.service >/dev/null 2>&1 || true
-say "gps: gpsd with USB auto-detect (u-blox, Adafruit / CP210x, PL2303 and any receiver named GPS)"
+say "gps: gpsd with USB auto-detect (u-blox, Adafruit / CP210x, PL2303 and any receiver named GPS); systems: $(conf_get GPS_SYSTEMS gps,glonass,galileo)"
