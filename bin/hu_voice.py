@@ -17,7 +17,9 @@ log = logging.getLogger("hu-voice")
 MODEL_URL = "https://huggingface.co/rhasspy/piper-voices/resolve/main/{fam}/{code}/{name}/{q}/{model}{ext}?download=true"
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,40}$")
 MODEL_RE = re.compile(r"^([a-z]{2,3})_([A-Z]{2})-([A-Za-z0-9_]+)-(x_low|low|medium|high)$")
-CACHE_MAX = 400
+CACHE_MAX = 1200
+RANDOM_KEYS = ("greet", "route_started", "rerouting", "arrived", "sample")   # a different line each time; directions: always the same words
+PREP_MAX = 40
 
 def model_url(model, ext):
     m = MODEL_RE.match(model)
@@ -41,6 +43,48 @@ def shape_speech(chunks, rate, pause=0.22, volume=1.0, lead=0.12, tail=0.08, fad
     if m > 1e-6: out = out * (peak / m) * volume
     return np.clip(out, -1.0, 1.0)
 
+def trim_silence(a, rate, floor_db=-42.0, keep=0.03):
+    """Piper pads every sentence with its own silence (different each time): cut it back to `keep`
+    seconds so the breaks between sentences are the ones we choose."""
+    import numpy as np
+    if a.size == 0: return a
+    peak = float(np.max(np.abs(a)))
+    if peak < 1e-6: return a[:0]
+    loud = np.flatnonzero(np.abs(a) > peak * 10 ** (floor_db / 20))
+    k = int(rate * keep)
+    return a[max(0, loud[0] - k): min(a.size, loud[-1] + k + 1)]
+
+def car_polish(audio, rate, presence_db=3.0, highpass_hz=110.0, ratio=2.5, threshold_db=-24.0, target_rms_db=-17.0, peak=0.89):
+    """Make speech easy to follow over road noise (numpy only, done once per line and cached):
+      - low rumble removed below ~110 Hz (car speakers and road noise boom there, it only muddies words),
+      - a gentle lift around 3 kHz where consonants live (+3 dB: "fifth" vs "fifty"),
+      - soft compression so quiet syllables and word endings don't drop under the engine,
+      - every line at the same loudness (RMS of the speech, not its loudest peak), peaks kept under -1 dB."""
+    import numpy as np
+    x = audio.astype(np.float32)
+    if x.size < 64 or float(np.max(np.abs(x))) < 1e-6: return x
+    n = 1 << int(np.ceil(np.log2(x.size + rate // 10)))            # zero-padded: no wrap-around
+    X = np.fft.rfft(x, n); f = np.fft.rfftfreq(n, 1.0 / rate)
+    hp = 1.0 / np.sqrt(1.0 + (highpass_hz / np.maximum(f, 1.0)) ** 4)    # 2nd-order-like high-pass
+    bell = 10 ** ((presence_db / 20) * np.exp(-0.5 * (np.log2(np.maximum(f, 1.0) / 3000.0) / 0.6) ** 2))
+    y = np.fft.irfft(X * hp * bell, n)[: x.size].astype(np.float32)
+    # compression on a 10 ms RMS envelope
+    w = max(1, int(rate * 0.010))
+    env = np.sqrt(np.convolve(y * y, np.ones(w, np.float32) / w, mode="same") + 1e-12)
+    lvl = 20 * np.log10(env)
+    gain_db = np.where(lvl > threshold_db, (threshold_db - lvl) * (1 - 1 / ratio), 0.0)
+    sm = max(1, int(rate * 0.005))                                 # smoothed gain: no pumping clicks
+    gain = 10 ** (np.convolve(gain_db, np.ones(sm) / sm, mode="same") / 20)
+    y = y * gain.astype(np.float32)
+    # loudness of the speech itself (the quiet gaps don't count)
+    voiced = np.abs(y) > 10 ** (-45 / 20) * float(np.max(np.abs(y)) or 1)
+    rms = float(np.sqrt(np.mean(y[voiced] ** 2))) if voiced.any() else 0.0
+    if rms > 1e-6: y = y * (10 ** (target_rms_db / 20) / rms)
+    over = np.abs(y) > peak                                         # soft limit (no hard clipping)
+    if over.any():
+        y = np.where(over, np.sign(y) * (peak + (1 - peak) * np.tanh((np.abs(y) - peak) / (1 - peak))), y)
+    return np.clip(y, -1.0, 1.0).astype(np.float32)
+
 def pcm_wav(audio, rate):
     import numpy as np
     buf = io.BytesIO()
@@ -50,7 +94,7 @@ def pcm_wav(audio, rate):
     return buf.getvalue()
 
 class Voices:
-    def __init__(self, builtin: Path, data: Path, play_cmd=("pw-play", "-"), espeak="espeak-ng"):
+    def __init__(self, builtin: Path, data: Path, play_cmd=("pw-play", "-"), espeak="espeak-ng", prep_delay=0.05):
         self.builtin, self.data = Path(builtin), Path(data)
         self.user = self.data / "packs"; self.models = self.data / "models"; self.cache = self.data / "cache"
         self.play_cmd, self.espeak = list(play_cmd), espeak
@@ -59,6 +103,8 @@ class Voices:
         self.downloads = {}        # model -> {"state": "downloading"|"ready"|"waiting"|"error", "pct": n}
         self.greeted = False
         self.on_speak_start = self.on_speak_end = None   # set by the bridge: duck other audio through Hudiy
+        self.prep_queue, self.prep_lock, self.prep_thread, self.prep_delay = [], threading.Lock(), None, prep_delay
+        self.prepared = 0
 
     # ---------------------------------------------------------- packs
     def packs(self):
@@ -90,7 +136,13 @@ class Voices:
         return out
 
     # ---------------------------------------------------------- what to say
-    def compose(self, p, key, text, vars, lang):
+    def rng(self, key, text, vars):
+        """Directions always come out in the same words (so they can be spoken ahead of time and cached);
+        greetings and the like vary."""
+        if key in RANDOM_KEYS: return random
+        return random.Random(hashlib.sha1(f"{key}|{text}|{json.dumps(vars, sort_keys=True)}".encode()).hexdigest())
+
+    def compose(self, p, key, text, vars, lang, rng=random):
         """-> ("clip", path) | ("text", words). The pack's own lines only in its language."""
         if p.get("language", "en") not in ("*", lang):
             return ("text", text)
@@ -98,10 +150,10 @@ class Voices:
         if clips:
             clips = [clips] if isinstance(clips, str) else clips
             files = [Path(p["dir"]) / c for c in clips if "/" not in c and "\\" not in c and (Path(p["dir"]) / c).exists()]
-            if files: return ("clip", random.choice(files))
+            if files: return ("clip", rng.choice(files))
         line = (p.get("lines") or {}).get(key)
         if line:
-            line = random.choice(line) if isinstance(line, list) else line
+            line = rng.choice(line) if isinstance(line, list) else line
             try: said = line.format(**{"text": text, **vars})
             except (KeyError, IndexError, ValueError): said = None
             if said:
@@ -129,10 +181,12 @@ class Voices:
                               noise_w_scale=p.get("noise_w", 0.9), normalize_audio=False, volume=1.0)
         chunks, rate = [], 22050
         for ch in self._piper_voice(p["model"]).synthesize(text, cfg):
-            rate = ch.sample_rate; a = np.asarray(ch.audio_float_array, dtype=np.float32).reshape(-1)
+            rate = ch.sample_rate; a = trim_silence(np.asarray(ch.audio_float_array, dtype=np.float32).reshape(-1), rate)
             if a.size: chunks.append(a)
         if not chunks: return b""
-        return pcm_wav(shape_speech(chunks, rate, pause=float(p.get("pause", 0.22)), volume=float(p.get("volume", 1.0))), rate)
+        out = shape_speech(chunks, rate, pause=float(p.get("pause", 0.22)))
+        if p.get("car_eq", True): out = car_polish(out, rate, presence_db=float(p.get("presence_db", 3.0)))
+        return pcm_wav(out * float(p.get("volume", 1.0)), rate)
 
     def synth_espeak(self, p, text, fallback_voice):
         e = p.get("espeak") or {}
@@ -142,7 +196,7 @@ class Voices:
     def wav_for(self, p, text, fallback_voice):
         """Spoken audio for text (cached on disk, so repeated lines start instantly)."""
         use_piper = p.get("engine") == "piper" and self.model_ready(p.get("model"))
-        how = f"piper2:{p.get('model')}:{p.get('length_scale')}:{p.get('noise_scale')}:{p.get('noise_w')}:{p.get('pause')}" if use_piper else f"espeak:{json.dumps(p.get('espeak'))}:{fallback_voice}"
+        how = f"piper3:{p.get('car_eq', True)}:{p.get('presence_db')}:{p.get('volume')}:{p.get('model')}:{p.get('length_scale')}:{p.get('noise_scale')}:{p.get('noise_w')}:{p.get('pause')}" if use_piper else f"espeak:{json.dumps(p.get('espeak'))}:{fallback_voice}"
         f = self.cache / p["id"] / (hashlib.sha1(f"{how}|{text}".encode()).hexdigest() + ".wav")
         if f.exists():
             return f.read_bytes()
@@ -169,14 +223,64 @@ class Voices:
             try: hook()
             except Exception as e: log.debug("audio focus: %s", e)
 
-    async def say(self, pack_id, key, text, vars, lang, fallback_voice):
-        """Queue one utterance (they never talk over each other; a long backlog drops the extras)."""
+    def words(self, pack_id, key, text, vars, lang):
+        """(pack, "clip"|"text", what) - exactly what will be said for this prompt."""
         p = self.pack(pack_id)
         if lang != "en" and p.get("language", "en") not in ("*", lang):
             p = self.pack("standard")
-        kind, what = self.compose(p, key, text, vars or {}, lang)
+        rng = self.rng(key, text, vars)
+        kind, what = self.compose(p, key, text, vars, lang, rng)
         if kind == "text" and lang == "en":                     # read like a person would say it
-            what = humanize(what, p.get("phrases"))
+            what = humanize(what, p.get("phrases"), rng)
+        return p, kind, what
+
+    def prepare(self, pack_id, items, lang, fallback_voice):
+        """Speak ahead of time (into the cache, in the background, never while something is being said):
+        the next turns' prompts, so each one starts the moment it's due - no pause while the voice is
+        worked out. items = [{key, text, vars}]. Returns how many were queued."""
+        jobs = []
+        for it in items[:PREP_MAX]:
+            if not isinstance(it, dict): continue
+            p, kind, what = self.words(pack_id, str(it.get("key", ""))[:30], str(it.get("text", ""))[:300],
+                                       {k: str(v)[:200] for k, v in (it.get("vars") or {}).items() if isinstance(k, str)}, lang)
+            if kind == "text" and what: jobs.append((p, what, fallback_voice))
+        with self.prep_lock:
+            have = {(j[0]["id"], j[1]) for j in self.prep_queue}
+            for j in jobs:
+                if (j[0]["id"], j[1]) not in have: self.prep_queue.append(j); have.add((j[0]["id"], j[1]))
+            del self.prep_queue[:-PREP_MAX]                         # the newest route wins
+            if not (self.prep_thread and self.prep_thread.is_alive()):
+                self.prep_thread = threading.Thread(target=self._prep_run, daemon=True); self.prep_thread.start()
+        return len(jobs)
+
+    def prepare_lines(self, pack_id, lang, fallback_voice):
+        """The pack's fixed lines (greetings, rerouting, arrived) - every variant - ahead of time."""
+        p = self.pack(pack_id)
+        if p.get("language", "en") not in ("*", lang) or not (p.get("lines")): return 0
+        items = []
+        for key in ("greet", "rerouting", "arrived"):
+            line = p["lines"].get(key)
+            for l in (line if isinstance(line, list) else [line] if line else []):
+                if "{" not in l: items.append({"key": "_line", "text": l})
+        return self.prepare(pack_id, items, lang, fallback_voice)
+
+    def _prep_run(self):
+        try: os.setpriority(os.PRIO_PROCESS, threading.get_native_id(), 10)   # behind the map and the music
+        except (OSError, AttributeError): pass
+        while True:
+            with self.prep_lock:
+                if not self.prep_queue: return
+                p, what, fb = self.prep_queue.pop(0)
+            while self.waiting > 0: time.sleep(0.2)                  # something is being said: wait
+            try:
+                self.wav_for(p, what, fb); self.prepared += 1
+            except Exception as e:
+                log.debug("prepare %r: %s", what, e)
+            time.sleep(self.prep_delay)
+
+    async def say(self, pack_id, key, text, vars, lang, fallback_voice):
+        """Queue one utterance (they never talk over each other; a long backlog drops the extras)."""
+        p, kind, what = self.words(pack_id, key, text, vars or {}, lang)
         if not what: return False
         if self.waiting >= 3: return False                  # one speaking + two waiting at most
         self.waiting += 1

@@ -34,6 +34,32 @@ assert v.compose(v.pack("standard"), "greet", "", {}, "en") == ("text", "")
 assert v.compose(rc, "arrived", "Ha llegado.", {}, "es") == ("text", "Ha llegado."), "pack lines are English only"
 print("2) lines: templates with distance + turn, first turn after 'route set', plain turns, other languages")
 
+# 2b) directions always in the same words (so they can be spoken ahead of time); greetings vary
+cc = dict(v.pack("cruise-control")); cc["phrases"] = {"Turn left": ["Turn left", "Take a left", "Hang a left"]}
+same = {v.words("cruise-control", "in_dist", "In 0.5 miles, Turn left onto Elm St.", {"dist": "0.5 miles", "text": "Turn left onto Elm St"}, "en")[2] for _ in range(8)}
+assert len(same) == 1, same
+greets = {v.words("neon-guide", "greet", "", {}, "en")[2] for _ in range(40)}
+assert len(greets) > 1, "greetings still vary"
+print("2b) directions: the same words every time (cacheable); greetings vary")
+
+# 2c) spoken ahead of time: the next turns go into the cache in the background, then play at once
+import time as _t
+items = [{"key": "in_dist", "text": "In 0.5 miles, Turn left onto Oak St.", "vars": {"dist": "0.5 miles", "text": "Turn left onto Oak St"}},
+         {"key": "turn", "text": "Turn left onto Oak St.", "vars": {}}, "junk"]
+assert v.prepare("street-narrator", items, "en", "en-us") == 2
+for _ in range(100):
+    if v.prepared >= 2 and not (v.prep_thread and v.prep_thread.is_alive()): break
+    _t.sleep(0.05)
+before = len((T / "espeak.log").read_text().splitlines()) if (T / "espeak.log").exists() else 0
+asyncio.run(v.say("street-narrator", "turn", "Turn left onto Oak St.", {}, "en", "en-us"))
+after = len((T / "espeak.log").read_text().splitlines())
+assert v.prepared >= 2 and after == before, "the prompt was ready: nothing worked out at the turn"
+assert v.prepare_lines("neon-guide", "en", "en-us") >= 4, "greetings / rerouting / arrived ahead of time"
+(T / "played.bin").unlink()
+nav = (ROOT / "apps/nav/nav.js").read_text()
+assert "api('/api/say/prepare'" in nav and "say(P.heads.text, P.heads.key, P.heads.vars)" in nav, "the map asks for the next turns ahead"
+print("2c) the next turns spoken ahead of time (background): the prompt plays with no delay")
+
 # a pack of your own with recorded clips
 mine = T / "stick" / "HEADUNIT_VOICES" / "My-Voice"; mine.mkdir(parents=True)
 (mine / "voice.json").write_text(json.dumps({"name": "Mine", "language": "en", "engine": "espeak", "espeak": {"pitch": 70},

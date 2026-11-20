@@ -15,10 +15,18 @@ your own go on the head unit in `/var/lib/headunit/voices/packs/<name>/`, or on 
 | `length_scale` | speaking pace for Piper: below 1 faster, above 1 slower |
 | `noise_scale`, `noise_w` | how lively the voice sounds and how much its rhythm varies (Piper; about 0.6–0.9) |
 | `pause` | seconds of breath between sentences (e.g. 0.25) |
-| `phrases` | wording variety for directions, e.g. `{"Turn left": ["Turn left", "Take a left"]}` (one is picked each time) |
+| `phrases` | wording variety for directions, e.g. `{"Turn left": ["Turn left", "Take a left"]}` (one is picked per instruction, the same one each time it comes up, so it can be spoken ahead) |
 | `espeak` | `{voice, speed, pitch}`: used with `engine: espeak`, and while a Piper model is still downloading |
 | `lines` | what it says: `greet` (map opens), `route_started`, `rerouting`, `arrived` (a line or a list to pick from), `in_dist` (`{dist}` and `{text}` = the turn), `sample` |
 | `clips` | your own recordings instead of a spoken line: `{"arrived": ["arrived1.wav", "arrived2.wav"], ...}` (WAV files in the pack folder). Turn directions are always spoken by the voice. |
+| `car_eq` | `true` (default): the line is tuned for a car (rumble below ~110 Hz cut, consonants lifted around 3 kHz, gentle compression, every line at the same loudness); `false` leaves Piper's sound as it is |
+| `presence_db` | how much the consonant range is lifted (default 3) |
+
+How a voice stays fluid: the next few turns are spoken ahead of time in the background (the map sends
+them as soon as a turn is passed), so a prompt starts the moment it's due instead of after a pause while
+it's worked out; heads-ups use a set distance per road ("In half a mile" on highways, "In 1000 feet" in
+town) so they're the same words every time; Piper's own silences between sentences are trimmed and
+replaced by the pack's `pause`; a sign's long list of places is cut to the first two.
 
 Every voice reads directions the way a person says them (half a mile, North Main Street, Interstate 45,
 two close turns in one breath: bin/hu_speech.py), and lowers the music while it talks (DUCK_AUDIO=1 in

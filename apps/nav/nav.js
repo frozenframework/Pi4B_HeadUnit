@@ -392,7 +392,7 @@ async function routeTo(dest, reason = 'new') {
   if (performance.now() - t0 > 350) hideToast();
   if (r.error) { toast(r.message || t('nav.no_route')); logEvent('route_fail', { reason, err: r.error }); return false; }
   state.route = { ...r, cum: cumulative(r.shape) };
-  state.dest = dest; state.progress = 0; state.offCount = 0; state.spoken.clear();
+  state.dest = dest; state.progress = 0; state.offCount = 0; state.spoken.clear(); state.prepIdx = null;
   refreshRoute(); resetMarkers();
   document.body.classList.add('navigating'); $('guide').classList.remove('hidden'); $('destSheet').classList.add('hidden');
   logEvent('route_ok', { reason, ms: Math.round(performance.now() - t0), miles: +(r.summary.length).toFixed(1) });
@@ -485,20 +485,43 @@ function guide() {
   $('etaLeft').textContent = fmtTime(secs);
   $('etaDist').textContent = fmtDist(remaining, state.units);
   // voice prompts: about half a mile out (highway) or 1000 ft (city), then right before the turn
-  const far = state.speed > 20 ? 800 : 300;
-  const key = `${idx}`;
-  // two turns close together are said in one breath, like a person would: "turn left, then right onto Elm"
-  const quick = then && rt.cum[then.begin] - rt.cum[next.begin] < 160 && ![4, 5, 6].includes(next.type);
-  const both = (txt) => quick ? `${txt.replace(/[.!]\s*$/, '')}, ${t('nav.then_say', { text: spoken(then) })}` : txt;
-  if (toNext < far && toNext > 120 && !state.spoken.has(key + 'f')) {
-    state.spoken.add(key + 'f'); const txt = both(spoken(next));
-    say(t('nav.in_dist', { dist: sayDist(toNext), text: txt }), 'in_dist', { dist: sayDist(toNext), text: txt });
+  const ni = idx >= 0 ? idx : rt.maneuvers.length - 1, P = prompts(rt, ni), key = `${idx}`;
+  if (toNext < P.far && toNext > 120 && !state.spoken.has(key + 'f')) {
+    state.spoken.add(key + 'f');
+    if (toNext >= P.far * 0.6) say(P.heads.text, P.heads.key, P.heads.vars);     // the words spoken ahead of time
+    else { const dist = sayDist(toNext); say(t('nav.in_dist', { dist, text: P.txt }), 'in_dist', { dist, text: P.txt }); }
   }
   if (toNext <= 60 + state.speed * 3 && !state.spoken.has(key + 'n')) {
-    state.spoken.add(key + 'n'); say(both(spoken(next)), 'turn');
-    if (quick) state.spoken.add(`${idx + 1}f`);       // its own heads-up would come right after: skip it
+    state.spoken.add(key + 'n'); say(P.now.text, P.now.key, P.now.vars);
+    if (P.quick) state.spoken.add(`${idx + 1}f`);     // its own heads-up would come right after: skip it
   }
+  if (state.prepIdx !== ni) { state.prepIdx = ni; prepareAhead(rt, ni); }
   if (best.i % 5 === 0) refreshRoute();
+}
+
+// What's said for a maneuver: a heads-up at a set distance ("In half a mile, ...": the same words every time,
+// so it can be spoken ahead of time) and the turn itself. The heads-up distance follows the road (highway
+// speeds: half a mile; town: 1000 ft), not the moment's speed, so it's known in advance.
+function prompts(rt, idx) {
+  const next = rt.maneuvers[idx], then = rt.maneuvers[idx + 1], prev = rt.maneuvers[idx - 1];
+  const perUnit = rt.summary.units === 'miles' ? 1609.344 : 1000;
+  const roadSpeed = prev && prev.time > 0 ? prev.length * perUnit / prev.time : state.speed;
+  const far = roadSpeed > 20 ? 800 : 300;
+  // two turns close together are said in one breath, like a person would: "turn left, then right onto Elm"
+  const quick = !!then && rt.cum[then.begin] - rt.cum[next.begin] < 160 && ![4, 5, 6].includes(next.type);
+  const txt0 = spoken(next), txt = quick ? `${txt0.replace(/[.!]\s*$/, '')}, ${t('nav.then_say', { text: spoken(then) })}` : txt0;
+  const dist = sayDist(far);
+  return { far, quick, txt, heads: { text: t('nav.in_dist', { dist, text: txt }), key: 'in_dist', vars: { dist, text: txt } },
+           now: { text: txt, key: 'turn', vars: {} } };
+}
+// the next few turns' prompts, spoken into the cache in the background (bin/hu_voice.py prepare)
+function prepareAhead(rt, idx) {
+  if (!state.settings?.voice || PREVIEW || !rt) return;
+  const items = [];
+  for (let i = Math.max(1, idx); i < Math.min(rt.maneuvers.length, idx + 4); i++) {
+    const P = prompts(rt, i); items.push(P.heads, P.now);
+  }
+  if (items.length) api('/api/say/prepare', { json: { items } }).catch(() => {});
 }
 
 // key lets the chosen voice pack use its own line (Settings > Driving > Voice); text is the plain wording

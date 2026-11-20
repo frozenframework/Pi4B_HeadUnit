@@ -777,6 +777,15 @@ async def say(request):
     asyncio.create_task(voices.say(pack, key, text, vars, lang, voice_for(lang)))
     return web.json_response({"ok": True})
 
+async def say_prepare(request):
+    """{items: [{key, text, vars}]}: the next turns' prompts, spoken ahead of time into the cache (bin/hu_voice.py),
+    so each starts the moment it's due."""
+    body = await request.json(); s = settings()
+    if not s.get("voice", True): return web.json_response({"ok": False})
+    lang = s.get("language", "en")
+    n = voices.prepare(s.get("voicePack", "standard"), body.get("items") or [], lang, voice_for(lang))
+    return web.json_response({"ok": True, "queued": n})
+
 async def voices_api(request):
     what = request.match_info.get("what", "")
     if request.method == "POST" and what == "download":
@@ -823,6 +832,8 @@ async def settings_api(request):
     write_json(USER_DIR / "settings.json", s)
     if "voicePack" in body:
         start_voice_downloads()
+        lang = s.get("language", "en")
+        voices.prepare_lines(s.get("voicePack", "standard"), lang, voice_for(lang))
                               # the chosen voice first
     if s.get("startOnMap") != old_start:   # Hudiy's first screen: offline map or its own dashboard
         subprocess.Popen([sys.executable, "/opt/headunit/bin/hu-hudiy-start.py", "--config"],
@@ -1323,6 +1334,8 @@ async def on_start(app):
     except Exception: pass
     async def later():                               # ZIP centres for older search data: after the map is up
         await map_up(120); ZIPS.get(); FUEL.ensure()
+        s = settings()                               # the voice's greetings / rerouting / arrived lines, ready ahead of time
+        if s.get("voice", True): voices.prepare_lines(s.get("voicePack", "standard"), s.get("language", "en"), voice_for(s.get("language", "en")))
     app["zips"] = asyncio.create_task(later())
     usage("bridge_start", vehicle=C("VEHICLE_ID", ""))
     asyncio.get_running_loop().run_in_executor(None, hudiy_hotspot_guard)
@@ -1407,6 +1420,7 @@ def make_app():
     app.router.add_post("/api/music/control", music_control)
     app.router.add_route("*", "/api/radio/{action}", radio_api)
     app.router.add_post("/api/say", say)
+    app.router.add_post("/api/say/prepare", say_prepare)
     app.router.add_route("*", "/api/settings", settings_api)
     app.router.add_route("*", "/api/favorites", favorites_api)
     app.router.add_route("*", "/api/places", places_api)

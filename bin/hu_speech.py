@@ -7,6 +7,7 @@ Make English directions sound like a person said them (used by the voice packs, 
 - distances the way people say them (half a mile, a quarter mile, a mile and a half, about 2 miles)
 - road abbreviations read out (St, Ave, Rd, Dr, Blvd, Hwy, Pkwy, Ln, Ct, Jr, N/S/E/W...)
 - highway names (I-45, US 59, TX-105, SH 6, FM 1488, CR 123, Loop 336, Spur, Beltway 8)
+- a sign's list of places cut to the first two ("toward Houston and Downtown")
 - one capital letter per sentence, sensible punctuation, no doubled spaces or dots
 - optional per-pack wording variety ("phrases": {"Turn left": ["Turn left", "Take a left"]})
 """
@@ -90,6 +91,11 @@ def humanize(text, phrases=None, rng=random):
     t = re.sub(r"\b(" + "|".join(sorted(STREET, key=len, reverse=True)) + r")\b(\.?)", street, t)
     # slashes between road names read as a pause
     t = re.sub(r"\s*/\s*", ", ", t)
+    # a sign's whole list of places is too much to hear: the first two ("toward Houston and Downtown")
+    def toward(m):
+        items = [x.strip() for x in m.group(2).split(",") if x.strip()]
+        return m.group(1) + (" and ".join(items[:2]) if len(items) > 1 else (items[0] if items else ""))
+    t = re.sub(r"(\btowards?\s+)(.+?)(?=,\s*then\b|[!?;]|\.(?:\s+[A-Z]|\s*$)|$)", toward, t)
     # distances the way people say them
     t = _DIST.sub(lambda m: say_distance(m.group(1), m.group(2)), t)
     # per-pack wording variety at the start of a sentence or after "then"

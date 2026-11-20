@@ -11,7 +11,8 @@ import hu_hudiy_api as H
 
 cases = {
     "In 0.5 miles, Turn left onto N Main St.": "In half a mile, turn left onto North Main Street.",
-    "Take exit 87B toward I-45 S/US-59.": "Take exit 87 B toward Interstate 45 South, U.S. 59.",
+    "Take exit 87B toward I-45 S/US-59.": "Take exit 87 B toward Interstate 45 South and U.S. 59.",
+    "Take exit 87B toward I-45 S/US-59/Downtown/Houston.": "Take exit 87 B toward Interstate 45 South and U.S. 59.",
     "In 1.5 miles, Keep right to take TX-105 W.": "In a mile and a half, keep right to take Texas 105 West.",
     "Turn right onto St Johns Rd": "Turn right onto Saint Johns Road.",
     "Continue on FM 1488 for 2.3 miles.": "Continue on F.M. 1488 for 2 and a half miles.",
@@ -45,6 +46,41 @@ q = out[lead + len(s1) + int(rate * 0.25):][: len(s2)]
 assert np.max(np.abs(q)) > 0.1, "the quiet sentence is brought up with the rest (not left at 0.05)"
 w = wave.open(io.BytesIO(pcm_wav(out, rate))); assert (w.getframerate(), w.getsampwidth(), w.getnchannels()) == (rate, 2, 1)
 print("2) Piper lines: lead-in, breaths between sentences, soft edges, even loudness")
+
+# 2b) Piper's own padding trimmed; car polish: rumble out, consonants lifted, quiet parts up, same loudness
+from hu_voice import trim_silence, car_polish
+pad = np.concatenate([np.zeros(rate // 2, np.float32), s1, np.zeros(rate // 3, np.float32)])
+tr = trim_silence(pad, rate); assert abs(len(tr) - (len(s1) + 2 * int(rate * 0.03))) < int(rate * 0.005), len(tr)
+t_ = np.arange(rate) / rate
+def band(x, f): X = np.abs(np.fft.rfft(x)); fr = np.fft.rfftfreq(len(x), 1 / rate); return float(X[(fr > f * 0.9) & (fr < f * 1.1)].mean())
+mix = (0.2 * np.sin(2 * np.pi * 50 * t_) + 0.2 * np.sin(2 * np.pi * 3000 * t_) + 0.2 * np.sin(2 * np.pi * 800 * t_)).astype(np.float32)
+pol = car_polish(mix, rate)
+assert band(pol, 50) / band(pol, 800) < 0.5 * band(mix, 50) / band(mix, 800), "rumble below ~110 Hz cut"
+assert band(pol, 3000) / band(pol, 800) > 1.2 * band(mix, 3000) / band(mix, 800), "consonant range lifted"
+loud = (0.6 * np.sin(2 * np.pi * 500 * t_)).astype(np.float32); soft = (0.06 * np.sin(2 * np.pi * 500 * t_)).astype(np.float32)
+rms = lambda x: float(np.sqrt(np.mean(x[len(x) // 4: -len(x) // 4] ** 2)))
+assert abs(20 * np.log10(rms(car_polish(loud, rate)) / rms(car_polish(soft, rate)))) < 1.0, "every line at the same loudness"
+assert float(np.max(np.abs(car_polish(loud * 1.6, rate)))) <= 0.9, "peaks under -1 dB, no clipping"
+print("2b) Piper's padding trimmed; road-noise polish: rumble cut, consonants lifted, even loudness, no clipping")
+
+# 2c) the whole Piper path (a stand-in Piper: two padded sentences) -> one polished WAV
+import types
+class _Cfg:
+    def __init__(self, **k): self.k = k
+class _Chunk:
+    def __init__(self, a): self.sample_rate, self.audio_float_array = rate, a
+class _Voice:
+    def synthesize(self, text, cfg):
+        for a in (pad, np.concatenate([np.zeros(rate // 4, np.float32), (0.1 * np.sin(2 * np.pi * 400 * t_[: rate // 2])).astype(np.float32)])):
+            yield _Chunk(a)
+sys.modules["piper"] = types.SimpleNamespace(SynthesisConfig=_Cfg)
+from hu_voice import Voices as _V
+vv = _V(ROOT / "voices", Path(tempfile.mkdtemp())); vv._piper_voice = lambda m: _Voice()
+wav = vv.synth_piper({"model": "x", "pause": 0.25}, "In half a mile, turn left. Then right.")
+w2 = wave.open(io.BytesIO(wav)); n = w2.getnframes()
+expect = int(rate * 0.12) + len(tr) + int(rate * 0.25) + rate // 2 + int(rate * 0.03) + int(rate * 0.08)   # (2nd: speech to its very end)
+assert abs(n - expect) < int(rate * 0.02), (n, expect)      # Piper's long silences gone: just the breath we chose
+print("2c) Piper path: sentences trimmed, one breath between, polished for the car")
 
 # 3) audio focus: register after hello, duck before speaking, release after
 from fake_hudiy import FakeHudiy
