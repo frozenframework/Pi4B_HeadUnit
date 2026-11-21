@@ -41,5 +41,10 @@ for f in files[:2]:
     short = [(i, c, t) for i, c in enumerate(cs) for t in c["tel"] if len(re.sub(r"\D", "", t)) < 7]
     print(f"  numbers with fewer than 7 digits: {len(short)}")
     for i, c, t in short[:15]: print(f"    #{i} {name(c)}: '{t}'")
-    print(f"  contacts with no number: {sum(1 for c in cs if not c['tel'])}")
+    print(f"  contacts with no number (or only blank ones): {sum(1 for c in cs if not any(re.sub(r'[^0-9]', '', t) for t in c['tel']))}")
+    print("  (that's the file as the phone sent it: Hudiy reads it through the clean-up, without those)")
+import subprocess
+pid = subprocess.run(["pgrep", "-x", "hudiy"], capture_output=True, text=True).stdout.split()
+loaded = bool(pid) and "hu-vcf-filter" in open(f"/proc/{pid[0]}/maps").read()
+print("\nHudiy reads the contacts through the clean-up (lib/hu-vcf-filter.so):", "yes" if loaded else "NO" if pid else "Hudiy isn't running")
 PY

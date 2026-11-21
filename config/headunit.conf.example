@@ -67,3 +67,8 @@ GPS_USB=""
 # Satellite systems the receiver listens to (set each time it's plugged in). More systems = more
 # satellites = a faster, steadier position. GPS is always on. The VK-162 can only use one (GPS).
 GPS_SYSTEMS="gps,glonass,galileo"
+
+# Hudiy reads the phone's contacts without the ones that have neither a number nor an address, and
+# without blank numbers (they made its call screen show the same wrong name for every caller).
+# 0 = Hudiy reads them exactly as the phone sends them.
+HUDIY_CONTACTS_FILTER=1

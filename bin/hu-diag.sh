@@ -97,6 +97,8 @@ print("fix:", {None: "no report", 0: "none", 1: "none yet", 2: "2D", 3: "3D"}.ge
   journalctl -b --no-pager -u gpsd -u 'gpsdctl@*' -u 'headunit-gps-setup@*' -n 30 2>&1 | tail -30
   sec "Hudiy"; ls -la "$H/.hudiy/share" 2>&1 | head -40
   (exec 3<>/dev/tcp/127.0.0.1/44405) 2>/dev/null && echo "Hudiy API (44405): answering" || echo "Hudiy API (44405): not answering"
+  hp=$(pgrep -u "$UID_" -x hudiy | head -1)
+  echo "contacts clean-up (lib/hu-vcf-filter.so): built $([ -f /opt/headunit/lib/hu-vcf-filter.so ] && echo yes || echo no), loaded in Hudiy $([ -n "$hp" ] && grep -qs hu-vcf-filter "/proc/$hp/maps" && echo yes || echo no)"
   sec "accounts / desktop login"; getent passwd 1000 "$U"; grep -E '^(autologin-user|autologin-session|user-session)=' /etc/lightdm/lightdm.conf
   sec "lightdm (first problems, then the end)"; grep -m 15 -iE "fail|error|exit|crit" /var/log/lightdm/lightdm.log 2>&1; echo ...; tail -15 /var/log/lightdm/lightdm.log 2>&1
   sec "starts recorded by the journal"; journalctl --list-boots --no-pager 2>&1 | tail -6

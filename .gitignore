@@ -28,3 +28,7 @@ __pycache__/
 *.pyc
 .DS_Store
 .vscode/
+
+# Built on the head unit (setup.d/90-hudiy.sh)
+lib/*.so
+lib/*.so.tmp

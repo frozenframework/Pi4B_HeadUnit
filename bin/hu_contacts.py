@@ -12,6 +12,10 @@ How it works:
   - every 20 s, the phones connected to the head unit's Bluetooth that offer PBAP (BlueZ, system bus)
   - a phone that just connected (or whose contacts are over 6 hours old) is asked for its phonebook
     through BlueZ's obexd (session bus; busctl, so no extra Python packages), as vCards
+  - contacts with neither a phone number nor an address are skipped; each pull (every connection, or
+    every 6 hours) starts over, so a contact that gets a number or an address later is picked up then.
+    Hudiy fetches the phonebook too, for its own phone screens: it reads it through the same rule
+    (lib/hu-vcf-filter.c)
   - only contacts with a street address are kept: name, label (Home / Work), the address and where it
     is on the map (found with the offline address search, bin/hu_addr.py). No phone numbers, notes or
     pictures on disk; the numbers are kept in memory only, to name who's calling on the map (caller()). Saved per phone in USER_DIR/contacts/<phone>.json, readable only by the head-unit user,
